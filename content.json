@@ -1,0 +1,134 @@
+{
+  "site": {
+    "name": "Būk arčiau",
+    "url": "https://bukarciau.lt",
+    "email": "info@bukarciau.lt",
+    "phone": "+37060571562",
+    "phoneDisplay": "+370 605 71562",
+    "facebook": "https://www.facebook.com/profile.php?id=61595415578505",
+    "heroTitle": "Būk arčiau.",
+    "heroText": "[Čia bus pagrindinė jūsų žinutė.]",
+    "heroImage": null,
+    "aboutText": [
+      "[Čia trumpai prisistatykite: kas esate ir kokias stovyklas kuriate.]",
+      "[Kam skirti jūsų susitikimai? Ką norite apie juos pasakyti?]"
+    ],
+    "statement": "[Čia bus jūsų sakinys apie bendrystę.]",
+    "statementImage": null,
+    "story": [
+      "[Čia papasakokite, kaip susipažinote ir kodėl pradėjote kurti kartu.]",
+      "[Ką norėtumėte, kad moterys žinotų apie jus prieš susitikimą?]"
+    ],
+    "togetherImage": null,
+    "draft": true,
+    "storyTitle": "[Mūsų istorija]"
+  },
+  "organizers": [
+    {
+      "name": "[Vardas]",
+      "text": "[Trumpas prisistatymas: patirtis, veikla ir tai, kuo dalinsitės stovyklose.]",
+      "image": null
+    },
+    {
+      "name": "[Vardas]",
+      "text": "[Trumpas prisistatymas: patirtis, veikla ir tai, kuo dalinsitės stovyklose.]",
+      "image": null
+    }
+  ],
+  "camps": [
+    {
+      "slug": "stovykla-01",
+      "title": "[Stovyklos pavadinimas]",
+      "summary": "[Trumpas stovyklos aprašymas.]",
+      "date": "[Data]",
+      "location": "[Vieta]",
+      "price": "[Kaina]",
+      "image": null,
+      "secondaryImage": null,
+      "description": [
+        "[Čia aprašykite stovyklą: kam ji skirta, ką veiksite ir ką svarbu žinoti prieš atvykstant.]"
+      ],
+      "program": [
+        {
+          "title": "[Pirma diena]",
+          "text": "[Dienos programa ir veiklos.]"
+        },
+        {
+          "title": "[Antra diena]",
+          "text": "[Dienos programa ir veiklos.]"
+        },
+        {
+          "title": "[Trečia diena]",
+          "text": "[Dienos programa ir veiklos.]"
+        }
+      ],
+      "included": [
+        "[Kas įskaičiuota į kainą?]"
+      ],
+      "notIncluded": [
+        "[Kuo pasirūpinti pačiai?]"
+      ],
+      "faq": [
+        {
+          "question": "Kam skirta ši stovykla?",
+          "answer": "[Jūsų atsakymas.]"
+        },
+        {
+          "question": "Kaip atvykti ir ką atsivežti?",
+          "answer": "[Jūsų atsakymas.]"
+        },
+        {
+          "question": "Kokios registracijos ir atšaukimo sąlygos?",
+          "answer": "[Jūsų atsakymas.]"
+        }
+      ],
+      "registrationUrl": null,
+      "introTitle": "[Stovyklos pristatymas]"
+    },
+    {
+      "slug": "stovykla-02",
+      "title": "[Stovyklos pavadinimas]",
+      "summary": "[Trumpas stovyklos aprašymas.]",
+      "date": "[Data]",
+      "location": "[Vieta]",
+      "price": "[Kaina]",
+      "image": null,
+      "secondaryImage": null,
+      "description": [
+        "[Čia aprašykite stovyklą: kam ji skirta, ką veiksite ir ką svarbu žinoti prieš atvykstant.]"
+      ],
+      "program": [
+        {
+          "title": "[Pirma diena]",
+          "text": "[Dienos programa ir veiklos.]"
+        },
+        {
+          "title": "[Antra diena]",
+          "text": "[Dienos programa ir veiklos.]"
+        }
+      ],
+      "included": [
+        "[Kas įskaičiuota į kainą?]"
+      ],
+      "notIncluded": [
+        "[Kuo pasirūpinti pačiai?]"
+      ],
+      "faq": [
+        {
+          "question": "Kam skirta ši stovykla?",
+          "answer": "[Jūsų atsakymas.]"
+        },
+        {
+          "question": "Kaip atvykti ir ką atsivežti?",
+          "answer": "[Jūsų atsakymas.]"
+        },
+        {
+          "question": "Kokios registracijos ir atšaukimo sąlygos?",
+          "answer": "[Jūsų atsakymas.]"
+        }
+      ],
+      "registrationUrl": null,
+      "introTitle": "[Stovyklos pristatymas]"
+    }
+  ]
+}
