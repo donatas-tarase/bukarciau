@@ -2,7 +2,7 @@
 
 Rekomenduojama Cloudflare Pages: statinių failų užklausos nemokamos, galima prijungti GitHub ir nuosavą domeną. GitHub Pages nemokamame plane reikalauja viešos saugyklos, o jų naudojimo taisyklės riboja verslui ir komerciniams sandoriams skirtas svetaines. Mokamų stovyklų svetainei Cloudflare Pages tinkamesnis pasirinkimas. [Cloudflare kainodara](https://developers.cloudflare.com/pages/functions/pricing/), [GitHub Pages apribojimai](https://docs.github.com/en/pages/getting-started-with-github-pages/github-pages-limits)
 
-`bukarciau.lt` gali likti registruotas Hostingeryje. DNS jau aptarnauja Cloudflare; vardų serveriai – `pete.ns.cloudflare.com` ir `vivienne.ns.cloudflare.com`. Registratoriaus perkelti nereikia.
+`bukarciau.lt` gali likti registruotas Hostingeryje. DNS jau aptarnauja Cloudflare; vardų serveriai - `pete.ns.cloudflare.com` ir `vivienne.ns.cloudflare.com`. Registratoriaus perkelti nereikia.
 
 ## Dabartinis publikavimo būdas
 
@@ -20,7 +20,7 @@ Jei Wrangler neprisijungęs, prieš diegimą vieną kartą vykdykite `npx wrangl
 
 ## Jei vėliau reikės automatinio publikavimo
 
-Bandant prijungti GitHub, Cloudflare grąžino `8000011` – esamo Git įdiegimo vidinę klaidą. Todėl Git integracija dabar neįjungta. Ji tvarkoma per **Cloudflare Workers & Pages** programėlės prieigą GitHub nustatymuose; turimos prieigos neatšaukite nepatikrinę, ar jos nenaudoja kiti projektai.
+Bandant prijungti GitHub, Cloudflare grąžino `8000011` - esamo Git įdiegimo vidinę klaidą. Todėl Git integracija dabar neįjungta. Ji tvarkoma per **Cloudflare Workers & Pages** programėlės prieigą GitHub nustatymuose; turimos prieigos neatšaukite nepatikrinę, ar jos nenaudoja kiti projektai.
 
 Direct Upload projekto negalima tiesiog perjungti į Git integraciją. Sutvarkius prieigą reikėtų naujo Pages projekto ir perkelti domeną tik patikrinus naują diegimą. Git integracijos nustatymai:
 
@@ -38,7 +38,7 @@ Direct Upload projekto negalima tiesiog perjungti į Git integraciją. Sutvarkiu
 
 ## Prijungtas domenas
 
-Domenai jau pridėti prie Pages projekto `bukarciau`, Cloudflare jų būsena – **active**. Svetainė: [https://bukarciau.lt](https://bukarciau.lt); tiesioginis adresas – [https://bukarciau.pages.dev](https://bukarciau.pages.dev).
+Domenai jau pridėti prie Pages projekto `bukarciau`, Cloudflare jų būsena - **active**. Svetainė: [https://bukarciau.lt](https://bukarciau.lt); tiesioginis adresas - [https://bukarciau.pages.dev](https://bukarciau.pages.dev).
 
 Cloudflare DNS įrašai:
 
@@ -63,7 +63,7 @@ Palikite ir kitus esamus SPF, DKIM, DMARC bei patvirtinimo įrašus. Nejunkite H
 
 ## Paskelbto atnaujinimo patikra
 
-Pagrindiniame puslapyje ir adresu `/stovyklos/stovykla-01/` turi būti ta pati viena stovykla. Kompiuteryje ir telefone patikrinkite, kad kvietimo video automatiškai kartojamas be garso ir įprastos grotuvo juostos. Garso mygtukas turi įjungti garsą ir paleisti kvietimą nuo pradžios, o kitas mygtukas — pristabdyti ir vėl paleisti. Jei automatinį atkūrimą užblokuoja naršyklė, paleidimas turi veikti mygtuku. Pasirinkus mažiau judesio įrenginio nustatymuose, video turi būti sustabdytas. Patikrinkite viršelį ir išskleidžiamą kvietimo tekstą.
+Pagrindiniame puslapyje ir adresu `/stovyklos/stovykla-01/` turi būti ta pati viena stovykla. Kompiuteryje ir telefone patikrinkite, kad kvietimo video automatiškai kartojamas be garso ir įprastos grotuvo juostos. Garso mygtukas turi įjungti garsą ir paleisti kvietimą nuo pradžios, o kitas mygtukas - pristabdyti ir vėl paleisti. Jei automatinį atkūrimą užblokuoja naršyklė, paleidimas turi veikti mygtuku. Pasirinkus mažiau judesio įrenginio nustatymuose, video turi būti sustabdytas. Patikrinkite viršelį ir išskleidžiamą kvietimo tekstą.
 
 Video siunčiamas automatiškai; dabartinis MP4 yra maždaug 11,7 MB. Po pakeitimo patikrinkite įkėlimą ir lėtesniu mobiliuoju ryšiu.
 

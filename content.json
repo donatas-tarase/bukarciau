@@ -9,7 +9,7 @@
     "heroTitle": "Moterų savaitgalis.",
     "heroText": "Atokvėpis nuo kasdienybės, tikri pokalbiai ir kitų moterų draugija. Gruodžio 5 d. kviečiame susitikti.",
     "aboutText": [
-      "Mes — Miglė ir Miglė. Kuriame moterų bendrystės stovyklą, kurioje galėtume pabūti su savimi ir kitų moterų draugijoje.",
+      "Mes - Miglė ir Miglė. Kuriame moterų bendrystės stovyklą, kurioje galėtume pabūti su savimi ir kitų moterų draugijoje.",
       "Norime jaukaus susitikimo, kur kiekviena galėtų būti tikra, be kaukių ir bandymų kažkam kažką įrodyti."
     ],
     "story": [
@@ -45,7 +45,7 @@
         },
         {
           "speaker": "Miglė",
-          "text": "Mes, Miglės, norime su jumis pasidalinti savo idėja — sukurti moterų bendrystės stovyklą."
+          "text": "Mes, Miglės, norime su jumis pasidalinti savo idėja - sukurti moterų bendrystės stovyklą."
         },
         {
           "speaker": "Miglė",
@@ -92,7 +92,7 @@
       "secondaryImage": null,
       "description": [
         "Kviečiame į moterų bendrystės stovyklą: atokvėpiui nuo kasdienybės, tikriems pokalbiams ir naujoms pažintims.",
-        "Norime susitikti jaukiai — be kaukių ir bandymų kažkam kažką įrodyti. Pabūti su savimi ir kitų moterų draugijoje."
+        "Norime susitikti jaukiai - be kaukių ir bandymų kažkam kažką įrodyti. Pabūti su savimi ir kitų moterų draugijoje."
       ],
       "program": [],
       "included": [],

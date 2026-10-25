@@ -2,17 +2,17 @@
 
 Redaguokite `content.json`, tuomet paleiskite `npm run build` ir `npm run check`. Generuojamo `dist/` aplanko tiesiogiai redaguoti nereikia.
 
-Svetainėje palikta viena moterų savaitgalio stovykla. Žinoma data — gruodžio 5 d.; metai ir pabaigos data nenurodyti. Tekstai remiasi Miglės ir Miglės įrašytu kvietimu. Vieta, kaina, programa ir Google Forms nuoroda dar negautos. Nežinomus duomenis palikite `null` arba tuščią masyvą — svetainė parodys jų būseną ir nerodys išgalvotų programos dienų.
+Svetainėje palikta viena moterų savaitgalio stovykla. Žinoma data - gruodžio 5 d.; metai ir pabaigos data nenurodyti. Tekstai remiasi Miglės ir Miglės įrašytu kvietimu. Vieta, kaina, programa ir Google Forms nuoroda dar negautos. Nežinomus duomenis palikite `null` arba tuščią masyvą - svetainė parodys jų būseną ir nerodys išgalvotų programos dienų.
 
 ## Pagrindinė informacija
 
 | Laukas | Turinys |
 | --- | --- |
 | `site.name`, `site.url` | Pavadinimas ir pagrindinis svetainės adresas |
-| `site.draft` | `true` — maketas su `noindex`; `false` — galutinė versija su indeksavimu ir svetainės žemėlapiu |
-| `site.email`, `site.phone`, `site.phoneDisplay`, `site.facebook` | Kontaktai; `phone` be tarpų, `phoneDisplay` — rodomas numeris |
+| `site.draft` | `true` - maketas su `noindex`; `false` - galutinė versija su indeksavimu ir svetainės žemėlapiu |
+| `site.email`, `site.phone`, `site.phoneDisplay`, `site.facebook` | Kontaktai; `phone` be tarpų, `phoneDisplay` - rodomas numeris |
 | `site.heroTitle`, `site.heroAccent`, `site.heroText` | Pirmo ekrano antraštė, išskirta jos dalis ir trumpas kvietimas |
-| `site.aboutText` | Trumpas Miglių prisistatymas; kiekvienas masyvo elementas — pastraipa |
+| `site.aboutText` | Trumpas Miglių prisistatymas; kiekvienas masyvo elementas - pastraipa |
 | `site.themes` | Trys kvietimo temos su laukais `title` ir `text` |
 | `site.storyTitle`, `site.story` | Prisistatymo puslapio antraštė ir pastraipos |
 
@@ -26,7 +26,7 @@ Video nustatymai laikomi objekte `site.video`:
 | `poster` | Video viršelio kelias: `/assets/migliu-kvietimas-poster.jpg` |
 | `title` | Video pavadinimas pagalbinėms skaitymo priemonėms |
 | `durationLabel` | Rodoma video trukmė; pakeiskite kartu su įrašu |
-| `transcript` | Kvietimo tekstas: masyvo objektuose `speaker` — kalbėtoja, `text` — jos žodžiai |
+| `transcript` | Kvietimo tekstas: masyvo objektuose `speaker` - kalbėtoja, `text` - jos žodžiai |
 
 Atidarius puslapį video automatiškai kartojamas be garso, telefone lieka pačiame puslapyje. Įprastos naršyklės grotuvo juostos nėra. Atskiri mygtukai leidžia įjungti garsą bei pristabdyti arba paleisti įrašą; garso įjungimas paleidžia visą kvietimą nuo pradžios. Jei naršyklė neleidžia automatinio atkūrimo, video galima paleisti mygtuku. Pasirinkus mažiau judesio įrenginio nustatymuose, automatinis atkūrimas sustabdomas.
 
@@ -38,7 +38,7 @@ Keisdami įrašą paruoškite MP4 su H.264 vaizdu ir AAC garsu; išlaikykite tei
 
 ## Vienintelė stovykla
 
-`camps` masyve palikite vieną objektą — `camps[0]`.
+`camps` masyve palikite vieną objektą - `camps[0]`.
 
 | Laukas | Turinys |
 | --- | --- |
@@ -48,7 +48,7 @@ Keisdami įrašą paruoškite MP4 su H.264 vaizdu ir AAC garsu; išlaikykite tei
 | `location`, `price` | Patvirtinta vieta ir kaina arba `null` |
 | `image` | Stovyklos puslapio nuotraukos kelias arba `null` |
 | `description` | Aprašymo pastraipos |
-| `program` | Programos blokai su laukais `title` ir `text`; kol programa nežinoma — `[]` |
+| `program` | Programos blokai su laukais `title` ir `text`; kol programa nežinoma - `[]` |
 | `faq` | Klausimai ir atsakymai: `question`, `answer` |
 | `registrationUrl` | Tikra Google Forms HTTPS nuoroda arba `null` |
 
@@ -72,7 +72,7 @@ Failus įkelkite į `assets/`, o atitinkamame lauke įrašykite kelią, pavyzdž
 "image": "/assets/stovykla.webp"
 ```
 
-Naudokite aiškius failų pavadinimus be tarpų ir optimizuotas WebP, JPG arba PNG nuotraukas. Bendrai horizontaliai nuotraukai tinka maždaug 1600–2000 px plotis. Svarbius veidus laikykite arčiau centro: skirtinguose ekranuose nuotraukos kraštai gali būti apkerpami. Originalus pasilikite atskirai.
+Naudokite aiškius failų pavadinimus be tarpų ir optimizuotas WebP, JPG arba PNG nuotraukas. Bendrai horizontaliai nuotraukai tinka maždaug 1600-2000 px plotis. Svarbius veidus laikykite arčiau centro: skirtinguose ekranuose nuotraukos kraštai gali būti apkerpami. Originalus pasilikite atskirai.
 
 `assets/logo-original.jpeg` nekeiskite: tai gautas originalas. Svetainės logotipas ir favicon laikomi atskiruose failuose.
 
