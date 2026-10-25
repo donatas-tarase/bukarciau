@@ -63,13 +63,11 @@ Palikite ir kitus esamus SPF, DKIM, DMARC bei patvirtinimo įrašus. Nejunkite H
 
 ## Paskelbto atnaujinimo patikra
 
-Pagrindiniame puslapyje ir adresu `/stovyklos/stovykla-01/` turi būti ta pati viena stovykla. Kompiuteryje ir telefone patikrinkite, kad pirmo ekrano video automatiškai kartojamas be garso ir įprastos grotuvo juostos. Fonas užpildo ekraną, todėl jo kraštai gali būti apkerpami. Mygtukas „Klausyti kvietimo“ turi atidaryti visą vertikalų kadrą lange, įjungti garsą ir paleisti kvietimą nuo pradžios. Patikrinkite lango uždarymą mygtuku ir Escape klavišu, klaviatūros fokusą bei grįžimą prie nutildyto fono. Turi būti naudojamas tas pats video, be antro failo atsisiuntimo.
+Pagrindiniame puslapyje ir adresu `/stovyklos/stovykla-01/` turi būti ta pati viena stovykla. Kompiuteryje ir telefone patikrinkite meniu, antraščių išdėstymą, kontaktų nuorodas ir registracijos mygtukus. Nuotraukos ir video šiame makete nerodomi; dekoratyvios sritys turi likti tuščios, be vietų užrašų ar ikonų.
 
-Pristabdymo mygtukas turi veikti fone ir atidarytame lange. Pristabdę foną, atidarykite ir uždarykite kvietimą - fonas turi likti sustabdytas. Jei automatinį atkūrimą užblokuoja naršyklė, paleidimas turi veikti mygtuku. Pasirinkus mažiau judesio įrenginio nustatymuose, fono video turi būti sustabdytas ir uždarius langą. Patikrinkite viršelį ir išskleidžiamą kvietimo tekstą.
+Build automatiškai prideda turinio versiją `?v=…` prie CSS ir JavaScript nuorodų. Pakeitus atitinkamą failą pasikeičia ir jo nuorodos versija, todėl ankstesnė naršyklės ar Cloudflare kopija neužstoja atnaujinimo. Failų vardų keisti nereikia; svarbu po pakeitimų iš naujo sugeneruoti ir paskelbti visą `dist/`.
 
-Video siunčiamas automatiškai; dabartinis MP4 yra maždaug 16,1 MB. Po pakeitimo patikrinkite įkėlimą ir lėtesniu mobiliuoju ryšiu.
-
-Build automatiškai prideda turinio versiją `?v=…` prie CSS, JavaScript, MP4 ir video viršelio nuorodų. Pakeitus atitinkamą failą pasikeičia ir jo nuorodos versija, todėl ankstesnė naršyklės ar Cloudflare kopija neužstoja atnaujinimo. Failų vardų keisti nereikia; svarbu po pakeitimų iš naujo sugeneruoti ir paskelbti visą `dist/`.
+Į `dist/assets/` kopijuojami tik logotipo failai ir šriftai. Ankstesni saugykloje likę video ar viršelio failai į naują diegimą neįtraukiami.
 
 Kol `camps[0].registrationUrl` yra `null`, kvietimas dalyvauti turi vesti į aiškią registracijos būseną ir tikrą kontaktą. Įrašę Google Forms nuorodą patikrinkite, kad ji atsidaro tiek iš pagrindinio, tiek iš stovyklos puslapio, taip pat atsijungus nuo Google paskyros. Prieš skelbdami pašalinkite su naujais duomenimis nebesutampančius DUK atsakymus.
 
@@ -77,6 +75,6 @@ Kol `camps[0].registrationUrl` yra `null`, kvietimas dalyvauti turi vesti į ai�
 
 ## Iš maketo į viešą svetainę
 
-Kol rodomi vietaženkliai, `content.json` palikite `site.draft: true`. Taip puslapiai generuojami su `noindex, nofollow`, o `robots.txt` riboja indeksavimą. Viešas peržiūros adresas nėra privati prieiga.
+Kol maketas ir informacija dar derinami, `content.json` palikite `site.draft: true`. Taip puslapiai generuojami su `noindex, nofollow`, o `robots.txt` riboja indeksavimą. Viešas peržiūros adresas nėra privati prieiga.
 
-Kai organizatorės patvirtins tekstus, nuotraukas, stovyklos informaciją ir veikiančią formą, pakeiskite `site.draft` į `false`. Po `npm run build` bus pašalinta `noindex` žyma, `robots.txt` leis indeksavimą ir atsiras `sitemap.xml`. `site.url` palikite `https://bukarciau.lt`. Paleiskite `npm run check`, paskelbkite įprasta Wrangler komanda ir patikrinkite, ar tikrajame domene matoma nauja versija.
+Kai organizatorės patvirtins tekstus, stovyklos informaciją ir veikiančią formą, pakeiskite `site.draft` į `false`. Po `npm run build` bus pašalinta `noindex` žyma, `robots.txt` leis indeksavimą ir atsiras `sitemap.xml`. `site.url` palikite `https://bukarciau.lt`. Paleiskite `npm run check`, paskelbkite įprasta Wrangler komanda ir patikrinkite, ar tikrajame domene matoma nauja versija.

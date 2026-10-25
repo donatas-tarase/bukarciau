@@ -7,7 +7,6 @@
     "phoneDisplay": "+370 605 71562",
     "facebook": "https://www.facebook.com/profile.php?id=61595415578505",
     "heroTitle": "Moterų savaitgalis.",
-    "heroText": "Atokvėpis nuo kasdienybės, tikri pokalbiai ir kitų moterų draugija. Gruodžio 5 d. kviečiame susitikti.",
     "aboutText": [
       "Mes - Miglė ir Miglė. Kuriame moterų bendrystės stovyklą, kurioje galėtume pabūti su savimi ir kitų moterų draugijoje.",
       "Norime jaukaus susitikimo, kur kiekviena galėtų būti tikra, be kaukių ir bandymų kažkam kažką įrodyti."
@@ -20,65 +19,7 @@
     "togetherImage": null,
     "draft": true,
     "storyTitle": "Miglė ir Miglė.",
-    "heroAccent": "Būk arčiau.",
-    "video": {
-      "src": "/assets/migliu-kvietimas.mp4",
-      "poster": "/assets/migliu-kvietimas-poster.jpg",
-      "title": "Miglės kviečia susitikti",
-      "durationLabel": "43 sek.",
-      "transcript": [
-        {
-          "speaker": "Miglė",
-          "text": "Jei matai šį video ir tau patinka mūsų idėja, susimatom gruodžio 5-tą dieną, moterų savaitgalio stovykloje. O kas mes?"
-        },
-        {
-          "speaker": "Abi Miglės",
-          "text": "Labas!"
-        },
-        {
-          "speaker": "Miglė",
-          "text": "Aš Miglė."
-        },
-        {
-          "speaker": "Miglė",
-          "text": "Ir aš Miglė."
-        },
-        {
-          "speaker": "Miglė",
-          "text": "Mes, Miglės, norime su jumis pasidalinti savo idėja - sukurti moterų bendrystės stovyklą."
-        },
-        {
-          "speaker": "Miglė",
-          "text": "Neabejojame, kad kiekvienai iš mūsų kartais reikia atokvėpio, poilsio nuo kasdienybės, pabūti su savimi ar kitų moterų draugijoje."
-        },
-        {
-          "speaker": "Miglė",
-          "text": "Labai tikimės jaukaus susitikimo kartu, kur kiekviena galėtų būti tikra, be kaukių ir be bandymų kažkam kažką įrodyti."
-        },
-        {
-          "speaker": "Miglė",
-          "text": "Norime sukurti jaukią erdvę tikriems pokalbiams, nuoširdžiam juokui ir naujoms pažintims."
-        },
-        {
-          "speaker": "Miglė",
-          "text": "Neabejoju, kad kiekviena moteris bus išgirsta, pamatyta ir priimta."
-        }
-      ]
-    },
-    "themes": [
-      {
-        "title": "Atokvėpis",
-        "text": "Laikas poilsiui nuo kasdienybės ir pabuvimui su savimi."
-      },
-      {
-        "title": "Bendrystė",
-        "text": "Tikri pokalbiai, nuoširdus juokas ir naujos pažintys."
-      },
-      {
-        "title": "Be kaukių",
-        "text": "Galimybė būti savimi, be bandymų kažkam kažką įrodyti."
-      }
-    ]
+    "heroAccent": "Būk arčiau."
   },
   "camps": [
     {

@@ -49,6 +49,7 @@ async function filesIn(directory) {
 const documents = new Map();
 const allFiles = await filesIn(dist).catch(() => []);
 const htmlFiles = allFiles.filter(path => path.endsWith('.html'));
+check(!allFiles.some(path => /\.(?:mp4|mov|webm|vtt|mp3|wav|ogg|jpe?g|png|webp|avif|gif)$/i.test(path) && path !== join(dist, 'assets/logo-original.jpeg')), 'Dabartinis build neturi publikuoti nuotraukų ar video.');
 check(htmlFiles.length > 0, 'Nėra sugeneruotų puslapių. Pirmiausia paleiskite npm run build.');
 for (const file of htmlFiles) {
   const html = await readFile(file, 'utf8');
@@ -66,8 +67,13 @@ for (const file of htmlFiles) {
   check(!/[\u2010-\u2015\u2212]/u.test(decode(html.replace(/<[^>]*>/g, ''))), `${label}: tekste brūkšniams naudokite tik paprastą - ženklą.`);
   check(elements.some(tag => tag.name === 'link' && tag.attrs.rel === 'stylesheet' && versionedAsset(tag.attrs.href, '/styles.css')), `${label}: stilių nuorodai trūksta versijos, kad lankytojos gautų atnaujinimus.`);
   check(elements.some(tag => tag.name === 'script' && versionedAsset(tag.attrs.src, '/app.js')), `${label}: programos failo nuorodai trūksta versijos, kad lankytojos gautų atnaujinimus.`);
+  check(!elements.some(tag => ['video', 'audio', 'source', 'track', 'dialog'].includes(tag.name)), `${label}: dabartiniame makete neturi būti video, garso ar jų dialogo.`);
+  check(!/Čia bus|Vieta nuotraukai|Vieta bendrai stovyklos nuotraukai|Kvietimo tekstas/i.test(decode(html)), `${label}: liko nuotraukos vietos žyma arba video išrašas.`);
   for (const {name, attrs} of elements) {
-    if (name === 'img') check('alt' in attrs, `${label}: nuotrauka neturi alt atributo (${attrs.src}).`);
+    if (name === 'img') {
+      check('alt' in attrs, `${label}: logotipas neturi alt atributo (${attrs.src}).`);
+      check(['/assets/logo.svg', '/assets/logo-original.jpeg', '/assets/favicon.svg'].includes(localAssetUrl(attrs.src)?.pathname), `${label}: dabartiniame makete gali būti tik logotipo paveikslėliai.`);
+    }
     for (const attr of ['aria-controls', 'aria-labelledby', 'aria-describedby']) {
       if (attrs[attr]) for (const id of attrs[attr].split(/\s+/)) check(ids.includes(id), `${label}: ${attr} nurodo neegzistuojantį #${id}.`);
     }
@@ -135,39 +141,6 @@ function registrationState(html, configuredUrl, label) {
     check(elements.some(tag => tag.name === 'a' && tag.attrs.href?.startsWith('mailto:info@bukarciau.lt')), `${label}: laukiant registracijos turi būti tikras kontaktas.`);
   }
 }
-async function videoState(document, directory, label) {
-  const videos = document.elements.filter(tag => tag.name === 'video');
-  check(videos.length === 1, `${label}: turi būti vienas Miglių kvietimo video.`);
-  for (const {attrs} of videos) {
-    check(attrs.id === 'promo-video', `${label}: vienintelis video turi būti susietas su puslapio valdymu.`);
-    check(['autoplay', 'muted', 'loop', 'playsinline'].every(key => key in attrs), `${label}: video turi automatiškai kartotis be garso ir veikti puslapyje telefone.`);
-    check(!('controls' in attrs), `${label}: video turi naudoti puslapio valdymo mygtukus be naršyklės grotuvo juostos.`);
-    check(attrs.preload === 'auto', `${label}: automatiškai paleidžiamas video turi būti parsiunčiamas iš anksto.`);
-    check(versionedAsset(attrs.poster, '/assets/migliu-kvietimas-poster.jpg'), `${label}: trūksta kvietimo video viršelio arba jo versijos.`);
-  }
-  const soundButtons = document.elements.filter(tag => 'data-video-sound' in tag.attrs);
-  check(soundButtons.length === 1 && soundButtons.every(tag => tag.name === 'button' && tag.attrs.type === 'button' && tag.attrs['aria-controls'] === 'video-dialog' && tag.attrs['aria-haspopup'] === 'dialog'), `${label}: kvietimo klausymo mygtukas turi atidaryti prieinamą video dialogą.`);
-  const toggleButtons = document.elements.filter(tag => 'data-video-toggle' in tag.attrs);
-  check(toggleButtons.length === 1 && toggleButtons.every(tag => tag.name === 'button' && tag.attrs.type === 'button' && tag.attrs['aria-controls'] === 'promo-video'), `${label}: video pristabdymas turi būti tikras mygtukas, susietas su kvietimo video.`);
-  const dialogs = document.elements.filter(tag => tag.name === 'dialog');
-  check(dialogs.length === 1 && dialogs[0].attrs.id === 'video-dialog' && Boolean(dialogs[0].attrs['aria-labelledby']) && !('open' in dialogs[0].attrs), `${label}: visas kvietimas turi atsidaryti viename pavadintame, iš pradžių uždarytame naršyklės dialoge.`);
-  const dialogHtml = document.html.match(/<dialog\b[^>]*id="video-dialog"[^>]*>([\s\S]*?)<\/dialog>/i)?.[1] ?? '';
-  const dialogElements = tags(dialogHtml);
-  for (const attribute of ['data-dialog-toggle', 'data-dialog-sound']) {
-    const buttons = dialogElements.filter(tag => attribute in tag.attrs);
-    check(buttons.length === 1 && buttons.every(tag => tag.name === 'button' && tag.attrs.type === 'button' && tag.attrs['aria-controls'] === 'promo-video'), `${label}: ${attribute} turi leisti valdyti tą patį video ir atidarytame dialoge.`);
-  }
-  const closeButtons = dialogElements.filter(tag => 'data-close-video' in tag.attrs);
-  const closeText = decode(dialogHtml.match(/<button\b[^>]*data-close-video\b[^>]*>([\s\S]*?)<\/button>/i)?.[1]?.replace(/<[^>]*>/g, '') ?? '').trim();
-  check(closeButtons.length === 1 && closeButtons.every(tag => tag.name === 'button' && tag.attrs.type === 'button' && Boolean(tag.attrs['aria-label']?.trim() || closeText)), `${label}: video dialogas turi turėti aiškiai pavadintą uždarymo mygtuką.`);
-  const sources = document.elements.filter(tag => tag.name === 'source' && localAssetUrl(tag.attrs.src)?.pathname === '/assets/migliu-kvietimas.mp4');
-  check(sources.length === 1 && sources[0].attrs.type === 'video/mp4', `${label}: trūksta MP4 kvietimo video šaltinio.`);
-  check(sources.every(tag => versionedAsset(tag.attrs.src, '/assets/migliu-kvietimas.mp4')), `${label}: video nuorodai trūksta versijos, kad lankytojos matytų naują įrašą.`);
-  check([...document.html.matchAll(/<details\b[^>]*>\s*<summary\b[^>]*>([\s\S]*?)<\/summary>/gi)].some(match => decode(match[1].replace(/<[^>]*>/g, '')).trim().startsWith('Kvietimo tekstas')), `${label}: šalia video turi būti išskleidžiamas kvietimo tekstas.`);
-  const video = await stat(join(directory, 'assets/migliu-kvietimas.mp4')).catch(() => null);
-  check(Boolean(video?.isFile() && video.size > 0 && video.size <= 25 * 1024 * 1024), `${label}: optimizuotas MP4 turi egzistuoti ir neviršyti 25 MiB.`);
-  check(Boolean((await stat(join(directory, 'assets/migliu-kvietimas-poster.jpg')).catch(() => null))?.isFile()), `${label}: nėra video viršelio failo.`);
-}
 const content = JSON.parse(await readFile(join(root, 'content.json'), 'utf8'));
 async function indexingState(directory, isDraft, label) {
   const files = (await filesIn(directory)).filter(file => file.endsWith('.html'));
@@ -193,7 +166,6 @@ for (const oldPath of ['/stovyklos/stovykla-02', '/stovyklos/stovykla-02/']) {
 const home = documents.get(join(dist, 'index.html'));
 if (home && content.camps[0]) {
   registrationState(home.html, content.camps[0].registrationUrl, 'Pradžios puslapis');
-  await videoState(home, dist, 'Pradžios puslapis');
 }
 for (const camp of content.camps) {
   const path = join(dist, 'stovyklos', camp.slug, 'index.html');
@@ -206,7 +178,9 @@ for (const camp of content.camps) {
 const fixture = await mkdtemp(join(tmpdir(), 'bukarciau-check-'));
 try {
   await mkdir(join(fixture, 'scripts'));
-  for (const file of ['scripts/build.mjs', 'styles.css', 'app.js', '_headers', '_redirects', 'assets']) await cp(join(root, file), join(fixture, file), {recursive:true});
+  for (const file of ['scripts/build.mjs', 'styles.css', 'app.js', '_headers', '_redirects']) await cp(join(root, file), join(fixture, file));
+  await mkdir(join(fixture, 'assets'));
+  for (const file of ['logo.svg', 'favicon.svg', 'logo-original.jpeg', 'montserrat-latin.woff2', 'montserrat-latin-ext.woff2', 'FONT-LICENSE.txt']) await cp(join(root, 'assets', file), join(fixture, 'assets', file));
   check(content.camps.length > 0, 'Registracijos šablonui patikrinti reikia bent vienos stovyklos.');
   if (content.camps.length) {
     const fixtureContent = structuredClone(content);
@@ -242,4 +216,4 @@ try {
 if (errors.length) {
   console.error(`Patikra nepavyko (${errors.length}):\n${errors.map(error => '• ' + error).join('\n')}`);
   process.exitCode = 1;
-} else console.log(`Patikra sėkminga: ${htmlFiles.length} puslapiai, ${assertions} patikros; failai, inkarai, video, originalus logotipas ir registracijos būsenos tvarkingi.`);
+} else console.log(`Patikra sėkminga: ${htmlFiles.length} puslapiai, ${assertions} patikros; failai, inkarai, originalus logotipas ir registracijos būsenos tvarkingi.`);

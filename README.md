@@ -1,6 +1,6 @@
 # Būk arčiau
 
-Svetainė `bukarciau.lt` kompiuteriams ir telefonams. Pagrindinis puslapis kviečia į vieną Miglės ir Miglės organizuojamą moterų savaitgalio stovyklą gruodžio 5 d. Pirmame ekrane automatiškai rodomas sūpynių video, toliau - Miglių prisistatymas, vieta nuotraukai, stovyklos informacija ir registracija. Vieta, kaina, programa ir Google Forms anketa dar nepaskelbtos.
+Svetainė `bukarciau.lt` kompiuteriams ir telefonams. Pagrindinis puslapis kviečia į vieną Miglės ir Miglės organizuojamą moterų savaitgalio stovyklą gruodžio 5 d. Grąžintas pradinis žalias maketas su Miglių prisistatymu, stovyklos informacija ir registracija. Nuotraukos ir video nerodomi, jiems skirtos dekoratyvios sritys paliktos tuščios, be užrašų. Vieta, kaina, programa ir Google Forms anketa dar nepaskelbtos.
 
 Svetainė: [bukarciau.lt](https://bukarciau.lt). Tiesioginė peržiūra: [bukarciau.pages.dev](https://bukarciau.pages.dev).
 
@@ -19,13 +19,13 @@ Atidaryti [http://127.0.0.1:4324](http://127.0.0.1:4324). Po pakeitimų pakartot
 npm run check
 ```
 
-Komanda patikrina sugeneruotus failus, nuorodas, vieną video, jo valdymo ir dialogo prieinamumo ryšius bei abi registracijos būsenas: kai Google Forms nuorodos dar nėra ir kai ji pateikta. Bandomosios svetainės generuojamos laikiname aplanke; tikras turinys nekeičiamas. Vaizdą ir atkūrimo elgseną papildomai reikia patikrinti naršyklėje.
+Komanda patikrina sugeneruotus failus, nuorodas, vienos stovyklos struktūrą, logotipą ir abi registracijos būsenas: kai Google Forms nuorodos dar nėra ir kai ji pateikta. Bandomosios svetainės generuojamos laikiname aplanke; tikras turinys nekeičiamas. Maketo vaizdą papildomai reikia patikrinti kompiuterio ir telefono naršyklėje.
 
-Build automatiškai prideda pagal failo turinį sudarytą `?v=…` versiją prie stilių, JavaScript, video ir jo viršelio nuorodų. Pakeitus failą pasikeičia jo versija, todėl grįžusios lankytojos gauna atnaujinimą iš karto, nelaukdamos, kol baigs galioti ankstesnė naršyklės kopija. Šaltinių failų vardų ar `content.json` kelių dėl to keisti nereikia.
+Build automatiškai prideda pagal failo turinį sudarytą `?v=…` versiją prie stilių ir JavaScript nuorodų. Pakeitus failą pasikeičia jo versija, todėl grįžusios lankytojos gauna atnaujinimą iš karto, nelaukdamos, kol baigs galioti ankstesnė naršyklės kopija. Šaltinių failų vardų ar `content.json` kelių dėl to keisti nereikia.
 
 ## Puslapiai
 
-- `/` - kvietimas į vienintelę stovyklą, Miglių video, praktinė informacija ir registracijos skiltis.
+- `/` - Miglių prisistatymas, vienintelė stovykla, praktinė informacija ir registracijos skiltis.
 - `/apie-mus/` - Miglės ir Miglės prisistatymas pagal jų kvietimą.
 - `/kontaktai/` - el. paštas, telefonas ir Facebook.
 - `/stovyklos/stovykla-01/` - stovyklos aprašymas, praktinė informacija, DUK ir registracija.
@@ -34,13 +34,11 @@ Ankstesnis antros stovyklos adresas nukreipiamas į pagrindinio puslapio stovykl
 
 ## Turinys ir publikavimas
 
-Tekstai, kontaktai, video, nuotraukų keliai ir Google Forms nuoroda redaguojami [content.json](content.json). Laukų paaiškinimai ir ko dar reikia iš organizatorių - [docs/turinys.md](docs/turinys.md).
+Tekstai, kontaktai ir Google Forms nuoroda redaguojami [content.json](content.json). Laukų paaiškinimai ir ko dar reikia iš organizatorių - [docs/turinys.md](docs/turinys.md).
 
 Kai `camps[0].registrationUrl` yra `null`, kvietimas „Noriu dalyvauti“ veda į registracijos informaciją. Joje aiškiai parašyta, kad anketa dar ruošiama, ir pateiktas tikras kontaktas. Įrašius tikrą HTTPS Google Forms nuorodą, registracijos mygtukai atidaro ją naujame skirtuke. Svetainė pati registracijos duomenų nerenka.
 
-Publikuojamas vienas optimizuotas 43 sek. MP4 video su JPG viršeliu, parengtas iš „Buk_arciau_moteru_stovykla_v3.mp4“. Išsaugoti vaizde esantys titrai ir originalus garsas. Atidarius puslapį jis automatiškai kartojamas be garso ir įprastos grotuvo juostos, užpildydamas pirmą ekraną. Šiame fone vaizdo kraštai apkerpami pagal ekrano proporcijas. Mygtukas „Klausyti kvietimo“ atidaro tą patį video atskirame lange su visu vertikaliu kadru, įjungia garsą ir paleidžia nuo pradžios. Langą uždaro jo mygtukas arba Escape; video grįžta į foną be garso. Pristabdymo mygtukas veikia abiem atvejais. Kai įrenginyje pasirinkta mažiau judesio arba video jau buvo pristabdytas, uždarius langą jis lieka sustabdytas.
-
-Video siunčiamas automatiškai - dabartinis failas maždaug 16,1 MB. Klausymui naudojamas tas pats video elementas ir failas, todėl antras įrašas nesisiunčiamas. Kvietimo tekstas pateiktas atskirai ir išskleidžiamas. Originalių video failų į saugyklą kelti nereikia.
+Dabartinis build nepublikuoja nuotraukų, video ar video viršelio. Ankstesni media failai gali likti saugyklos `assets/` aplanke, tačiau į `dist/` kopijuojami tik logotipo failai ir šriftai.
 
 Originalus logotipas saugomas nepakeistas: `assets/logo-original.jpeg`. `assets/logo.svg` ir favicon failai parengti iš jo; favicon neturi apatinio užrašo „Bendrystė · Saviugda · Ryšiai“.
 
