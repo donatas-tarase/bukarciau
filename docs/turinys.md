@@ -11,9 +11,9 @@ Svetainėje palikta viena moterų savaitgalio stovykla. Žinoma data - gruodžio
 | `site.name`, `site.url` | Pavadinimas ir pagrindinis svetainės adresas |
 | `site.draft` | `true` - maketas su `noindex`; `false` - galutinė versija su indeksavimu ir svetainės žemėlapiu |
 | `site.email`, `site.phone`, `site.phoneDisplay`, `site.facebook` | Kontaktai; `phone` be tarpų, `phoneDisplay` - rodomas numeris |
-| `site.heroTitle`, `site.heroAccent`, `site.heroText` | Pirmo ekrano antraštė, išskirta jos dalis ir trumpas kvietimas |
+| `site.heroTitle`, `site.heroAccent` | Dvi pirmo ekrano antraštės dalys |
 | `site.aboutText` | Trumpas Miglių prisistatymas; kiekvienas masyvo elementas - pastraipa |
-| `site.themes` | Trys kvietimo temos su laukais `title` ir `text` |
+| `site.togetherImage` | Bendra Miglių nuotrauka per visą puslapio plotį arba `null`, kol nuotraukos nėra |
 | `site.storyTitle`, `site.story` | Prisistatymo puslapio antraštė ir pastraipos |
 
 ## Miglių kvietimo video
@@ -28,11 +28,13 @@ Video nustatymai laikomi objekte `site.video`:
 | `durationLabel` | Rodoma video trukmė; pakeiskite kartu su įrašu |
 | `transcript` | Kvietimo tekstas: masyvo objektuose `speaker` - kalbėtoja, `text` - jos žodžiai |
 
-Atidarius puslapį video automatiškai kartojamas be garso, telefone lieka pačiame puslapyje. Įprastos naršyklės grotuvo juostos nėra. Atskiri mygtukai leidžia įjungti garsą bei pristabdyti arba paleisti įrašą; garso įjungimas paleidžia visą kvietimą nuo pradžios. Jei naršyklė neleidžia automatinio atkūrimo, video galima paleisti mygtuku. Pasirinkus mažiau judesio įrenginio nustatymuose, automatinis atkūrimas sustabdomas.
+Atidarius puslapį video automatiškai kartojamas be garso, užpildydamas pirmą ekraną. Įprastos naršyklės grotuvo juostos nėra. Fone vaizdo kraštai apkerpami pagal ekrano proporcijas; tai nekeičiama pačiame MP4 faile.
 
-Video siunčiamas automatiškai, todėl svarbu jo neapsunkinti: dabartinis optimizuotas failas yra maždaug 11,7 MB. Tekstą galima išskleisti po video. Tai tekstinė įrašo alternatyva, ne pagal laiką suderinti subtitrai.
+Mygtukas „Klausyti kvietimo“ atidaro visą vertikalų kadrą lange virš puslapio ir paleidžia įrašą su garsu nuo pradžios. Naudojamas tas pats video elementas ir failas. Langą galima uždaryti jo mygtuku arba Escape klavišu; tada video grįžta į foną be garso. Atskiru mygtuku įrašas pristabdomas arba paleidžiamas abiem atvejais. Uždarius langą išsaugoma ankstesnė fono pristabdymo būsena. Jei naršyklė neleidžia automatinio atkūrimo, video galima paleisti mygtuku. Pasirinkus mažiau judesio įrenginio nustatymuose, automatinis atkūrimas sustabdomas.
 
-Keisdami įrašą paruoškite MP4 su H.264 vaizdu ir AAC garsu; išlaikykite teisingą orientaciją. Publikuojamas failas turi neviršyti 25 MiB. Atnaujinkite JPG viršelį, trukmę ir kvietimo tekstą. Originalius MOV failus saugokite atskirai nuo svetainės saugyklos.
+Video siunčiamas automatiškai, todėl svarbu jo neapsunkinti: dabartinis optimizuotas failas yra maždaug 16,1 MB. Kvietimo tekstą galima išskleisti pagrindiniame puslapyje. Tai tekstinė įrašo alternatyva, ne pagal laiką suderinti subtitrai.
+
+Keisdami įrašą paruoškite MP4 su H.264 vaizdu ir AAC garsu; išlaikykite teisingą orientaciją. Publikuojamas failas turi neviršyti 25 MiB. Atnaujinkite JPG viršelį, trukmę ir kvietimo tekstą. Originalius video failus saugokite atskirai nuo svetainės saugyklos.
 
 `content.json` palikite įprastus video ir viršelio kelius be versijos parametrų. Build pagal failų turinį automatiškai prideda `?v=…` prie jų nuorodų. Pakeitus MP4 ar JPG ir paskelbus naują build, naršyklė atsisiųs naują versiją net jei ankstesnis failas dar laikomas jos atmintinėje. Taip pat automatiškai atnaujinamos stilių ir JavaScript nuorodų versijos.
 
@@ -62,7 +64,7 @@ Pavyzdžio kodo nepublikuokite kaip tikros nuorodos. Tinka ir visas `https://doc
 
 Kol `registrationUrl` yra `null`, kvietimas dalyvauti veda į registracijos informaciją su aiškiu pranešimu ir el. paštu. Neskelbkite išgalvotos ar neveikiančios formos nuorodos.
 
-Laukai `site.togetherImage`, `secondaryImage`, `included` ir `notIncluded` palikti vėlesniam turiniui; dabartinis šablonas jų nerodo. Gavus bendrą Miglių nuotrauką ar kainos sudėtį reikės papildyti ir `scripts/build.mjs`.
+Laukai `site.heroText`, `site.themes`, `secondaryImage`, `included` ir `notIncluded` palikti vėlesniam turiniui; dabartinis šablonas jų nerodo. Gavus kainos sudėtį reikės papildyti ir `scripts/build.mjs`.
 
 ## Nuotraukos
 

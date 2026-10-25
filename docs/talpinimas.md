@@ -63,9 +63,11 @@ Palikite ir kitus esamus SPF, DKIM, DMARC bei patvirtinimo įrašus. Nejunkite H
 
 ## Paskelbto atnaujinimo patikra
 
-Pagrindiniame puslapyje ir adresu `/stovyklos/stovykla-01/` turi būti ta pati viena stovykla. Kompiuteryje ir telefone patikrinkite, kad kvietimo video automatiškai kartojamas be garso ir įprastos grotuvo juostos. Garso mygtukas turi įjungti garsą ir paleisti kvietimą nuo pradžios, o kitas mygtukas - pristabdyti ir vėl paleisti. Jei automatinį atkūrimą užblokuoja naršyklė, paleidimas turi veikti mygtuku. Pasirinkus mažiau judesio įrenginio nustatymuose, video turi būti sustabdytas. Patikrinkite viršelį ir išskleidžiamą kvietimo tekstą.
+Pagrindiniame puslapyje ir adresu `/stovyklos/stovykla-01/` turi būti ta pati viena stovykla. Kompiuteryje ir telefone patikrinkite, kad pirmo ekrano video automatiškai kartojamas be garso ir įprastos grotuvo juostos. Fonas užpildo ekraną, todėl jo kraštai gali būti apkerpami. Mygtukas „Klausyti kvietimo“ turi atidaryti visą vertikalų kadrą lange, įjungti garsą ir paleisti kvietimą nuo pradžios. Patikrinkite lango uždarymą mygtuku ir Escape klavišu, klaviatūros fokusą bei grįžimą prie nutildyto fono. Turi būti naudojamas tas pats video, be antro failo atsisiuntimo.
 
-Video siunčiamas automatiškai; dabartinis MP4 yra maždaug 11,7 MB. Po pakeitimo patikrinkite įkėlimą ir lėtesniu mobiliuoju ryšiu.
+Pristabdymo mygtukas turi veikti fone ir atidarytame lange. Pristabdę foną, atidarykite ir uždarykite kvietimą - fonas turi likti sustabdytas. Jei automatinį atkūrimą užblokuoja naršyklė, paleidimas turi veikti mygtuku. Pasirinkus mažiau judesio įrenginio nustatymuose, fono video turi būti sustabdytas ir uždarius langą. Patikrinkite viršelį ir išskleidžiamą kvietimo tekstą.
+
+Video siunčiamas automatiškai; dabartinis MP4 yra maždaug 16,1 MB. Po pakeitimo patikrinkite įkėlimą ir lėtesniu mobiliuoju ryšiu.
 
 Build automatiškai prideda turinio versiją `?v=…` prie CSS, JavaScript, MP4 ir video viršelio nuorodų. Pakeitus atitinkamą failą pasikeičia ir jo nuorodos versija, todėl ankstesnė naršyklės ar Cloudflare kopija neužstoja atnaujinimo. Failų vardų keisti nereikia; svarbu po pakeitimų iš naujo sugeneruoti ir paskelbti visą `dist/`.
 

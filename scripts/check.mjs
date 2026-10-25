@@ -63,6 +63,7 @@ for (const file of htmlFiles) {
   check(elements.filter(tag => tag.name === 'h1').length === 1, `${label}: turi būti viena h1 antraštė.`);
   check(elements.filter(tag => tag.name === 'main').length === 1, `${label}: turi būti vienas main elementas.`);
   check(ids.length === new Set(ids).size, `${label}: kartojasi elementų ID.`);
+  check(!/[\u2010-\u2015\u2212]/u.test(decode(html.replace(/<[^>]*>/g, ''))), `${label}: tekste brūkšniams naudokite tik paprastą - ženklą.`);
   check(elements.some(tag => tag.name === 'link' && tag.attrs.rel === 'stylesheet' && versionedAsset(tag.attrs.href, '/styles.css')), `${label}: stilių nuorodai trūksta versijos, kad lankytojos gautų atnaujinimus.`);
   check(elements.some(tag => tag.name === 'script' && versionedAsset(tag.attrs.src, '/app.js')), `${label}: programos failo nuorodai trūksta versijos, kad lankytojos gautų atnaujinimus.`);
   for (const {name, attrs} of elements) {
@@ -138,15 +139,27 @@ async function videoState(document, directory, label) {
   const videos = document.elements.filter(tag => tag.name === 'video');
   check(videos.length === 1, `${label}: turi būti vienas Miglių kvietimo video.`);
   for (const {attrs} of videos) {
+    check(attrs.id === 'promo-video', `${label}: vienintelis video turi būti susietas su puslapio valdymu.`);
     check(['autoplay', 'muted', 'loop', 'playsinline'].every(key => key in attrs), `${label}: video turi automatiškai kartotis be garso ir veikti puslapyje telefone.`);
     check(!('controls' in attrs), `${label}: video turi naudoti puslapio valdymo mygtukus be naršyklės grotuvo juostos.`);
     check(attrs.preload === 'auto', `${label}: automatiškai paleidžiamas video turi būti parsiunčiamas iš anksto.`);
     check(versionedAsset(attrs.poster, '/assets/migliu-kvietimas-poster.jpg'), `${label}: trūksta kvietimo video viršelio arba jo versijos.`);
   }
-  for (const attribute of ['data-video-sound', 'data-video-toggle']) {
-    const buttons = document.elements.filter(tag => attribute in tag.attrs);
-    check(buttons.length === 1 && buttons.every(tag => tag.name === 'button' && tag.attrs.type === 'button' && tag.attrs['aria-controls'] === 'promo-video'), `${label}: ${attribute} turi būti tikras mygtukas, susietas su kvietimo video.`);
+  const soundButtons = document.elements.filter(tag => 'data-video-sound' in tag.attrs);
+  check(soundButtons.length === 1 && soundButtons.every(tag => tag.name === 'button' && tag.attrs.type === 'button' && tag.attrs['aria-controls'] === 'video-dialog' && tag.attrs['aria-haspopup'] === 'dialog'), `${label}: kvietimo klausymo mygtukas turi atidaryti prieinamą video dialogą.`);
+  const toggleButtons = document.elements.filter(tag => 'data-video-toggle' in tag.attrs);
+  check(toggleButtons.length === 1 && toggleButtons.every(tag => tag.name === 'button' && tag.attrs.type === 'button' && tag.attrs['aria-controls'] === 'promo-video'), `${label}: video pristabdymas turi būti tikras mygtukas, susietas su kvietimo video.`);
+  const dialogs = document.elements.filter(tag => tag.name === 'dialog');
+  check(dialogs.length === 1 && dialogs[0].attrs.id === 'video-dialog' && Boolean(dialogs[0].attrs['aria-labelledby']) && !('open' in dialogs[0].attrs), `${label}: visas kvietimas turi atsidaryti viename pavadintame, iš pradžių uždarytame naršyklės dialoge.`);
+  const dialogHtml = document.html.match(/<dialog\b[^>]*id="video-dialog"[^>]*>([\s\S]*?)<\/dialog>/i)?.[1] ?? '';
+  const dialogElements = tags(dialogHtml);
+  for (const attribute of ['data-dialog-toggle', 'data-dialog-sound']) {
+    const buttons = dialogElements.filter(tag => attribute in tag.attrs);
+    check(buttons.length === 1 && buttons.every(tag => tag.name === 'button' && tag.attrs.type === 'button' && tag.attrs['aria-controls'] === 'promo-video'), `${label}: ${attribute} turi leisti valdyti tą patį video ir atidarytame dialoge.`);
   }
+  const closeButtons = dialogElements.filter(tag => 'data-close-video' in tag.attrs);
+  const closeText = decode(dialogHtml.match(/<button\b[^>]*data-close-video\b[^>]*>([\s\S]*?)<\/button>/i)?.[1]?.replace(/<[^>]*>/g, '') ?? '').trim();
+  check(closeButtons.length === 1 && closeButtons.every(tag => tag.name === 'button' && tag.attrs.type === 'button' && Boolean(tag.attrs['aria-label']?.trim() || closeText)), `${label}: video dialogas turi turėti aiškiai pavadintą uždarymo mygtuką.`);
   const sources = document.elements.filter(tag => tag.name === 'source' && localAssetUrl(tag.attrs.src)?.pathname === '/assets/migliu-kvietimas.mp4');
   check(sources.length === 1 && sources[0].attrs.type === 'video/mp4', `${label}: trūksta MP4 kvietimo video šaltinio.`);
   check(sources.every(tag => versionedAsset(tag.attrs.src, '/assets/migliu-kvietimas.mp4')), `${label}: video nuorodai trūksta versijos, kad lankytojos matytų naują įrašą.`);
