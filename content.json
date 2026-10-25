@@ -6,129 +6,114 @@
     "phone": "+37060571562",
     "phoneDisplay": "+370 605 71562",
     "facebook": "https://www.facebook.com/profile.php?id=61595415578505",
-    "heroTitle": "Būk arčiau.",
-    "heroText": "[Čia bus pagrindinė jūsų žinutė.]",
-    "heroImage": null,
+    "heroTitle": "Moterų savaitgalis.",
+    "heroText": "Atokvėpis nuo kasdienybės, tikri pokalbiai ir kitų moterų draugija. Gruodžio 5 d. kviečiame susitikti.",
     "aboutText": [
-      "[Čia trumpai prisistatykite: kas esate ir kokias stovyklas kuriate.]",
-      "[Kam skirti jūsų susitikimai? Ką norite apie juos pasakyti?]"
+      "Mes — Miglė ir Miglė. Kuriame moterų bendrystės stovyklą, kurioje galėtume pabūti su savimi ir kitų moterų draugijoje.",
+      "Norime jaukaus susitikimo, kur kiekviena galėtų būti tikra, be kaukių ir bandymų kažkam kažką įrodyti."
     ],
-    "statement": "[Čia bus jūsų sakinys apie bendrystę.]",
-    "statementImage": null,
     "story": [
-      "[Čia papasakokite, kaip susipažinote ir kodėl pradėjote kurti kartu.]",
-      "[Ką norėtumėte, kad moterys žinotų apie jus prieš susitikimą?]"
+      "Abi esame Miglės. Mus vienija idėja sukurti moterų bendrystės stovyklą.",
+      "Neabejojame, kad kiekvienai iš mūsų kartais reikia atokvėpio, poilsio nuo kasdienybės, pabūti su savimi ar kitų moterų draugijoje.",
+      "Norime sukurti jaukią erdvę tikriems pokalbiams, nuoširdžiam juokui ir naujoms pažintims. Tikimės, kad čia kiekviena jausis išgirsta, pamatyta ir priimta."
     ],
     "togetherImage": null,
     "draft": true,
-    "storyTitle": "[Mūsų istorija]"
-  },
-  "organizers": [
-    {
-      "name": "[Vardas]",
-      "text": "[Trumpas prisistatymas: patirtis, veikla ir tai, kuo dalinsitės stovyklose.]",
-      "image": null
+    "storyTitle": "Miglė ir Miglė.",
+    "heroAccent": "Būk arčiau.",
+    "video": {
+      "src": "/assets/migliu-kvietimas.mp4",
+      "poster": "/assets/migliu-kvietimas-poster.jpg",
+      "title": "Miglės kviečia susitikti",
+      "durationLabel": "52 sek.",
+      "transcript": [
+        {
+          "speaker": "Miglė",
+          "text": "Jei matai šį video ir tau patinka mūsų idėja, susimatom gruodžio 5-tą dieną, moterų savaitgalio stovykloje. O kas mes?"
+        },
+        {
+          "speaker": "Abi Miglės",
+          "text": "Labas!"
+        },
+        {
+          "speaker": "Miglė",
+          "text": "Aš Miglė."
+        },
+        {
+          "speaker": "Miglė",
+          "text": "Ir aš Miglė."
+        },
+        {
+          "speaker": "Miglė",
+          "text": "Mes, Miglės, norime su jumis pasidalinti savo idėja — sukurti moterų bendrystės stovyklą."
+        },
+        {
+          "speaker": "Miglė",
+          "text": "Neabejojame, kad kiekvienai iš mūsų kartais reikia atokvėpio, poilsio nuo kasdienybės, pabūti su savimi ar kitų moterų draugijoje."
+        },
+        {
+          "speaker": "Miglė",
+          "text": "Labai tikimės jaukaus susitikimo kartu, kur kiekviena galėtų būti tikra, be kaukių ir be bandymų kažkam kažką įrodyti."
+        },
+        {
+          "speaker": "Miglė",
+          "text": "Norime sukurti jaukią erdvę tikriems pokalbiams, nuoširdžiam juokui ir naujoms pažintims."
+        },
+        {
+          "speaker": "Miglė",
+          "text": "Neabejoju, kad kiekviena moteris bus išgirsta, pamatyta ir priimta."
+        }
+      ]
     },
-    {
-      "name": "[Vardas]",
-      "text": "[Trumpas prisistatymas: patirtis, veikla ir tai, kuo dalinsitės stovyklose.]",
-      "image": null
-    }
-  ],
+    "themes": [
+      {
+        "title": "Atokvėpis",
+        "text": "Laikas poilsiui nuo kasdienybės ir pabuvimui su savimi."
+      },
+      {
+        "title": "Bendrystė",
+        "text": "Tikri pokalbiai, nuoširdus juokas ir naujos pažintys."
+      },
+      {
+        "title": "Be kaukių",
+        "text": "Galimybė būti savimi, be bandymų kažkam kažką įrodyti."
+      }
+    ]
+  },
   "camps": [
     {
       "slug": "stovykla-01",
-      "title": "[Stovyklos pavadinimas]",
-      "summary": "[Trumpas stovyklos aprašymas.]",
-      "date": "[Data]",
-      "location": "[Vieta]",
-      "price": "[Kaina]",
+      "title": "Moterų savaitgalio stovykla",
+      "summary": "Gruodžio 5 d. susitinkame pabūti kartu. Kviečia Miglė ir Miglė.",
+      "date": "Gruodžio 5 d.",
+      "location": null,
+      "price": null,
       "image": null,
       "secondaryImage": null,
       "description": [
-        "[Čia aprašykite stovyklą: kam ji skirta, ką veiksite ir ką svarbu žinoti prieš atvykstant.]"
+        "Kviečiame į moterų bendrystės stovyklą: atokvėpiui nuo kasdienybės, tikriems pokalbiams ir naujoms pažintims.",
+        "Norime susitikti jaukiai — be kaukių ir bandymų kažkam kažką įrodyti. Pabūti su savimi ir kitų moterų draugijoje."
       ],
-      "program": [
-        {
-          "title": "[Pirma diena]",
-          "text": "[Dienos programa ir veiklos.]"
-        },
-        {
-          "title": "[Antra diena]",
-          "text": "[Dienos programa ir veiklos.]"
-        },
-        {
-          "title": "[Trečia diena]",
-          "text": "[Dienos programa ir veiklos.]"
-        }
-      ],
-      "included": [
-        "[Kas įskaičiuota į kainą?]"
-      ],
-      "notIncluded": [
-        "[Kuo pasirūpinti pačiai?]"
-      ],
+      "program": [],
+      "included": [],
+      "notIncluded": [],
       "faq": [
         {
-          "question": "Kam skirta ši stovykla?",
-          "answer": "[Jūsų atsakymas.]"
+          "question": "Kada susitinkame?",
+          "answer": "Gruodžio 5 d. Tikslius atvykimo ir išvykimo laikus paskelbsime kartu su stovyklos programa."
         },
         {
-          "question": "Kaip atvykti ir ką atsivežti?",
-          "answer": "[Jūsų atsakymas.]"
+          "question": "Kur vyks stovykla ir kokia jos kaina?",
+          "answer": "Vietą ir kainą dar tiksliname. Informaciją paskelbsime šiame puslapyje."
         },
         {
-          "question": "Kokios registracijos ir atšaukimo sąlygos?",
-          "answer": "[Jūsų atsakymas.]"
+          "question": "Kaip užsiregistruoti?",
+          "answer": "Registracijos anketą ruošiame. Jos nuorodą paskelbsime šiame puslapyje. Kol kas apie stovyklą gali pasiteirauti el. paštu info@bukarciau.lt arba telefonu +370 605 71562.",
+          "kind": "registration"
         }
       ],
       "registrationUrl": null,
-      "introTitle": "[Stovyklos pristatymas]"
-    },
-    {
-      "slug": "stovykla-02",
-      "title": "[Stovyklos pavadinimas]",
-      "summary": "[Trumpas stovyklos aprašymas.]",
-      "date": "[Data]",
-      "location": "[Vieta]",
-      "price": "[Kaina]",
-      "image": null,
-      "secondaryImage": null,
-      "description": [
-        "[Čia aprašykite stovyklą: kam ji skirta, ką veiksite ir ką svarbu žinoti prieš atvykstant.]"
-      ],
-      "program": [
-        {
-          "title": "[Pirma diena]",
-          "text": "[Dienos programa ir veiklos.]"
-        },
-        {
-          "title": "[Antra diena]",
-          "text": "[Dienos programa ir veiklos.]"
-        }
-      ],
-      "included": [
-        "[Kas įskaičiuota į kainą?]"
-      ],
-      "notIncluded": [
-        "[Kuo pasirūpinti pačiai?]"
-      ],
-      "faq": [
-        {
-          "question": "Kam skirta ši stovykla?",
-          "answer": "[Jūsų atsakymas.]"
-        },
-        {
-          "question": "Kaip atvykti ir ką atsivežti?",
-          "answer": "[Jūsų atsakymas.]"
-        },
-        {
-          "question": "Kokios registracijos ir atšaukimo sąlygos?",
-          "answer": "[Jūsų atsakymas.]"
-        }
-      ],
-      "registrationUrl": null,
-      "introTitle": "[Stovyklos pristatymas]"
+      "introTitle": "Laikas sau ir bendrystei."
     }
   ]
 }

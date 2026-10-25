@@ -61,8 +61,18 @@ Keiskite tik svetainei reikalingus įrašus. Neištrinkite esamų MX ir TXT įra
 
 Palikite ir kitus esamus SPF, DKIM, DMARC bei patvirtinimo įrašus. Nejunkite Hostinger pašto ar numatytųjų DNS šablonų vien tam, kad prijungtumėte svetainę. Po prijungimo iš išorinės pašto paskyros nusiųskite bandomąjį laišką į `info@bukarciau.lt`. [Email Routing DNS dokumentacija](https://developers.cloudflare.com/email-service/configuration/domains/)
 
+## Paskelbto atnaujinimo patikra
+
+Pagrindiniame puslapyje ir adresu `/stovyklos/stovykla-01/` turi būti ta pati viena stovykla. Kompiuteryje ir telefone patikrinkite, kad kvietimo video automatiškai kartojamas be garso ir įprastos grotuvo juostos. Garso mygtukas turi įjungti garsą ir paleisti kvietimą nuo pradžios, o kitas mygtukas — pristabdyti ir vėl paleisti. Jei automatinį atkūrimą užblokuoja naršyklė, paleidimas turi veikti mygtuku. Pasirinkus mažiau judesio įrenginio nustatymuose, video turi būti sustabdytas. Patikrinkite viršelį ir išskleidžiamą kvietimo tekstą.
+
+Video siunčiamas automatiškai; dabartinis MP4 yra maždaug 12,6 MB. Po pakeitimo patikrinkite įkėlimą ir lėtesniu mobiliuoju ryšiu.
+
+Kol `camps[0].registrationUrl` yra `null`, kvietimas dalyvauti turi vesti į aiškią registracijos būseną ir tikrą kontaktą. Įrašę Google Forms nuorodą patikrinkite, kad ji atsidaro tiek iš pagrindinio, tiek iš stovyklos puslapio, taip pat atsijungus nuo Google paskyros. Prieš skelbdami pašalinkite su naujais duomenimis nebesutampančius DUK atsakymus.
+
+`_redirects` nukreipia ankstesnį `/stovyklos/stovykla-02` ir `/stovyklos/stovykla-02/` adresą į `/#stovykla` kodu `301`. Failas turi būti `dist/` šaknyje kartu su `_headers`. Šį nukreipimą patikrinkite paskelbtoje Cloudflare Pages svetainėje.
+
 ## Iš maketo į viešą svetainę
 
 Kol rodomi vietaženkliai, `content.json` palikite `site.draft: true`. Taip puslapiai generuojami su `noindex, nofollow`, o `robots.txt` riboja indeksavimą. Viešas peržiūros adresas nėra privati prieiga.
 
-Kai organizatorės patvirtins tekstus, nuotraukas, stovyklų informaciją ir veikiančias formas, pakeiskite `site.draft` į `false`. Po `npm run build` bus pašalinta `noindex` žyma, `robots.txt` leis indeksavimą ir atsiras `sitemap.xml`. `site.url` palikite `https://bukarciau.lt`. Paleiskite `npm run check`, paskelbkite įprasta Wrangler komanda ir patikrinkite, ar tikrajame domene matoma nauja versija.
+Kai organizatorės patvirtins tekstus, nuotraukas, stovyklos informaciją ir veikiančią formą, pakeiskite `site.draft` į `false`. Po `npm run build` bus pašalinta `noindex` žyma, `robots.txt` leis indeksavimą ir atsiras `sitemap.xml`. `site.url` palikite `https://bukarciau.lt`. Paleiskite `npm run check`, paskelbkite įprasta Wrangler komanda ir patikrinkite, ar tikrajame domene matoma nauja versija.

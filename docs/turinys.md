@@ -1,62 +1,85 @@
 # Kaip pakeisti turinį
 
-Redaguokite `content.json`, tuomet paleiskite `npm run build`. Tekstai laužtiniuose skliaustuose ir nuotraukų vietos yra darbo vietaženkliai, ne galutiniai svetainės tekstai. Palikite `null`, kai nuotraukos ar registracijos nuorodos dar nėra.
+Redaguokite `content.json`, tuomet paleiskite `npm run build` ir `npm run check`. Generuojamo `dist/` aplanko tiesiogiai redaguoti nereikia.
+
+Svetainėje palikta viena moterų savaitgalio stovykla. Žinoma data — gruodžio 5 d.; metai ir pabaigos data nenurodyti. Tekstai remiasi Miglės ir Miglės įrašytu kvietimu. Vieta, kaina, programa ir Google Forms nuoroda dar negautos. Nežinomus duomenis palikite `null` arba tuščią masyvą — svetainė parodys jų būseną ir nerodys išgalvotų programos dienų.
 
 ## Pagrindinė informacija
 
 | Laukas | Turinys |
 | --- | --- |
 | `site.name`, `site.url` | Pavadinimas ir pagrindinis svetainės adresas |
-| `site.draft` | `true` – maketas su `noindex`; `false` – galutinė versija su indeksavimu ir svetainės žemėlapiu |
-| `site.email`, `site.phone`, `site.phoneDisplay`, `site.facebook` | Kontaktai; `phone` be tarpų, `phoneDisplay` – rodomas numeris |
-| `site.heroTitle`, `site.heroText`, `site.heroImage` | Pirmo ekrano antraštė, trumpas tekstas ir nuotrauka |
-| `site.aboutText` | Trumpas pristatymas pradžios puslapyje; kiekvienas masyvo elementas – pastraipa |
-| `site.statement`, `site.statementImage` | Trumpas išskirtas sakinys ir jį lydinti nuotrauka |
-| `site.story`, `site.togetherImage` | Bendra istorija ir abiejų organizatorių nuotrauka |
-| `organizers` | Dvi organizatorės: `name`, `text`, `image` |
+| `site.draft` | `true` — maketas su `noindex`; `false` — galutinė versija su indeksavimu ir svetainės žemėlapiu |
+| `site.email`, `site.phone`, `site.phoneDisplay`, `site.facebook` | Kontaktai; `phone` be tarpų, `phoneDisplay` — rodomas numeris |
+| `site.heroTitle`, `site.heroAccent`, `site.heroText` | Pirmo ekrano antraštė, išskirta jos dalis ir trumpas kvietimas |
+| `site.aboutText` | Trumpas Miglių prisistatymas; kiekvienas masyvo elementas — pastraipa |
+| `site.themes` | Trys kvietimo temos su laukais `title` ir `text` |
+| `site.storyTitle`, `site.story` | Prisistatymo puslapio antraštė ir pastraipos |
 
-## Stovyklos
+## Miglių kvietimo video
 
-Kiekvienas `camps` masyvo objektas aprašo atskirą stovyklą.
+Video nustatymai laikomi objekte `site.video`:
 
 | Laukas | Turinys |
 | --- | --- |
-| `slug` | URL dalis, pvz. `stovykla-01`; keisti apgalvotai, nes pasikeis puslapio adresas |
-| `title`, `summary` | Pavadinimas ir trumpas aprašymas stovyklos kortelėje |
-| `date`, `location`, `price` | Patvirtinta data, vieta ir kaina |
-| `image`, `secondaryImage` | Pagrindinė ir papildoma nuotrauka |
+| `src` | Optimizuoto video kelias: `/assets/migliu-kvietimas.mp4` |
+| `poster` | Video viršelio kelias: `/assets/migliu-kvietimas-poster.jpg` |
+| `title` | Video pavadinimas pagalbinėms skaitymo priemonėms |
+| `durationLabel` | Rodoma video trukmė; pakeiskite kartu su įrašu |
+| `transcript` | Kvietimo tekstas: masyvo objektuose `speaker` — kalbėtoja, `text` — jos žodžiai |
+
+Atidarius puslapį video automatiškai kartojamas be garso, telefone lieka pačiame puslapyje. Įprastos naršyklės grotuvo juostos nėra. Atskiri mygtukai leidžia įjungti garsą bei pristabdyti arba paleisti įrašą; garso įjungimas paleidžia visą kvietimą nuo pradžios. Jei naršyklė neleidžia automatinio atkūrimo, video galima paleisti mygtuku. Pasirinkus mažiau judesio įrenginio nustatymuose, automatinis atkūrimas sustabdomas.
+
+Video siunčiamas automatiškai, todėl svarbu jo neapsunkinti: dabartinis optimizuotas failas yra maždaug 12,6 MB. Tekstą galima išskleisti po video. Tai tekstinė įrašo alternatyva, ne pagal laiką suderinti subtitrai.
+
+Keisdami įrašą paruoškite MP4 su H.264 vaizdu ir AAC garsu; išlaikykite teisingą orientaciją. Publikuojamas failas turi neviršyti 25 MiB. Atnaujinkite JPG viršelį, trukmę ir kvietimo tekstą. Originalius MOV failus saugokite atskirai nuo svetainės saugyklos.
+
+## Vienintelė stovykla
+
+`camps` masyve palikite vieną objektą — `camps[0]`.
+
+| Laukas | Turinys |
+| --- | --- |
+| `slug` | Dabar `stovykla-01`; keisti apgalvotai, nes pasikeis puslapio adresas |
+| `title`, `summary`, `introTitle` | Stovyklos pavadinimas, trumpas kvietimas ir aprašymo antraštė |
+| `date` | Patvirtinta data; dabar „Gruodžio 5 d.“ |
+| `location`, `price` | Patvirtinta vieta ir kaina arba `null` |
+| `image` | Stovyklos puslapio nuotraukos kelias arba `null` |
 | `description` | Aprašymo pastraipos |
-| `program` | Programos blokai su laukais `title` ir `text`; galima pridėti arba pašalinti dienas |
-| `included`, `notIncluded` | Kas įskaičiuota ir kuo reikia pasirūpinti pačiai |
+| `program` | Programos blokai su laukais `title` ir `text`; kol programa nežinoma — `[]` |
 | `faq` | Klausimai ir atsakymai: `question`, `answer` |
 | `registrationUrl` | Tikra Google Forms HTTPS nuoroda arba `null` |
 
-Pavyzdys, kai forma jau paskelbta:
+Paskelbus formą pakeiskite vieną reikšmę:
 
 ```json
 "registrationUrl": "https://forms.gle/JUSU_FORMOS_KODAS"
 ```
 
-Pavyzdžio kodo nepublikuokite kaip tikros nuorodos. Tinka ir visas `https://docs.google.com/forms/...` adresas. Formą patikrinkite atsijungę nuo Google paskyros: ji turi būti prieinama numatytoms dalyvėms. Mygtukas atidaro formą naujame skirtuke; svetainė pati registracijos duomenų nerenka.
+Pavyzdžio kodo nepublikuokite kaip tikros nuorodos. Tinka ir visas `https://docs.google.com/forms/...` adresas. Formą patikrinkite atsijungę nuo Google paskyros: ji turi būti prieinama numatytoms dalyvėms. Mygtukai atidarys formą naujame skirtuke. Svetainė pati registracijos duomenų nerenka.
+
+Kol `registrationUrl` yra `null`, kvietimas dalyvauti veda į registracijos informaciją su aiškiu pranešimu ir el. paštu. Neskelbkite išgalvotos ar neveikiančios formos nuorodos.
+
+Laukai `site.togetherImage`, `secondaryImage`, `included` ir `notIncluded` palikti vėlesniam turiniui; dabartinis šablonas jų nerodo. Gavus bendrą Miglių nuotrauką ar kainos sudėtį reikės papildyti ir `scripts/build.mjs`.
 
 ## Nuotraukos
 
-Failus įkelkite į `assets/`, pvz. `assets/organizatore-1.webp`, o atitinkamame lauke įrašykite kelią:
+Failus įkelkite į `assets/`, o atitinkamame lauke įrašykite kelią, pavyzdžiui:
 
 ```json
-"image": "/assets/organizatore-1.webp"
+"image": "/assets/stovykla.webp"
 ```
 
-Naudokite aiškius failų pavadinimus be tarpų ir optimizuotas WebP, JPG arba PNG nuotraukas. Pagrindinei horizontaliai nuotraukai tinka maždaug 2000 px plotis, portretams – apie 1000 px. Svarbius veidus laikykite arčiau centro: skirtinguose ekranuose nuotraukos kraštai gali būti apkerpami. Originalų pasilikite atskirai.
+Naudokite aiškius failų pavadinimus be tarpų ir optimizuotas WebP, JPG arba PNG nuotraukas. Bendrai horizontaliai nuotraukai tinka maždaug 1600–2000 px plotis. Svarbius veidus laikykite arčiau centro: skirtinguose ekranuose nuotraukos kraštai gali būti apkerpami. Originalus pasilikite atskirai.
 
-`logo-original.jpeg` nekeiskite: tai gautas originalas. Svetainės ir favicon versijos laikomos atskiruose failuose.
+`assets/logo-original.jpeg` nekeiskite: tai gautas originalas. Svetainės logotipas ir favicon laikomi atskiruose failuose.
 
-## Ką atsiųsti prieš paleidimą
+## Ko dar reikia prieš atveriant registraciją
 
-- Abiejų organizatorių vardus, prisistatymus, portretus ir bendrą nuotrauką.
-- Pagrindinę žinutę, trumpą veiklos pristatymą ir istoriją.
-- Kiekvienos stovyklos pavadinimą, aprašymą, datą, vietą, kainą, programą ir nuotraukas.
-- Kas įskaičiuota, atvykimo informaciją, registracijos ir atšaukimo sąlygas bei atsakymus į DUK.
-- Veikiančias Google Forms nuorodas ir patvirtinimą, kad kontaktai teisingi.
+- Patikslintos stovyklos datos, atvykimo ir išvykimo laiko.
+- Vietos, kainos, programos ir informacijos, kas įskaičiuota.
+- Atvykimo informacijos, registracijos ir atšaukimo sąlygų.
+- Veikiančios Google Forms nuorodos.
+- Organizuojančių Miglių patvirtintų tekstų ir, jei norės, papildomų nuotraukų.
 
-Atsiliepimus dėkite tik gavę tikrus tekstus ir leidimą juos skelbti. Prieš viešą paleidimą pakeiskite visus vietaženklius, patikrinkite telefoną, el. paštą ir formas kompiuteryje bei telefone. Tik tada pašalinkite `noindex` pagal [talpinimo instrukciją](talpinimas.md).
+Gavę naują informaciją atnaujinkite ir susijusius DUK atsakymus. Atsiliepimus dėkite tik gavę tikrus tekstus ir leidimą juos skelbti. Prieš viešą paleidimą patikrinkite puslapius, telefoną, el. paštą, video ir formą kompiuteryje bei telefone. Indeksavimą įjunkite pagal [talpinimo instrukciją](talpinimas.md), kai turinys bus patvirtintas.

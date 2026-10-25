@@ -86,7 +86,7 @@ async function localReference(value, from) {
 for (const file of allFiles) {
   if (['.html', '.svg'].includes(extname(file))) {
     const elements = documents.get(file)?.elements ?? tags(await readFile(file, 'utf8'));
-    for (const {attrs} of elements) for (const key of ['href', 'src']) if (key in attrs) await localReference(attrs[key], file);
+    for (const {attrs} of elements) for (const key of ['href', 'src', 'poster']) if (key in attrs) await localReference(attrs[key], file);
   } else if (extname(file) === '.css') {
     const css = await readFile(file, 'utf8');
     for (const match of css.matchAll(/url\(\s*["']?([^"')]+)["']?\s*\)/g)) await localReference(match[1].trim(), file);
@@ -104,15 +104,43 @@ for (const name of ['logo.svg', 'favicon.svg']) {
 
 function registrationState(html, configuredUrl, label) {
   const elements = tags(html);
-  const pending = elements.filter(tag => 'data-registration-pending' in tag.attrs);
-  const links = elements.filter(tag => tag.name === 'a' && tag.attrs.href === configuredUrl);
+  const status = elements.filter(tag => 'data-registration-status' in tag.attrs);
+  const intents = elements.filter(tag => 'data-registration-intent' in tag.attrs);
+  const links = elements.filter(tag => 'data-registration-link' in tag.attrs);
+  check(elements.some(tag => tag.attrs.id === 'registracija'), `${label}: trūksta registracijos skilties.`);
+  check(status.length === 1, `${label}: turi būti viena aiški registracijos būsena.`);
+  check(!elements.some(tag => 'data-registration-pending' in tag.attrs || tag.attrs.id === 'registration-dialog'), `${label}: liko senas registracijos mygtukas arba modalinis langas.`);
+  check(intents.every(tag => tag.name === 'a' && ['#registracija', '/#registracija'].includes(tag.attrs.href)), `${label}: kvietimas dalyvauti turi vesti į registracijos informaciją.`);
   if (configuredUrl) {
-    check(pending.length === 0, `${label}: paskelbus formą liko laukiančios registracijos mygtukas.`);
-    check(links.length === 2, `${label}: abi registracijos vietos turi atidaryti nurodytą formą.`);
+    check(status.every(tag => tag.attrs['data-registration-status'] === 'open'), `${label}: paskelbus formą turi būti rodoma atvira registracija.`);
+    check(links.length >= 1 && links.every(tag => tag.name === 'a' && tag.attrs.href === configuredUrl), `${label}: registracijos nuorodos turi atidaryti nurodytą formą.`);
     check(links.every(tag => tag.attrs.target === '_blank' && tag.attrs.rel?.includes('noopener') && tag.attrs.rel?.includes('noreferrer')), `${label}: formos turi saugiai atsidaryti naujame lange.`);
   } else {
-    check(pending.length === 2 && pending.every(tag => tag.name === 'button' && tag.attrs.type === 'button'), `${label}: be formos turi būti du registracijos būseną paaiškinantys mygtukai.`);
+    check(status.every(tag => tag.attrs['data-registration-status'] === 'pending'), `${label}: be formos turi būti rodoma laukiama registracija.`);
+    check(intents.length >= 1 && links.length === 0, `${label}: be formos kvietimas turi vesti į informaciją, o ne į neegzistuojančią anketą.`);
+    check(!elements.some(tag => tag.name === 'a' && /^https:\/\/(?:forms\.gle\/|docs\.google\.com\/forms\/)/i.test(tag.attrs.href ?? '')), `${label}: be formos negali būti pavyzdinės Google Forms nuorodos.`);
+    check(elements.some(tag => tag.name === 'a' && tag.attrs.href?.startsWith('mailto:info@bukarciau.lt')), `${label}: laukiant registracijos turi būti tikras kontaktas.`);
   }
+}
+async function videoState(document, directory, label) {
+  const videos = document.elements.filter(tag => tag.name === 'video');
+  check(videos.length === 1, `${label}: turi būti vienas Miglių kvietimo video.`);
+  for (const {attrs} of videos) {
+    check(['autoplay', 'muted', 'loop', 'playsinline'].every(key => key in attrs), `${label}: video turi automatiškai kartotis be garso ir veikti puslapyje telefone.`);
+    check(!('controls' in attrs), `${label}: video turi naudoti puslapio valdymo mygtukus be naršyklės grotuvo juostos.`);
+    check(attrs.preload === 'auto', `${label}: automatiškai paleidžiamas video turi būti parsiunčiamas iš anksto.`);
+    check(attrs.poster === '/assets/migliu-kvietimas-poster.jpg', `${label}: trūksta kvietimo video viršelio.`);
+  }
+  for (const attribute of ['data-video-sound', 'data-video-toggle']) {
+    const buttons = document.elements.filter(tag => attribute in tag.attrs);
+    check(buttons.length === 1 && buttons.every(tag => tag.name === 'button' && tag.attrs.type === 'button' && tag.attrs['aria-controls'] === 'promo-video'), `${label}: ${attribute} turi būti tikras mygtukas, susietas su kvietimo video.`);
+  }
+  const sources = document.elements.filter(tag => tag.name === 'source' && tag.attrs.src === '/assets/migliu-kvietimas.mp4');
+  check(sources.length === 1 && sources[0].attrs.type === 'video/mp4', `${label}: trūksta MP4 kvietimo video šaltinio.`);
+  check([...document.html.matchAll(/<details\b[^>]*>\s*<summary\b[^>]*>([\s\S]*?)<\/summary>/gi)].some(match => decode(match[1].replace(/<[^>]*>/g, '')).trim().startsWith('Kvietimo tekstas')), `${label}: šalia video turi būti išskleidžiamas kvietimo tekstas.`);
+  const video = await stat(join(directory, 'assets/migliu-kvietimas.mp4')).catch(() => null);
+  check(Boolean(video?.isFile() && video.size > 0 && video.size <= 25 * 1024 * 1024), `${label}: optimizuotas MP4 turi egzistuoti ir neviršyti 25 MiB.`);
+  check(Boolean((await stat(join(directory, 'assets/migliu-kvietimas-poster.jpg')).catch(() => null))?.isFile()), `${label}: nėra video viršelio failo.`);
 }
 const content = JSON.parse(await readFile(join(root, 'content.json'), 'utf8'));
 async function indexingState(directory, isDraft, label) {
@@ -129,6 +157,18 @@ async function indexingState(directory, isDraft, label) {
   if (!isDraft) check(robots.includes(`Sitemap: ${content.site.url}/sitemap.xml`), `${label}: robots.txt trūksta svetainės žemėlapio nuorodos.`);
 }
 await indexingState(dist, Boolean(content.site.draft), 'Sugeneruota svetainė');
+check(content.camps.length === 1, 'Svetainėje turi būti tik viena dabartinė stovykla.');
+check(!allFiles.includes(join(dist, 'stovyklos/stovykla-02/index.html')), 'Build rezultate liko antros stovyklos puslapis.');
+const redirects = await readFile(join(dist, '_redirects'), 'utf8').catch(() => '');
+const redirectRules = redirects.split(/\r?\n/).map(line => line.trim().split(/\s+/));
+for (const oldPath of ['/stovyklos/stovykla-02', '/stovyklos/stovykla-02/']) {
+  check(redirectRules.some(([from, to, code]) => from === oldPath && to === '/#stovykla' && code === '301'), `${oldPath}: senas adresas turi nukreipti į vienintelę stovyklą.`);
+}
+const home = documents.get(join(dist, 'index.html'));
+if (home && content.camps[0]) {
+  registrationState(home.html, content.camps[0].registrationUrl, 'Pradžios puslapis');
+  await videoState(home, dist, 'Pradžios puslapis');
+}
 for (const camp of content.camps) {
   const path = join(dist, 'stovyklos', camp.slug, 'index.html');
   const document = documents.get(path);
@@ -140,30 +180,32 @@ for (const camp of content.camps) {
 const fixture = await mkdtemp(join(tmpdir(), 'bukarciau-check-'));
 try {
   await mkdir(join(fixture, 'scripts'));
-  for (const file of ['scripts/build.mjs', 'styles.css', 'app.js', '_headers', 'assets']) await cp(join(root, file), join(fixture, file), {recursive:true});
+  for (const file of ['scripts/build.mjs', 'styles.css', 'app.js', '_headers', '_redirects', 'assets']) await cp(join(root, file), join(fixture, file), {recursive:true});
   check(content.camps.length > 0, 'Registracijos šablonui patikrinti reikia bent vienos stovyklos.');
   if (content.camps.length) {
     const fixtureContent = structuredClone(content);
     fixtureContent.site.draft = true;
-    const configuredUrl = 'https://forms.gle/bukarciau-check?camp=2&source=website';
-    fixtureContent.camps = [
-      {...structuredClone(content.camps[0]), slug:'check-pending', registrationUrl:null},
-      {...structuredClone(content.camps[0]), slug:'check-configured', registrationUrl:configuredUrl}
-    ];
-    await writeFile(join(fixture, 'content.json'), JSON.stringify(fixtureContent));
-    const build = spawnSync(process.execPath, ['scripts/build.mjs'], {cwd:fixture, encoding:'utf8'});
-    check(build.status === 0, `Registracijos bandymo build nepavyko: ${build.stderr}`);
-    if (build.status === 0) {
-      registrationState(await readFile(join(fixture, 'dist/stovyklos/check-pending/index.html'), 'utf8'), null, 'Bandymas su null');
-      registrationState(await readFile(join(fixture, 'dist/stovyklos/check-configured/index.html'), 'utf8'), configuredUrl, 'Bandymas su HTTPS forma');
-      await indexingState(join(fixture, 'dist'), true, 'Maketo bandymas');
+    const configuredUrl = 'https://forms.gle/bukarciau-check?camp=1&source=website';
+    fixtureContent.camps = [{...structuredClone(content.camps[0]), registrationUrl:null}];
+    for (const registrationUrl of [null, configuredUrl]) {
+      fixtureContent.camps[0].registrationUrl = registrationUrl;
+      await writeFile(join(fixture, 'content.json'), JSON.stringify(fixtureContent));
+      const build = spawnSync(process.execPath, ['scripts/build.mjs'], {cwd:fixture, encoding:'utf8'});
+      const label = registrationUrl ? 'Bandymas su HTTPS forma' : 'Bandymas su null';
+      check(build.status === 0, `${label}: build nepavyko: ${build.stderr}`);
+      if (build.status === 0) {
+        for (const path of ['index.html', `stovyklos/${fixtureContent.camps[0].slug}/index.html`]) {
+          registrationState(await readFile(join(fixture, 'dist', path), 'utf8'), registrationUrl, `${label}, ${path}`);
+        }
+        await indexingState(join(fixture, 'dist'), true, label);
+      }
     }
     fixtureContent.site.draft = false;
     await writeFile(join(fixture, 'content.json'), JSON.stringify(fixtureContent));
     const publicBuild = spawnSync(process.execPath, ['scripts/build.mjs'], {cwd:fixture, encoding:'utf8'});
     check(publicBuild.status === 0, `Viešos svetainės bandymo build nepavyko: ${publicBuild.stderr}`);
     if (publicBuild.status === 0) await indexingState(join(fixture, 'dist'), false, 'Viešos svetainės bandymas');
-    fixtureContent.camps[1].registrationUrl = 'http://forms.gle/bukarciau-check';
+    fixtureContent.camps[0].registrationUrl = 'http://forms.gle/bukarciau-check';
     await writeFile(join(fixture, 'content.json'), JSON.stringify(fixtureContent));
     const unsafeBuild = spawnSync(process.execPath, ['scripts/build.mjs'], {cwd:fixture, encoding:'utf8'});
     check(unsafeBuild.status !== 0 && /https:\/\//i.test(unsafeBuild.stderr), 'HTTP registracijos nuoroda turi būti atmesta aiškiu pranešimu.');
@@ -174,4 +216,4 @@ try {
 if (errors.length) {
   console.error(`Patikra nepavyko (${errors.length}):\n${errors.map(error => '• ' + error).join('\n')}`);
   process.exitCode = 1;
-} else console.log(`Patikra sėkminga: ${htmlFiles.length} puslapiai, ${assertions} patikros; failai, inkarai, prieinamumo žymos, originalus logotipas ir registracijos būsenos tvarkingi.`);
+} else console.log(`Patikra sėkminga: ${htmlFiles.length} puslapiai, ${assertions} patikros; failai, inkarai, video, originalus logotipas ir registracijos būsenos tvarkingi.`);

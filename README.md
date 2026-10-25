@@ -1,6 +1,6 @@
 # Būk arčiau
 
-Svetainės `bukarciau.lt` maketas kompiuteriams ir telefonams. Turinys, nuotraukos ir registracijos nuorodos kol kas pažymėti vietaženkliais. Datos, kainos, dalyvių atsiliepimai ar organizatorių biografijos nėra išgalvoti.
+Svetainė `bukarciau.lt` kompiuteriams ir telefonams. Pagrindinis puslapis kviečia į vieną Miglės ir Miglės organizuojamą moterų savaitgalio stovyklą gruodžio 5 d. Jame rodomas organizatorių kvietimo video ir pateiktas jo tekstas. Vieta, kaina, programa ir Google Forms anketa dar nepaskelbtos.
 
 Svetainė: [bukarciau.lt](https://bukarciau.lt). Tiesioginė peržiūra: [bukarciau.pages.dev](https://bukarciau.pages.dev).
 
@@ -19,20 +19,24 @@ Atidaryti [http://127.0.0.1:4324](http://127.0.0.1:4324). Po pakeitimų pakartot
 npm run check
 ```
 
-Komanda patikrina sugeneruotą svetainę.
+Komanda patikrina sugeneruotus failus, nuorodas, video ir abi registracijos būsenas: kai Google Forms nuorodos dar nėra ir kai ji pateikta. Bandomosios svetainės generuojamos laikiname aplanke; tikras turinys nekeičiamas.
 
 ## Puslapiai
 
-- `/` – pradžia ir stovyklų sąrašas.
-- `/apie-mus/` – istorija ir dvi organizatorės.
+- `/` – kvietimas į vienintelę stovyklą, Miglių video, praktinė informacija ir registracijos skiltis.
+- `/apie-mus/` – Miglės ir Miglės prisistatymas pagal jų kvietimą.
 - `/kontaktai/` – el. paštas, telefonas ir Facebook.
-- `/stovyklos/stovykla-01/` ir `/stovyklos/stovykla-02/` – stovyklų aprašymai, programa, DUK ir registracija.
+- `/stovyklos/stovykla-01/` – stovyklos aprašymas, praktinė informacija, DUK ir registracija.
+
+Ankstesnis antros stovyklos adresas nukreipiamas į pagrindinio puslapio stovyklos skiltį. Jį aptarnauja Cloudflare Pages taisyklės faile `_redirects`.
 
 ## Turinys ir publikavimas
 
-Tekstai, kontaktai, nuotraukų keliai ir Google Forms nuorodos redaguojami [content.json](content.json). Laukų paaiškinimai ir ką surinkti iš organizatorių – [docs/turinys.md](docs/turinys.md).
+Tekstai, kontaktai, video, nuotraukų keliai ir Google Forms nuoroda redaguojami [content.json](content.json). Laukų paaiškinimai ir ko dar reikia iš organizatorių – [docs/turinys.md](docs/turinys.md).
 
-Kai `registrationUrl` yra `null`, registracijos mygtukas parodo, kad registracija dar nepaskelbta. Įrašius tikrą HTTPS Google Forms nuorodą, mygtukas atidaro ją naujame skirtuke.
+Kai `camps[0].registrationUrl` yra `null`, kvietimas „Noriu dalyvauti“ veda į registracijos informaciją. Joje aiškiai parašyta, kad anketa dar ruošiama, ir pateiktas tikras kontaktas. Įrašius tikrą HTTPS Google Forms nuorodą, registracijos mygtukai atidaro ją naujame skirtuke. Svetainė pati registracijos duomenų nerenka.
+
+Publikuojamas vienas optimizuotas MP4 video su JPG viršeliu. Atidarius puslapį jis automatiškai kartojamas be garso, be įprastos grotuvo juostos. Maži puslapio mygtukai leidžia įjungti garsą ir pristabdyti arba paleisti video. Įjungus garsą kvietimas paleidžiamas nuo pradžios. Kai lankytojos įrenginyje pasirinkta mažiau judesio, automatinis atkūrimas sustabdomas. Video siunčiamas automatiškai — dabartinis failas maždaug 12,6 MB. Originalių MOV failų į saugyklą kelti nereikia.
 
 Originalus logotipas saugomas nepakeistas: `assets/logo-original.jpeg`. `assets/logo.svg` ir favicon failai parengti iš jo; favicon neturi apatinio užrašo „Bendrystė · Saviugda · Ryšiai“.
 
