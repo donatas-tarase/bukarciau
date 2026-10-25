@@ -65,7 +65,7 @@ Palikite ir kitus esamus SPF, DKIM, DMARC bei patvirtinimo įrašus. Nejunkite H
 
 Pagrindiniame puslapyje ir adresu `/stovyklos/stovykla-01/` turi būti ta pati viena stovykla. Kompiuteryje ir telefone patikrinkite, kad kvietimo video automatiškai kartojamas be garso ir įprastos grotuvo juostos. Garso mygtukas turi įjungti garsą ir paleisti kvietimą nuo pradžios, o kitas mygtukas — pristabdyti ir vėl paleisti. Jei automatinį atkūrimą užblokuoja naršyklė, paleidimas turi veikti mygtuku. Pasirinkus mažiau judesio įrenginio nustatymuose, video turi būti sustabdytas. Patikrinkite viršelį ir išskleidžiamą kvietimo tekstą.
 
-Video siunčiamas automatiškai; dabartinis MP4 yra maždaug 12,6 MB. Po pakeitimo patikrinkite įkėlimą ir lėtesniu mobiliuoju ryšiu.
+Video siunčiamas automatiškai; dabartinis MP4 yra maždaug 11,7 MB. Po pakeitimo patikrinkite įkėlimą ir lėtesniu mobiliuoju ryšiu.
 
 Kol `camps[0].registrationUrl` yra `null`, kvietimas dalyvauti turi vesti į aiškią registracijos būseną ir tikrą kontaktą. Įrašę Google Forms nuorodą patikrinkite, kad ji atsidaro tiek iš pagrindinio, tiek iš stovyklos puslapio, taip pat atsijungus nuo Google paskyros. Prieš skelbdami pašalinkite su naujais duomenimis nebesutampančius DUK atsakymus.
 

@@ -30,7 +30,7 @@ Video nustatymai laikomi objekte `site.video`:
 
 Atidarius puslapį video automatiškai kartojamas be garso, telefone lieka pačiame puslapyje. Įprastos naršyklės grotuvo juostos nėra. Atskiri mygtukai leidžia įjungti garsą bei pristabdyti arba paleisti įrašą; garso įjungimas paleidžia visą kvietimą nuo pradžios. Jei naršyklė neleidžia automatinio atkūrimo, video galima paleisti mygtuku. Pasirinkus mažiau judesio įrenginio nustatymuose, automatinis atkūrimas sustabdomas.
 
-Video siunčiamas automatiškai, todėl svarbu jo neapsunkinti: dabartinis optimizuotas failas yra maždaug 12,6 MB. Tekstą galima išskleisti po video. Tai tekstinė įrašo alternatyva, ne pagal laiką suderinti subtitrai.
+Video siunčiamas automatiškai, todėl svarbu jo neapsunkinti: dabartinis optimizuotas failas yra maždaug 11,7 MB. Tekstą galima išskleisti po video. Tai tekstinė įrašo alternatyva, ne pagal laiką suderinti subtitrai.
 
 Keisdami įrašą paruoškite MP4 su H.264 vaizdu ir AAC garsu; išlaikykite teisingą orientaciją. Publikuojamas failas turi neviršyti 25 MiB. Atnaujinkite JPG viršelį, trukmę ir kvietimo tekstą. Originalius MOV failus saugokite atskirai nuo svetainės saugyklos.
 

@@ -36,7 +36,7 @@ Tekstai, kontaktai, video, nuotraukų keliai ir Google Forms nuoroda redaguojami
 
 Kai `camps[0].registrationUrl` yra `null`, kvietimas „Noriu dalyvauti“ veda į registracijos informaciją. Joje aiškiai parašyta, kad anketa dar ruošiama, ir pateiktas tikras kontaktas. Įrašius tikrą HTTPS Google Forms nuorodą, registracijos mygtukai atidaro ją naujame skirtuke. Svetainė pati registracijos duomenų nerenka.
 
-Publikuojamas vienas optimizuotas MP4 video su JPG viršeliu. Atidarius puslapį jis automatiškai kartojamas be garso, be įprastos grotuvo juostos. Maži puslapio mygtukai leidžia įjungti garsą ir pristabdyti arba paleisti video. Įjungus garsą kvietimas paleidžiamas nuo pradžios. Kai lankytojos įrenginyje pasirinkta mažiau judesio, automatinis atkūrimas sustabdomas. Video siunčiamas automatiškai — dabartinis failas maždaug 12,6 MB. Originalių MOV failų į saugyklą kelti nereikia.
+Publikuojamas vienas optimizuotas MP4 video su JPG viršeliu. Atidarius puslapį jis automatiškai kartojamas be garso, be įprastos grotuvo juostos. Maži puslapio mygtukai leidžia įjungti garsą ir pristabdyti arba paleisti video. Įjungus garsą kvietimas paleidžiamas nuo pradžios. Kai lankytojos įrenginyje pasirinkta mažiau judesio, automatinis atkūrimas sustabdomas. Video siunčiamas automatiškai — dabartinis failas maždaug 11,7 MB. Originalių MOV failų į saugyklą kelti nereikia.
 
 Originalus logotipas saugomas nepakeistas: `assets/logo-original.jpeg`. `assets/logo.svg` ir favicon failai parengti iš jo; favicon neturi apatinio užrašo „Bendrystė · Saviugda · Ryšiai“.
 

@@ -50,8 +50,10 @@ if (video) {
     const enableSound = video.muted;
     video.muted = !enableSound;
     video.loop = !enableSound;
-    if (enableSound) video.currentTime = 0;
-    playVideo();
+    if (enableSound) {
+      video.currentTime = 0;
+      playVideo();
+    }
     syncVideoControls();
   });
   toggleButton.addEventListener('click', () => {
