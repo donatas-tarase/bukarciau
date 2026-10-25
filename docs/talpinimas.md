@@ -67,6 +67,8 @@ Pagrindiniame puslapyje ir adresu `/stovyklos/stovykla-01/` turi būti ta pati v
 
 Video siunčiamas automatiškai; dabartinis MP4 yra maždaug 11,7 MB. Po pakeitimo patikrinkite įkėlimą ir lėtesniu mobiliuoju ryšiu.
 
+Build automatiškai prideda turinio versiją `?v=…` prie CSS, JavaScript, MP4 ir video viršelio nuorodų. Pakeitus atitinkamą failą pasikeičia ir jo nuorodos versija, todėl ankstesnė naršyklės ar Cloudflare kopija neužstoja atnaujinimo. Failų vardų keisti nereikia; svarbu po pakeitimų iš naujo sugeneruoti ir paskelbti visą `dist/`.
+
 Kol `camps[0].registrationUrl` yra `null`, kvietimas dalyvauti turi vesti į aiškią registracijos būseną ir tikrą kontaktą. Įrašę Google Forms nuorodą patikrinkite, kad ji atsidaro tiek iš pagrindinio, tiek iš stovyklos puslapio, taip pat atsijungus nuo Google paskyros. Prieš skelbdami pašalinkite su naujais duomenimis nebesutampančius DUK atsakymus.
 
 `_redirects` nukreipia ankstesnį `/stovyklos/stovykla-02` ir `/stovyklos/stovykla-02/` adresą į `/#stovykla` kodu `301`. Failas turi būti `dist/` šaknyje kartu su `_headers`. Šį nukreipimą patikrinkite paskelbtoje Cloudflare Pages svetainėje.

@@ -34,6 +34,8 @@ Video siunčiamas automatiškai, todėl svarbu jo neapsunkinti: dabartinis optim
 
 Keisdami įrašą paruoškite MP4 su H.264 vaizdu ir AAC garsu; išlaikykite teisingą orientaciją. Publikuojamas failas turi neviršyti 25 MiB. Atnaujinkite JPG viršelį, trukmę ir kvietimo tekstą. Originalius MOV failus saugokite atskirai nuo svetainės saugyklos.
 
+`content.json` palikite įprastus video ir viršelio kelius be versijos parametrų. Build pagal failų turinį automatiškai prideda `?v=…` prie jų nuorodų. Pakeitus MP4 ar JPG ir paskelbus naują build, naršyklė atsisiųs naują versiją net jei ankstesnis failas dar laikomas jos atmintinėje. Taip pat automatiškai atnaujinamos stilių ir JavaScript nuorodų versijos.
+
 ## Vienintelė stovykla
 
 `camps` masyve palikite vieną objektą — `camps[0]`.

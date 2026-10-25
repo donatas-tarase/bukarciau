@@ -27,6 +27,16 @@ function tags(html) {
     return {name:match[1].toLowerCase(), attrs};
   });
 }
+function localAssetUrl(value) {
+  try {
+    const url = new URL(value, 'https://local.test/');
+    return url.origin === 'https://local.test' ? url : null;
+  } catch { return null; }
+}
+function versionedAsset(value, pathname) {
+  const url = localAssetUrl(value);
+  return url?.pathname === pathname && Boolean(url.searchParams.get('v')?.trim());
+}
 async function filesIn(directory) {
   const result = [];
   for (const entry of await readdir(directory, {withFileTypes:true})) {
@@ -53,6 +63,8 @@ for (const file of htmlFiles) {
   check(elements.filter(tag => tag.name === 'h1').length === 1, `${label}: turi būti viena h1 antraštė.`);
   check(elements.filter(tag => tag.name === 'main').length === 1, `${label}: turi būti vienas main elementas.`);
   check(ids.length === new Set(ids).size, `${label}: kartojasi elementų ID.`);
+  check(elements.some(tag => tag.name === 'link' && tag.attrs.rel === 'stylesheet' && versionedAsset(tag.attrs.href, '/styles.css')), `${label}: stilių nuorodai trūksta versijos, kad lankytojos gautų atnaujinimus.`);
+  check(elements.some(tag => tag.name === 'script' && versionedAsset(tag.attrs.src, '/app.js')), `${label}: programos failo nuorodai trūksta versijos, kad lankytojos gautų atnaujinimus.`);
   for (const {name, attrs} of elements) {
     if (name === 'img') check('alt' in attrs, `${label}: nuotrauka neturi alt atributo (${attrs.src}).`);
     for (const attr of ['aria-controls', 'aria-labelledby', 'aria-describedby']) {
@@ -129,14 +141,15 @@ async function videoState(document, directory, label) {
     check(['autoplay', 'muted', 'loop', 'playsinline'].every(key => key in attrs), `${label}: video turi automatiškai kartotis be garso ir veikti puslapyje telefone.`);
     check(!('controls' in attrs), `${label}: video turi naudoti puslapio valdymo mygtukus be naršyklės grotuvo juostos.`);
     check(attrs.preload === 'auto', `${label}: automatiškai paleidžiamas video turi būti parsiunčiamas iš anksto.`);
-    check(attrs.poster === '/assets/migliu-kvietimas-poster.jpg', `${label}: trūksta kvietimo video viršelio.`);
+    check(versionedAsset(attrs.poster, '/assets/migliu-kvietimas-poster.jpg'), `${label}: trūksta kvietimo video viršelio arba jo versijos.`);
   }
   for (const attribute of ['data-video-sound', 'data-video-toggle']) {
     const buttons = document.elements.filter(tag => attribute in tag.attrs);
     check(buttons.length === 1 && buttons.every(tag => tag.name === 'button' && tag.attrs.type === 'button' && tag.attrs['aria-controls'] === 'promo-video'), `${label}: ${attribute} turi būti tikras mygtukas, susietas su kvietimo video.`);
   }
-  const sources = document.elements.filter(tag => tag.name === 'source' && tag.attrs.src === '/assets/migliu-kvietimas.mp4');
+  const sources = document.elements.filter(tag => tag.name === 'source' && localAssetUrl(tag.attrs.src)?.pathname === '/assets/migliu-kvietimas.mp4');
   check(sources.length === 1 && sources[0].attrs.type === 'video/mp4', `${label}: trūksta MP4 kvietimo video šaltinio.`);
+  check(sources.every(tag => versionedAsset(tag.attrs.src, '/assets/migliu-kvietimas.mp4')), `${label}: video nuorodai trūksta versijos, kad lankytojos matytų naują įrašą.`);
   check([...document.html.matchAll(/<details\b[^>]*>\s*<summary\b[^>]*>([\s\S]*?)<\/summary>/gi)].some(match => decode(match[1].replace(/<[^>]*>/g, '')).trim().startsWith('Kvietimo tekstas')), `${label}: šalia video turi būti išskleidžiamas kvietimo tekstas.`);
   const video = await stat(join(directory, 'assets/migliu-kvietimas.mp4')).catch(() => null);
   check(Boolean(video?.isFile() && video.size > 0 && video.size <= 25 * 1024 * 1024), `${label}: optimizuotas MP4 turi egzistuoti ir neviršyti 25 MiB.`);

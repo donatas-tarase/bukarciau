@@ -1,9 +1,19 @@
 import {readFile, writeFile, mkdir, rm, cp} from 'node:fs/promises';
 import {join} from 'node:path';
+import {createHash} from 'node:crypto';
 
 const {site, camps} = JSON.parse(await readFile('content.json', 'utf8'));
 if (!camps.length) throw new Error('Pridėkite vieną stovyklą į content.json.');
 const camp = camps[0];
+// Give changed files new URLs, even when a visitor has the previous release cached.
+const assetVersions = new Map();
+for (const path of ['/styles.css', '/app.js', site.video.src, site.video.poster]) {
+  const bytes = await readFile('.' + path);
+  const hash = createHash('sha256').update(bytes).digest('hex').slice(0, 12);
+  assetVersions.set(path, `${path}?v=${hash}`);
+}
+const asset = path => assetVersions.get(path) || path;
+
 const e = value => String(value ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;', '<':'&lt;', '>':'&gt;', '"':'&quot;', "'":'&#39;'}[c]));
 const arrow = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true"><path d="M5 12h14m-6-6 6 6-6 6"/></svg>';
 const photoIcon = '<svg viewBox="0 0 40 40" fill="none" stroke="currentColor" aria-hidden="true"><rect x="6" y="6" width="28" height="28" rx="2"/><circle cx="15" cy="15" r="3"/><path d="m6 29 9-9 7 6 5-5 7 8"/></svg>';
@@ -47,12 +57,12 @@ function transcript() {
   return `<details class="transcript"><summary>Kvietimo tekstas <span aria-hidden="true">+</span></summary><div>${site.video.transcript.map(t => `<p><strong>${e(t.speaker)}:</strong> ${e(t.text)}</p>`).join('')}</div></details>`;
 }
 function promoVideo() {
-  return `<figure class="promo-figure" id="kvietimas"><div class="video-frame"><video id="promo-video" autoplay muted loop playsinline preload="auto" poster="${e(site.video.poster)}" width="720" height="1280" aria-label="${e(site.video.title)}" aria-describedby="video-caption"><source src="${e(site.video.src)}" type="video/mp4">Tavo naršyklė neatkuria vaizdo įrašo. <a href="${e(site.video.src)}">Atidaryti video</a>.</video><div class="video-actions"><button type="button" class="video-sound" data-video-sound aria-controls="promo-video" aria-pressed="false" aria-label="Įjungti garsą ir paleisti video nuo pradžios"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true"><path d="M11 5 6 9H3v6h3l5 4V5Z"/><path d="m17 9 5 6m0-6-5 6" data-video-muted-icon/><path d="M15 8a6 6 0 0 1 0 8m3-11a10 10 0 0 1 0 14" data-video-audio-icon hidden/></svg><span data-video-sound-label>Įjungti garsą</span></button><button type="button" class="video-toggle" data-video-toggle aria-controls="promo-video" aria-label="Sustabdyti video"><svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M8 5h3v14H8zm5 0h3v14h-3z" data-video-pause-icon/><path d="m8 5 11 7-11 7z" data-video-play-icon hidden/></svg></button></div><p class="video-error" data-video-error hidden>Nepavyko paleisti įrašo. <a href="${e(site.video.src)}">Atidaryti video</a></p></div><figcaption id="video-caption"><span>Miglė ir Miglė kviečia</span><span>${e(site.video.durationLabel)}</span></figcaption></figure>`;
+  return `<figure class="promo-figure" id="kvietimas"><div class="video-frame"><video id="promo-video" autoplay muted loop playsinline preload="auto" poster="${e(asset(site.video.poster))}" width="720" height="1280" aria-label="${e(site.video.title)}" aria-describedby="video-caption"><source src="${e(asset(site.video.src))}" type="video/mp4">Tavo naršyklė neatkuria vaizdo įrašo. <a href="${e(asset(site.video.src))}">Atidaryti video</a>.</video><div class="video-actions"><button type="button" class="video-sound" data-video-sound aria-controls="promo-video" aria-pressed="false" aria-label="Įjungti garsą ir paleisti video nuo pradžios"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true"><path d="M11 5 6 9H3v6h3l5 4V5Z"/><path d="m17 9 5 6m0-6-5 6" data-video-muted-icon/><path d="M15 8a6 6 0 0 1 0 8m3-11a10 10 0 0 1 0 14" data-video-audio-icon hidden/></svg><span data-video-sound-label>Įjungti garsą</span></button><button type="button" class="video-toggle" data-video-toggle aria-controls="promo-video" aria-label="Sustabdyti video"><svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M8 5h3v14H8zm5 0h3v14h-3z" data-video-pause-icon/><path d="m8 5 11 7-11 7z" data-video-play-icon hidden/></svg></button></div><p class="video-error" data-video-error hidden>Nepavyko paleisti įrašo. <a href="${e(asset(site.video.src))}">Atidaryti video</a></p></div><figcaption id="video-caption"><span>Miglė ir Miglė kviečia</span><span>${e(site.video.durationLabel)}</span></figcaption></figure>`;
 }
 
 async function page(path, title, body, current = '', description = 'Moterų savaitgalio stovykla gruodžio 5 d. Atokvėpiui, tikriems pokalbiams ir bendrystei kviečia Miglė ir Miglė.') {
   const canonical = path === '404.html' ? '' : `<link rel="canonical" href="${e(site.url)}${path ? '/' + path.replace(/index.html$/, '') : '/'}">`;
-  const html = `<!doctype html><html lang="lt"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>${e(title)} | Būk arčiau</title><meta name="description" content="${e(description)}">${site.draft ? '<meta name="robots" content="noindex, nofollow">' : ''}<meta name="theme-color" content="#bfebac"><meta property="og:type" content="website"><meta property="og:locale" content="lt_LT"><meta property="og:title" content="${e(title)} | Būk arčiau"><meta property="og:description" content="${e(description)}">${canonical}<link rel="icon" href="/assets/favicon.svg" type="image/svg+xml"><link rel="stylesheet" href="/styles.css"><script src="/app.js" defer></script></head><body>${header(current)}<main id="turinys" tabindex="-1">${body}</main>${footer()}</body></html>`;
+  const html = `<!doctype html><html lang="lt"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>${e(title)} | Būk arčiau</title><meta name="description" content="${e(description)}">${site.draft ? '<meta name="robots" content="noindex, nofollow">' : ''}<meta name="theme-color" content="#bfebac"><meta property="og:type" content="website"><meta property="og:locale" content="lt_LT"><meta property="og:title" content="${e(title)} | Būk arčiau"><meta property="og:description" content="${e(description)}">${canonical}<link rel="icon" href="/assets/favicon.svg" type="image/svg+xml"><link rel="stylesheet" href="${e(asset('/styles.css'))}"><script src="${e(asset('/app.js'))}" defer></script></head><body>${header(current)}<main id="turinys" tabindex="-1">${body}</main>${footer()}</body></html>`;
   await mkdir(join('dist', path.includes('/') ? path.slice(0, path.lastIndexOf('/')) : ''), {recursive:true});
   await writeFile(join('dist', path || 'index.html'), html);
 }

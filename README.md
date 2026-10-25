@@ -21,6 +21,8 @@ npm run check
 
 Komanda patikrina sugeneruotus failus, nuorodas, video ir abi registracijos būsenas: kai Google Forms nuorodos dar nėra ir kai ji pateikta. Bandomosios svetainės generuojamos laikiname aplanke; tikras turinys nekeičiamas.
 
+Build automatiškai prideda pagal failo turinį sudarytą `?v=…` versiją prie stilių, JavaScript, video ir jo viršelio nuorodų. Pakeitus failą pasikeičia jo versija, todėl grįžusios lankytojos gauna atnaujinimą iš karto, nelaukdamos, kol baigs galioti ankstesnė naršyklės kopija. Šaltinių failų vardų ar `content.json` kelių dėl to keisti nereikia.
+
 ## Puslapiai
 
 - `/` – kvietimas į vienintelę stovyklą, Miglių video, praktinė informacija ir registracijos skiltis.
