@@ -2,6 +2,8 @@
 
 Svetainės `bukarciau.lt` maketas kompiuteriams ir telefonams. Turinys, nuotraukos ir registracijos nuorodos kol kas pažymėti vietaženkliais. Datos, kainos, dalyvių atsiliepimai ar organizatorių biografijos nėra išgalvoti.
 
+Svetainė: [bukarciau.lt](https://bukarciau.lt). Tiesioginė peržiūra: [bukarciau.pages.dev](https://bukarciau.pages.dev).
+
 ## Paleidimas
 
 Reikia Node.js 20 arba naujesnės versijos. Projektas neturi išorinių vykdymo ar build priklausomybių.

@@ -36,15 +36,24 @@ Direct Upload projekto negalima tiesiog perjungti į Git integraciją. Sutvarkiu
 
 [Git integracija](https://developers.cloudflare.com/pages/get-started/git-integration/), [prieigos trikčių šalinimas](https://developers.cloudflare.com/pages/configuration/git-integration/troubleshooting/)
 
-## Prijungti `bukarciau.lt`
+## Prijungtas domenas
 
-1. Pirmiausia įsitikinkite, kad `*.pages.dev` versija veikia.
-2. Pages projekte atidarykite **Custom domains → Set up a domain**, įrašykite `bukarciau.lt` ir patvirtinkite. Cloudflare automatiškai pasiūlys svetainės DNS įrašą. Domeno zona ir Pages projektas turi būti toje pačioje Cloudflare paskyroje.
-3. Neužtenka vien rankiniu būdu įrašyti CNAME: domenas turi būti susietas ir Pages projekte, kitaip galima 522 klaida.
-4. Sukurkite 301 nukreipimą iš `www.bukarciau.lt` į `https://bukarciau.lt`, išsaugant kelią ir užklausos parametrus. Cloudflare oficiali schema: Bulk Redirect ir proxied `A` įrašas `www` → `192.0.2.1`.
-5. Patikrinkite abu adresus su HTTPS. Sertifikatas turi būti aktyvus; jei patvirtinimas stringa, tikrinkite CAA ir ar kitos taisyklės neblokuoja `/.well-known/acme-challenge/*`.
+Domenai jau pridėti prie Pages projekto `bukarciau`, Cloudflare jų būsena – **active**. Svetainė: [https://bukarciau.lt](https://bukarciau.lt); tiesioginis adresas – [https://bukarciau.pages.dev](https://bukarciau.pages.dev).
 
-[Domeno prijungimas](https://developers.cloudflare.com/pages/configuration/custom-domains/), [www nukreipimas](https://developers.cloudflare.com/pages/how-to/www-redirect/), [HTTPS patikros](https://developers.cloudflare.com/pages/configuration/debugging-pages/)
+Cloudflare DNS įrašai:
+
+| Tipas | Vardas | Reikšmė | Proxy |
+| --- | --- | --- | --- |
+| CNAME | `@` | `bukarciau.pages.dev` | Proxied |
+| CNAME | `www` | `bukarciau.pages.dev` | Proxied |
+
+Cloudflare **Single Redirect** taisyklė `www → bukarciau.lt`:
+
+- Sąlyga: `(http.host eq "www.bukarciau.lt")`.
+- Dinaminis adresas: `concat("https://bukarciau.lt", http.request.uri.path)`.
+- Kodas: `301`; **Preserve query string** įjungta.
+
+HTTPS patikrintas be sertifikato tikrinimo išjungimo. Po DNS pakeitimų kai kurie vietiniai DNS serveriai dar gali laikyti seną atsakymą; tokiu atveju peržiūrai naudokite `pages.dev` adresą. Keičiant talpinimą vėliau, naują domeną pirmiausia reikia susieti su Pages projektu, o tik po to nukreipti DNS. [Cloudflare custom domains](https://developers.cloudflare.com/pages/configuration/custom-domains/)
 
 ## Išsaugoti pašto veikimą
 
