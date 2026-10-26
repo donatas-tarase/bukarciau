@@ -112,7 +112,7 @@ async function localReference(value, from) {
     check(configuredMedia.has(url.pathname), `${label}: nuoroda į nepasirinktą nuotrauką ${value}.`);
     return; // Published media is served from the database, rather than a static build file.
   }
-  if (url.pathname === '/cdn-cgi/access/logout') return; // Cloudflare Access owns this route.
+  if (url.pathname === '/admin/logout') return; // Authenticated server route clears path-scoped Access cookies.
   let target;
   try {
     target = resolve(dist, '.' + decodeURIComponent(url.pathname));

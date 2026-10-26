@@ -28,6 +28,8 @@ Cloudflare Zero Trust sukurta **Self-hosted** programa „Būk arčiau - adminis
 
 Access sesijos trukmė - **6 valandos**. Įjungti `HttpOnly`, `Binding Cookie` ir `Enforce cookie path` nustatymai, `SameSite` reikšmė - `Lax`. Pages runtime parametrai saugomi kaip `secret_text` produkcijos ir preview aplinkose. Pakeitus parametrus reikia naujo Pages diegimo. Backend papildoma tokeno amžiaus riba yra 24 valandos; ji nepailgina 6 valandų Access sesijos.
 
+Atsijungimo nuoroda turi vesti į `/admin/logout`. Šis apsaugotas serverio adresas pašalina svetainės `CF_Authorization` ir `CF_Binding` slapukus, įskaitant `/admin` keliui priskirtus variantus, ir nukreipia į komandos domeno Cloudflare atsijungimą. Tiesioginis svetainės `/cdn-cgi/access/logout` adresas `/admin` slapuko negauna. Komandos adresas parenkamas tik iš patikrinto runtime nustatymo; savavališki grįžimo URL nepriimami. [Cloudflare atsijungimo dokumentacija](https://developers.cloudflare.com/cloudflare-one/access-controls/access-settings/session-management/#log-out-as-a-user).
+
 Serveris papildomai tikrina `Cf-Access-Jwt-Assertion` parašą naudodamas tos komandos pasirašymo raktus, išdavėją, AUD, galiojimo laiką, reikiamus duomenis ir tikslų administratoriaus el. paštą. Vien atsiųstas el. pašto header ar slapukas teisės nesuteikia. Apsauga taikoma ir kreipiantis tiesiogiai per `pages.dev` ar diegimo adresą. [Cloudflare JWT tikrinimo paaiškinimas](https://developers.cloudflare.com/cloudflare-one/access-controls/applications/http-apps/authorization-cookie/application-token/).
 
 ## R2 nuotraukų saugykla

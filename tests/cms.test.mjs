@@ -187,6 +187,46 @@ test('CSRF checks apply to every administrative mutation and no CORS permission 
   }
 });
 
+test('Logout clears path-scoped and legacy cookies before the fixed global logout without database access', async () => {
+  const h = harness();
+  delete h.env.CMS_DB;
+  delete h.env.CMS_MEDIA;
+  for (const method of ['GET', 'HEAD']) {
+    const response = await h.request('/admin/logout?returnTo=https://attacker.test', { method });
+    assert.equal(response.status, 303);
+    assert.equal(response.headers.get('Location'), 'https://cms-tests.cloudflareaccess.com/cdn-cgi/access/logout');
+    assert.equal(await response.text(), '');
+    assert.match(response.headers.get('Cache-Control'), /private, no-store/);
+    const cookies = response.headers.getSetCookie();
+    assert.equal(cookies.length, 12, 'every cookie and scope has its own Set-Cookie header');
+    for (const name of ['CF_Authorization', 'CF_Binding']) {
+      for (const path of ['/admin', '/admin/', '/']) {
+        for (const domain of ['', '; Domain=bukarciau.lt']) {
+          assert.ok(cookies.includes(`${name}=; Path=${path}${domain}; Max-Age=0; Expires=Thu, 01 Jan 1970 00:00:00 GMT; Secure; HttpOnly; SameSite=Lax`));
+        }
+      }
+    }
+    assert.equal(h.staticRequests(), 0);
+  }
+});
+
+test('Logout remains authenticated, rejects unsupported methods and fails closed on invalid team configuration', async () => {
+  const h = harness();
+  let response = await h.request('/admin/logout', { auth: false });
+  assert.equal(response.status, 401);
+  assert.equal(response.headers.has('Set-Cookie'), false);
+  assert.equal(response.headers.has('Location'), false);
+  response = await h.request('/admin/logout', { method: 'POST', body: {} });
+  assert.equal(response.status, 405);
+  assert.equal(response.headers.has('Set-Cookie'), false);
+  h.env.ACCESS_TEAM_DOMAIN = 'attacker.test';
+  response = await h.request('/admin/logout');
+  assert.equal(response.status, 503);
+  assert.equal(response.headers.has('Location'), false);
+  assert.equal(response.headers.has('Set-Cookie'), false);
+  assert.equal(h.staticRequests(), 0);
+});
+
 test('Media stays private until published; referenced photos cannot be deleted; restore only creates a draft', async () => {
   const h = harness();
   const item = await upload(h);

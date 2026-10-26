@@ -1,4 +1,4 @@
-import { verifyAdminRequest, requireSameOriginMutation } from './auth.mjs';
+import { verifyAdminRequest, requireSameOriginMutation, readAccessConfig } from './auth.mjs';
 import { HttpError, unavailable } from './errors.mjs';
 import { CmsStore } from './store.mjs';
 import { IMAGE_TYPES, MAX_UPLOAD_BYTES, MEDIA_ID, readBodyLimited, readImageUpload } from './media.mjs';
@@ -155,6 +155,22 @@ export function createHandler(runtime) {
 
   async function handleAdmin(request, env, identity, url) {
     if (url.pathname === '/admin') return Response.redirect(`${url.origin}/admin/`, 308);
+    if (url.pathname === '/admin/logout') {
+      if (request.method !== 'GET' && request.method !== 'HEAD') throw new HttpError(405, 'METHOD_NOT_ALLOWED', 'Šis veiksmas neleidžiamas.');
+      const { team } = readAccessConfig(env);
+      const headers = new Headers({ Location: `https://${team}/cdn-cgi/access/logout` });
+      // Access scopes its application cookie to /admin. Its root logout URL
+      // cannot receive that cookie, so remove local variants before global SSO
+      // revocation. No cookie values are read or forwarded by this endpoint.
+      for (const name of ['CF_Authorization', 'CF_Binding']) {
+        for (const path of ['/admin', '/admin/', '/']) {
+          for (const domain of ['', `; Domain=${url.hostname}`]) {
+            headers.append('Set-Cookie', `${name}=; Path=${path}${domain}; Max-Age=0; Expires=Thu, 01 Jan 1970 00:00:00 GMT; Secure; HttpOnly; SameSite=Lax`);
+          }
+        }
+      }
+      return new Response(null, { status: 303, headers });
+    }
     if (url.pathname === '/admin/preview') {
       if (request.method !== 'GET' && request.method !== 'HEAD') throw new HttpError(405, 'METHOD_NOT_ALLOWED', 'Šis veiksmas neleidžiamas.');
       if (!env.CMS_DB) throw unavailable();
