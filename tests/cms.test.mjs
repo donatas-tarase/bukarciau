@@ -2,7 +2,9 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readFile } from 'node:fs/promises';
 import { DatabaseSync } from 'node:sqlite';
+import { createLocalJWKSet, exportJWK, generateKeyPair, SignJWT } from 'jose';
 import { createHandler } from '../server/app.mjs';
+import { createAccessVerifier } from '../server/auth.mjs';
 import { CmsStore } from '../server/store.mjs';
 import { inspectImage, readBodyLimited } from '../server/media.mjs';
 import { DEFAULT_CONTENT, parseContent, getImageReferences } from '../shared/content.mjs';
@@ -79,7 +81,7 @@ test('All admin entry points and static assets reject anonymous requests on cust
   for (const origin of ['https://bukarciau.lt', 'https://bukarciau.pages.dev', 'https://preview.bukarciau.pages.dev']) {
     for (const path of ['/admin', '/admin/', '/admin/app.js', '/admin/api/state', '/admin/preview?path=/']) {
       const response = await h.request(path, { auth: false, origin });
-      assert.equal(response.status, 401, `${origin}${path}`);
+      assert.equal(response.status, origin === 'https://bukarciau.lt' ? 401 : 403, `${origin}${path}`);
       assert.match(response.headers.get('Cache-Control'), /no-store/);
     }
   }
@@ -91,6 +93,48 @@ test('All admin entry points and static assets reject anonymous requests on cust
   assert.equal(h.staticRequests(), 0, 'ambiguous paths never reach the asset router');
   delete h.env.ACCESS_AUD;
   assert.equal((await h.request('/admin/', { auth: false })).status, 503);
+});
+
+test('A valid signed administrator token cannot reach private assets on alternate origins or bypass the origin with headers or environment', async () => {
+  const h = harness();
+  const keys = await generateKeyPair('RS256', { extractable: true });
+  const jwk = { ...await exportJWK(keys.publicKey), kid: 'origin-test' };
+  const verifyAccess = createAccessVerifier({ jwks: createLocalJWKSet({ keys: [jwk] }) });
+  const token = await new SignJWT({ email: identity.email }).setProtectedHeader({ alg: 'RS256', kid: 'origin-test' }).setIssuer(`https://${h.env.ACCESS_TEAM_DOMAIN}`).setAudience(h.env.ACCESS_AUD).setSubject('origin-test-user').setIssuedAt().setExpirationTime('6h').sign(keys.privateKey);
+  for (const origin of ['https://bukarciau.pages.dev', 'https://preview.bukarciau.pages.dev', 'http://bukarciau.lt', 'https://www.bukarciau.lt']) {
+    h.env.ADMIN_ORIGIN = origin;
+    h.env.SITE_URL = origin;
+    for (const path of ['/admin/', '/admin/admin.js', '/admin/api/state', '/admin/preview?path=/', '/admin/logout']) {
+      const response = await h.handler(new Request(`${origin}${path}`, { headers: {
+        'Cf-Access-Jwt-Assertion': token,
+        Host: 'bukarciau.lt',
+        Origin: 'https://bukarciau.lt',
+        'X-Forwarded-Host': 'bukarciau.lt',
+        'X-Admin-Origin': origin,
+      } }), h.env, {}, { verifyAccess });
+      assert.equal(response.status, 403, `${origin}${path}`);
+      assert.equal(response.headers.has('Set-Cookie'), false);
+    }
+  }
+  assert.equal(h.staticRequests(), 0, 'alternate origins cannot reach private static assets');
+  const accepted = await h.handler(new Request('https://bukarciau.lt/admin/admin.js', { headers: { 'Cf-Access-Jwt-Assertion': token } }), h.env, {}, { verifyAccess });
+  assert.equal(accepted.status, 200, 'canonical origin still performs the normal JWT check');
+  assert.equal(h.staticRequests(), 1);
+  const publicPreview = await h.handler(new Request('https://preview.bukarciau.pages.dev/'), h.env, {});
+  assert.equal(publicPreview.status, 200, 'public deployment previews remain available without authentication');
+  assert.match(await publicPreview.text(), /Moterų savaitgalis/);
+});
+
+test('Only an explicit validated loopback preview option can change the admin origin', async () => {
+  const h = harness();
+  const localRequest = new Request('http://localhost:4324/admin/admin.js');
+  assert.equal((await h.handler(localRequest, h.env, {}, { verifyAccess: allow })).status, 403);
+  assert.equal(h.staticRequests(), 0);
+  assert.equal((await h.handler(localRequest, h.env, {}, { verifyAccess: allow, adminOrigin: 'http://localhost:4324' })).status, 200);
+  assert.equal((await h.handler(new Request('http://127.0.0.1:4324/admin/admin.js'), h.env, {}, { verifyAccess: allow, adminOrigin: 'http://127.0.0.1:4324' })).status, 200);
+  for (const adminOrigin of ['https://attacker.test', 'http://localhost.attacker.test:4324', 'http://127.0.0.1:4324@attacker.test', 'http://0.0.0.0:4324', 'http://localhost:4324/admin', 'http://localhost:4325']) {
+    assert.equal((await h.handler(localRequest, h.env, {}, { verifyAccess: allow, adminOrigin })).status, 503);
+  }
 });
 
 test('Draft, preview, publish, stale writes and restore keep public content isolated', async () => {

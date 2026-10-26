@@ -68,7 +68,7 @@ const server=http.createServer(async(req,res)=>{
     for await(const chunk of req) {size+=chunk.length;if(size>9*1024*1024)throw Error('Request too large');chunks.push(chunk);}
     const bytes=Buffer.concat(chunks);
     const request=new Request(`http://${req.headers.host}${req.url}`,{method:req.method,headers:req.headers,...(['GET','HEAD'].includes(req.method)?{}:{body:bytes})});
-    const response=await handleRequest(request,env,{waitUntil:promise=>promise.catch(()=>{})},{verifyAccess:async()=>({email:'admin@example.test'})});
+    const response=await handleRequest(request,env,{waitUntil:promise=>promise.catch(()=>{})},{verifyAccess:async()=>({email:'admin@example.test'}),adminOrigin:new URL(request.url).origin});
     res.writeHead(response.status,Object.fromEntries(response.headers));
     res.end(req.method==='HEAD'?undefined:Buffer.from(await response.arrayBuffer()));
   } catch(error) {console.error(error.message);res.writeHead(500);res.end('Vietinės peržiūros klaida.');}

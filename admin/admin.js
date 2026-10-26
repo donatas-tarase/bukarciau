@@ -83,6 +83,7 @@ class ApiError extends Error {
 async function api(path, options = {}) {
   const headers = new Headers(options.headers || {});
   headers.set('Accept','application/json');
+  headers.set('X-Requested-With','XMLHttpRequest');
   if (options.method && options.method !== 'GET') headers.set('X-CMS-Request','1');
   if (options.body && !(options.body instanceof FormData)) {
     headers.set('Content-Type','application/json');
@@ -500,7 +501,7 @@ function renderCanvasPhotoInspector() {
 }
 async function loadCanvasAssets() {
   try {
-    const response = await fetch('/admin/preview?path=/',{credentials:'same-origin',cache:'no-store'});
+    const response = await fetch('/admin/preview?path=/',{credentials:'same-origin',cache:'no-store',headers:{'X-Requested-With':'XMLHttpRequest'}});
     if (!response.ok) return;
     const doc = new DOMParser().parseFromString(await response.text(),'text/html');
     const styles = doc.querySelector('link[rel="stylesheet"][href*="styles.css"]')?.getAttribute('href');
@@ -590,6 +591,7 @@ async function uploadPhoto(file) {
       const request = new XMLHttpRequest();
       request.open('POST','/admin/api/media');
       request.setRequestHeader('X-CMS-Request','1');
+      request.setRequestHeader('X-Requested-With','XMLHttpRequest');
       request.setRequestHeader('Accept','application/json');
       request.responseType = 'json';
       request.upload.addEventListener('progress',event => { if (event.lengthComputable) document.querySelectorAll('[data-upload-progress] progress').forEach(progress => { progress.value = Math.round(event.loaded/event.total*100); }); });

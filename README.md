@@ -4,7 +4,7 @@ Svetainė [bukarciau.lt](https://bukarciau.lt) kompiuteriams ir telefonams. Pris
 
 Parengtas lietuviškas turinio valdymo įrankis `/admin/`: tekstą galima keisti paspaudus jį puslapio vaizde, o nuotrauką pasirinkti paspaudus jai skirtą vietą. Turinys ir nuotraukos redaguojami išlaikant esamą dizainą, išdėstymą ir vieną stovyklą. Yra atskiras juodraščio išsaugojimas, paskelbimas, telefono ir kompiuterio peržiūra, nuotraukų biblioteka ir paskelbtų versijų istorija.
 
-Produkcijos infrastruktūra sukonfigūruota: D1 duomenų bazė su pritaikyta schema, privati R2 nuotraukų saugykla ir Cloudflare Access prisijungimas vienkartiniu kodu. Prieiga suteikiama tik konkrečiai leistam administratoriaus el. paštui; Access sesija trunka 6 valandas. Serveris papildomai tikrina pasirašytą JWT ir administratoriaus teises. Tikros prisijungimo parametrų reikšmės saugomos Cloudflare aplinkoje, ne šiame kode.
+Produkcijos infrastruktūra sukonfigūruota: D1 duomenų bazė su pritaikyta schema, privati R2 nuotraukų saugykla ir Cloudflare Access prisijungimas vienkartiniu kodu. Prieiga suteikiama tik konkrečiai leistam administratoriaus el. paštui; Access sesija trunka 6 valandas. Administravimas aptarnaujamas tik per `https://bukarciau.lt`; kitais talpinimo adresais jis atmetamas dar prieš tikrinant pasirašytą JWT ir administratoriaus teises. Tikros prisijungimo parametrų reikšmės saugomos Cloudflare aplinkoje, ne šiame kode.
 
 ## Vietinis paleidimas
 
@@ -18,7 +18,7 @@ npm run preview
 
 Svetainė: [http://localhost:4324](http://localhost:4324). Redaktorius: [http://localhost:4324/admin/](http://localhost:4324/admin/).
 
-Vietinis serveris veikia tik šiame kompiuteryje, adresu `127.0.0.1`. Jis naudoja imituojamą administratoriaus tapatybę, vietinę SQLite bazę ir vietinius nuotraukų failus aplanke `.wrangler/cms-preview/`. Prisijungimo imitavimas skirtas tik kūrimui; šis serveris nekopijuojamas į `dist/` ir nenaudojamas produkcijoje. Vietiniai pakeitimai nepakeičia tikros svetainės, D1 ar R2 duomenų.
+Vietinis serveris veikia tik šiame kompiuteryje, adresu `127.0.0.1`. Jis naudoja imituojamą administratoriaus tapatybę, vietinę SQLite bazę ir vietinius nuotraukų failus aplanke `.wrangler/cms-preview/`. Tik šiame paleidimo scenarijuje aiškiai perduodamas vietinio administravimo adresas `localhost:4324` arba `127.0.0.1:4324`; užklausų header ar aplinkos kintamieji negali išjungti produkcijos domeno apribojimo. Prisijungimo imitavimas skirtas tik kūrimui; šis serveris nekopijuojamas į `dist/` ir nenaudojamas produkcijoje. Vietiniai pakeitimai nepakeičia tikros svetainės, D1 ar R2 duomenų.
 
 Po kodo pakeitimų pakartokite `npm run build`, paleiskite vietinį serverį iš naujo ir atnaujinkite naršyklę. Norėdami pradėti vietinę peržiūrą nuo pradinio turinio, sustabdykite serverį ir pašalinkite tik `.wrangler/cms-preview/` aplanką.
 

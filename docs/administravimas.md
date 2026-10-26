@@ -6,6 +6,8 @@ Redaktorius naudoja Cloudflare Access prisijungimą, D1 turinio bazę ir privač
 
 Atverkite `https://bukarciau.lt/admin/`. Prisijungti gali tik konkrečiai leistą el. pašto adresą valdantis administratorius. Įveskite tą adresą ir el. paštu gautą vienkartinį kodą. Kitos paskyros prieigos negauna; svetainė neturi viešos administratorių registracijos. Prisijungimo sesija trunka 6 valandas.
 
+Kodas siunčiamas tik leistiems adresams. Prisijungimo lange rodomas bendras paaiškinimas nepatvirtina, ar adresui suteikta prieiga. Jei prieigos nėra, kodas nebus išsiųstas ir prisijungti nepavyks.
+
 Baigę darbą pasirinkite „Atsijungti“. Įrankis pašalina svetainės prisijungimo slapukus ir atveria Cloudflare atsijungimo patvirtinimą. Grįžus į redaktorių reikės prisijungti iš naujo. Jei sesija baigėsi, redaktorius taip pat paprašys prisijungti. Prieš atnaujindami puslapį nukopijuokite dar neišsaugotą svarbų tekstą.
 
 ## Redagavimas tiesiai puslapyje

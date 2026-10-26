@@ -274,7 +274,7 @@ export function createHandler(runtime) {
     throw new HttpError(404, 'API_NOT_FOUND', 'Šis veiksmas nerastas.');
   }
 
-  return async function handleRequest(request, env, ctx, { verifyAccess = verifyAdminRequest } = {}) {
+  return async function handleRequest(request, env, ctx, { verifyAccess = verifyAdminRequest, adminOrigin } = {}) {
     const url = new URL(request.url);
     // Asset routers may decode or collapse a pathname after the Worker runs.
     // Refuse ambiguous paths before any asset fallback can expose /admin files.
@@ -284,6 +284,21 @@ export function createHandler(runtime) {
     const admin = url.pathname === '/admin' || url.pathname.startsWith('/admin/');
     try {
       if (admin) {
+        // Only the canonical domain is protected by the Access application.
+        // A valid token replayed against a Pages deployment must not bypass its
+        // binding-cookie or session-revocation checks at Cloudflare's edge.
+        let expectedOrigin;
+        if (adminOrigin !== undefined) {
+          // Trusted in-process local preview option, never read from a request
+          // or environment variable. The production fetch supplies no options.
+          if (typeof adminOrigin !== 'string' || !/^http:\/\/(?:localhost|127\.0\.0\.1):4324$/.test(adminOrigin)) throw unavailable();
+          expectedOrigin = adminOrigin;
+        } else {
+          const canonical = new URL(initialContent.site.url);
+          if (canonical.protocol !== 'https:' || canonical.username || canonical.password) throw unavailable();
+          expectedOrigin = canonical.origin;
+        }
+        if (url.origin !== expectedOrigin) throw new HttpError(403, 'ADMIN_ORIGIN_FORBIDDEN', 'Šiuo adresu administravimas nepasiekiamas.');
         const identity = await verifyAccess(request, env);
         return secure(await handleAdmin(request, env, identity, url), { admin: true, preview: url.pathname === '/admin/preview', html: !url.pathname.startsWith(API_PREFIX) });
       }
