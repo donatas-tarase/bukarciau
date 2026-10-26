@@ -1,19 +1,19 @@
-# Talpinimas ir administravimo aktyvavimas
+# Talpinimas ir administravimas
 
 Hostingas lieka **Cloudflare Pages Direct Upload**, projektas `bukarciau`. Kodas saugomas [donatas-tarase/bukarciau](https://github.com/donatas-tarase/bukarciau); `git push` šiuo metu svetainės neatnaujina. Domenas `bukarciau.lt` registruotas Hostingeryje, o DNS ir el. pašto persiuntimą aptarnauja Cloudflare.
 
 ## Dabartinė būsena
 
-Administravimo kodas ir vietinė peržiūra parengti. D1 bazė `bukarciau-cms` sukurta, o `db/schema.sql` schema pritaikyta. D1 susiejimas `CMS_DB` įrašytas `wrangler.toml`.
+Administravimo kodas ir vietinė peržiūra parengti. D1 bazė `bukarciau-cms` sukurta, o `db/schema.sql` schema pritaikyta. Privati R2 saugykla `bukarciau-media` sukurta su WEUR vietos nustatymu. `CMS_DB` ir `CMS_MEDIA` susiejimai įrašyti `wrangler.toml` pagrindinei ir produkcijos aplinkai.
 
-**Produkcijos administravimo aktyvavimas dar nebaigtas.** Reikia Cloudflare Access programos ir leidžiamų administratorių sąrašo, runtime prisijungimo parametrų, R2 saugyklos bei jos susiejimo `CMS_MEDIA`. Ši instrukcija nereiškia, kad Access ar R2 jau veikia. Kol prisijungimo konfigūracija nepilna, serveris administravimo užklausas atmeta.
+Cloudflare Access programa sukonfigūruota su viena tikslaus administratoriaus el. pašto Allow taisykle ir vienkartinio kodo prisijungimu. Pages produkcijos bei preview aplinkose nustatyti `ACCESS_TEAM_DOMAIN`, `ACCESS_AUD` ir `ADMIN_EMAILS` saugomi runtime parametrai. Tikros jų reikšmės į šį dokumentą ar saugyklą neįtrauktos. Po kodo arba konfigūracijos pakeitimų atlikite toliau aprašytą diegimo ir prisijungimo patikrą.
 
 ## Reikalingi susiejimai ir parametrai
 
 | Pavadinimas | Reikšmė ir paskirtis |
 | --- | --- |
 | `CMS_DB` | D1 susiejimas su esama `bukarciau-cms` baze; juodraštis, paskelbta versija, istorija ir nuotraukų metaduomenys |
-| `CMS_MEDIA` | R2 susiejimas su nuotraukų saugykla, numatytas vardas `bukarciau-media`; dar neprijungtas |
+| `CMS_MEDIA` | R2 susiejimas su privačia nuotraukų saugykla `bukarciau-media` |
 | `ACCESS_TEAM_DOMAIN` | Savo Cloudflare Access komandos domenas, pvz. `komanda.cloudflareaccess.com` |
 | `ACCESS_AUD` | Administravimo Access programos Application Audience (AUD) reikšmė |
 | `ADMIN_EMAILS` | Tikslūs leisti administratorių el. paštai, atskirti kableliais; saugoti Pages aplinkos paslaptyje |
@@ -24,15 +24,15 @@ Cloudflare susiejimus galima nustatyti Wrangler konfigūracijoje; naudojant ją,
 
 ## Cloudflare Access
 
-Cloudflare Zero Trust sukurkite administravimui skirtą **Self-hosted** programą. Ji turi aprėpti `bukarciau.lt/admin` ir visus `/admin/*` kelius: patį įrankį, jo CSS ir JavaScript, API, juodraščio peržiūrą ir privačias nuotraukas. Prisijungimui galima įjungti vienkartinį kodą el. paštu. **Allow** taisyklėje leiskite tik konkrečius administratorių adresus; jų sąrašas turi sutapti su runtime `ADMIN_EMAILS`. [Access programos sąranka](https://developers.cloudflare.com/cloudflare-one/access-controls/applications/http-apps/self-hosted-public-app/), [vienkartinio kodo prisijungimas](https://developers.cloudflare.com/cloudflare-one/integrations/identity-providers/one-time-pin/).
+Cloudflare Zero Trust sukurta **Self-hosted** programa „Būk arčiau - administravimas“, skirta `bukarciau.lt/admin` ir visiems po juo esantiems adresams: paties įrankio failams, API, juodraščio peržiūrai bei privačioms nuotraukoms. Vienintelis prisijungimo būdas - vienkartinis kodas el. paštu. **Allow** taisyklėje nurodytas vienas konkretus administratoriaus adresas, sutampantis su runtime `ADMIN_EMAILS`. [Access programos sąranka](https://developers.cloudflare.com/cloudflare-one/access-controls/applications/http-apps/self-hosted-public-app/), [vienkartinio kodo prisijungimas](https://developers.cloudflare.com/cloudflare-one/integrations/identity-providers/one-time-pin/).
 
-Į Pages runtime aplinką perkelkite tikrą komandos domeną, šios programos AUD ir leistų paštų sąrašą. Parinkta Access sesija turi tilpti į serverio priimamą 24 val. tokeno amžių. Pritaikius parametrus reikia naujo Pages diegimo.
+Access sesijos trukmė - **6 valandos**. Įjungti `HttpOnly`, `Binding Cookie` ir `Enforce cookie path` nustatymai, `SameSite` reikšmė - `Lax`. Pages runtime parametrai saugomi kaip `secret_text` produkcijos ir preview aplinkose. Pakeitus parametrus reikia naujo Pages diegimo. Backend papildoma tokeno amžiaus riba yra 24 valandos; ji nepailgina 6 valandų Access sesijos.
 
 Serveris papildomai tikrina `Cf-Access-Jwt-Assertion` parašą naudodamas tos komandos pasirašymo raktus, išdavėją, AUD, galiojimo laiką, reikiamus duomenis ir tikslų administratoriaus el. paštą. Vien atsiųstas el. pašto header ar slapukas teisės nesuteikia. Apsauga taikoma ir kreipiantis tiesiogiai per `pages.dev` ar diegimo adresą. [Cloudflare JWT tikrinimo paaiškinimas](https://developers.cloudflare.com/cloudflare-one/access-controls/applications/http-apps/authorization-cookie/application-token/).
 
 ## R2 nuotraukų saugykla
 
-Aktyvuokite R2 paskyroje ir sukurkite privačią `bukarciau-media` saugyklą. Nekurkite viešo R2 domeno: nuotraukas aptarnauja šio projekto Worker. Pridėkite `CMS_MEDIA` susiejimą į naudojamų Pages aplinkų Wrangler konfigūraciją:
+R2 paskyroje aktyvuotas, o privati `bukarciau-media` saugykla sukurta. Viešas R2 domenas nenaudojamas: nuotraukas aptarnauja šio projekto Worker. Esamoje Wrangler konfigūracijoje įrašyti susiejimai:
 
 ```toml
 [[r2_buckets]]
@@ -44,7 +44,7 @@ binding = "CMS_MEDIA"
 bucket_name = "bukarciau-media"
 ```
 
-Šis pavyzdys yra užbaigiamos sąrankos žingsnis; dabartiniame `wrangler.toml` R2 susiejimo dar nėra. Po pakeitimo atlikite naują Pages diegimą. Jeigu kuriate atskirą bandomąją Cloudflare aplinką, jai naudokite atskirus duomenis, kad testuojant nebūtų keičiamas produkcijos turinys.
+Po susiejimų pakeitimo atlikite naują Pages diegimą. Jeigu kuriate atskirą bandomąją Cloudflare aplinką, jai naudokite atskirus duomenis, kad testuojant nebūtų keičiamas produkcijos turinys.
 
 R2 saugo nuotraukų failus, D1 - jų metaduomenis ir nuorodas turinyje. Juodraščio nuotraukos aptarnaujamos tik per apsaugotą `/admin/api/media/` adresą. Vieši `/media/` adresai veikia tik toms nuotraukoms, kurias naudoja paskelbta turinio versija. Logiškai iš bibliotekos ištrinti objektai paliekami R2, kad istorijoje esanti versija galėtų būti atkurta.
 
@@ -82,7 +82,7 @@ Build prideda turinio hash pagrįstą `?v=` prie viešų CSS ir JavaScript adres
 
 Pradinis turinys apima tik vieną stovyklą. Nežinoma vieta, kaina ir registracijos anketa paliktos tuščios. Įrašius tikrą HTTPS anketą veiksmai pasikeičia abiejuose viešuose puslapiuose. Duomenų bazės sutrikimo atveju viešiems puslapiams lieka statinis build rezultatas; jis gali būti senesnis už naujausią administratoriaus paskelbtą turinį.
 
-## Aktyvavimo patikra
+## Diegimo ir prisijungimo patikra
 
 Po konfigūravimo ir diegimo patikrinkite prisijungimą leidžiamu adresu bei atmetimą kitu adresu. Neprisijungus neturi būti pasiekiamas nei `/admin/`, nei administravimo failai, API, juodraščio peržiūra ar jos nuotraukos. Tą patį patikrinkite `pages.dev` ir diegimo adresu.
 

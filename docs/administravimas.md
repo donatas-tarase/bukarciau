@@ -1,10 +1,10 @@
 # Administravimo instrukcija
 
-Ši instrukcija skirta jau aktyvuotam redaktoriui. Šiuo metu jo kodas parengtas ir D1 schema pritaikyta, tačiau produkcijos Cloudflare Access prisijungimas bei R2 nuotraukų saugykla dar turi būti sukonfigūruoti pagal [talpinimo instrukciją](talpinimas.md).
+Redaktorius naudoja Cloudflare Access prisijungimą, D1 turinio bazę ir privačią R2 nuotraukų saugyklą. Techninė konfigūracija ir diegimo patikra aprašytos [talpinimo instrukcijoje](talpinimas.md).
 
 ## Prisijungimas
 
-Atverkite `https://bukarciau.lt/admin/`. Įjungus Cloudflare Access, prisijungti galės tik konkrečiai leistą el. pašto adresą valdantis administratorius. Jei įjungtas vienkartinis kodas, jis bus siunčiamas į tą paštą. Kitos paskyros prieigos negauna; svetainė neturi viešos administratorių registracijos.
+Atverkite `https://bukarciau.lt/admin/`. Prisijungti gali tik konkrečiai leistą el. pašto adresą valdantis administratorius. Įveskite tą adresą ir el. paštu gautą vienkartinį kodą. Kitos paskyros prieigos negauna; svetainė neturi viešos administratorių registracijos. Prisijungimo sesija trunka 6 valandas.
 
 Baigę darbą pasirinkite „Atsijungti“. Jei sesija baigėsi, redaktorius paprašys prisijungti iš naujo. Prieš atnaujindami puslapį nukopijuokite dar neišsaugotą svarbų tekstą.
 
@@ -39,7 +39,7 @@ Pasirinkę nuotrauką pridėkite trumpą alternatyvų aprašymą, pavyzdžiui, k
 
 „Pašalinti iš šios vietos“ atlaisvina konkrečią maketo vietą. Failas lieka bibliotekoje. Iš bibliotekos galima ištrinti tik nuotrauką, kurios nenaudoja išsaugotas juodraštis ar paskelbta versija. Po pašalinimo iš turinio pirmiausia išsaugokite ir paskelbkite pakeitimus. Bibliotekos ištrynimas yra loginis: objektas paliekamas saugykloje, kad būtų įmanomas versijos atkūrimas.
 
-Jei R2 saugykla neprijungta, įrankis praneša, kad nuotraukų įkėlimas neparuoštas. Tuomet reikia užbaigti techninę sąranką.
+Jei po konfigūracijos pakeitimų pasirodo pranešimas, kad nuotraukų įkėlimas neparuoštas, reikia patikrinti `CMS_MEDIA` susiejimą ir iš naujo įdiegti projektą pagal techninę instrukciją.
 
 ## Versijų istorija
 

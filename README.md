@@ -4,7 +4,7 @@ Svetainė [bukarciau.lt](https://bukarciau.lt) kompiuteriams ir telefonams. Pris
 
 Parengtas lietuviškas turinio valdymo įrankis `/admin/`: tekstą galima keisti paspaudus jį puslapio vaizde, o nuotrauką pasirinkti paspaudus jai skirtą vietą. Turinys ir nuotraukos redaguojami išlaikant esamą dizainą, išdėstymą ir vieną stovyklą. Yra atskiras juodraščio išsaugojimas, paskelbimas, telefono ir kompiuterio peržiūra, nuotraukų biblioteka ir paskelbtų versijų istorija.
 
-**Produkcijos administravimo aktyvavimas dar nebaigtas.** D1 duomenų bazė sukurta ir schema pritaikyta. Dar reikia parengti Cloudflare Access prisijungimą, nustatyti leidžiamus administratorių el. paštus ir prijungti R2 nuotraukų saugyklą. Be tinkamos prisijungimo konfigūracijos serveris administravimo prieigos nesuteikia. Toliau pateikta vietinė peržiūra šių paslaugų neaktyvuoja.
+Produkcijos infrastruktūra sukonfigūruota: D1 duomenų bazė su pritaikyta schema, privati R2 nuotraukų saugykla ir Cloudflare Access prisijungimas vienkartiniu kodu. Prieiga suteikiama tik konkrečiai leistam administratoriaus el. paštui; Access sesija trunka 6 valandas. Serveris papildomai tikrina pasirašytą JWT ir administratoriaus teises. Tikros prisijungimo parametrų reikšmės saugomos Cloudflare aplinkoje, ne šiame kode.
 
 ## Vietinis paleidimas
 
@@ -31,7 +31,7 @@ Testai tikrina turinio redagavimą, prisijungimo parašą ir teises, juodrašči
 
 ## Turinys ir paskelbimas
 
-Įjungus produkcijos administravimą, įprasti turinio pakeitimai atliekami redaktoriuje. „Išsaugoti juodraštį“ išsaugo darbą, o „Paskelbti pakeitimus“ atnaujina lankytojoms rodomą versiją. Išsaugomi iki 30 paskelbtų turinio versijų; atkūrimas pirmiausia sukuria juodraštį.
+Įprasti turinio pakeitimai atliekami redaktoriuje. „Išsaugoti juodraštį“ išsaugo darbą, o „Paskelbti pakeitimus“ atnaujina lankytojoms rodomą versiją. Išsaugomi iki 30 paskelbtų turinio versijų; atkūrimas pirmiausia sukuria juodraštį.
 
 [content.json](content.json) yra pradinis turinys naujai, tuščiai duomenų bazei ir statiniam atsarginiam build rezultatui. Kai D1 jau turi turinį, naujas kodo diegimas jo neperrašo. Pakeitus vien `content.json`, jau naudojamos D1 bazės turinys nepasikeičia.
 
@@ -49,7 +49,7 @@ Kai registracijos nuorodos nėra, kvietimas dalyvauti veda į informaciją apie 
 - `db/schema.sql` - D1 schema.
 - `dist/` ir `server/generated.mjs` - generuojami failai, jų tiesiogiai neredaguokite.
 
-Hostingas lieka Cloudflare Pages Direct Upload, kodas - [donatas-tarase/bukarciau](https://github.com/donatas-tarase/bukarciau). `git push` kodo automatiškai nepaskelbia. Administratoriaus turinio publikavimas, kai paslaugos sukonfigūruotos, naujo kodo diegimo nereikalauja.
+Hostingas lieka Cloudflare Pages Direct Upload, kodas - [donatas-tarase/bukarciau](https://github.com/donatas-tarase/bukarciau). `git push` kodo automatiškai nepaskelbia. Administratoriaus turinio publikavimas naujo kodo diegimo nereikalauja.
 
 Į `dist/assets/` kopijuojami tik logotipai ir šriftai. Ankstesni saugykloje esantys foto, video ir viršelio failai nepaskelbiami. Administratoriaus nuotraukos saugomos R2 ir rodomos tik pagal pasirinktus turinio laukus. Originalus `assets/logo-original.jpeg` nekeičiamas; kontaktų logotipas išlaiko savo proporcijas.
 

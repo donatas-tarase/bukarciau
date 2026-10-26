@@ -8,7 +8,10 @@ binding = "CMS_DB"
 database_name = "bukarciau-cms"
 database_id = "1195b2cd-9db8-4e43-9673-9e8c817ea789"
 
-# After R2 activation, add CMS_MEDIA -> bukarciau-media using the setup guide.
+[[r2_buckets]]
+binding = "CMS_MEDIA"
+bucket_name = "bukarciau-media"
+
 # ACCESS_TEAM_DOMAIN, ACCESS_AUD and ADMIN_EMAILS must be set in Pages runtime settings.
 
 [env.production]
@@ -16,3 +19,7 @@ database_id = "1195b2cd-9db8-4e43-9673-9e8c817ea789"
 binding = "CMS_DB"
 database_name = "bukarciau-cms"
 database_id = "1195b2cd-9db8-4e43-9673-9e8c817ea789"
+
+[[env.production.r2_buckets]]
+binding = "CMS_MEDIA"
+bucket_name = "bukarciau-media"

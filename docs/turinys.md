@@ -2,7 +2,7 @@
 
 Turinio redaktorius leidžia keisti tekstus, kontaktus, nuotraukas, vienos stovyklos informaciją, registracijos nuorodą ir paieškos aprašymus. Dizainas, blokų tvarka, spalvos, šriftai, puslapių adresai ir logotipai nustatyti kode. Redaktorius neleidžia įterpti HTML, JavaScript ar savavališkų maketo laukų; įrašytas tekstas rodomas kaip tekstas.
 
-Produkcijos prisijungimo ir nuotraukų saugyklos aktyvavimas dar nebaigtas. Vietinį redaktorių galima išbandyti pagal [README](../README.md). Kasdienio naudojimo veiksmai aprašyti [administravimo instrukcijoje](administravimas.md).
+Prisijungimui sukonfigūruotas Cloudflare Access, turiniui - D1, o nuotraukoms - privati R2 saugykla. Vietinį redaktorių galima išbandyti pagal [README](../README.md). Kasdienio naudojimo veiksmai aprašyti [administravimo instrukcijoje](administravimas.md).
 
 ## Redaguojamos sritys
 
