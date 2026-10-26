@@ -1,9 +1,10 @@
-import {readFile, readdir, stat, mkdtemp, mkdir, cp, writeFile, rm} from 'node:fs/promises';
+import {readFile, readdir, stat, mkdtemp, mkdir, cp, writeFile, rm, symlink} from 'node:fs/promises';
 import {resolve, dirname, join, relative, extname, sep} from 'node:path';
 import {fileURLToPath} from 'node:url';
 import {tmpdir} from 'node:os';
 import {createHash} from 'node:crypto';
 import {spawnSync} from 'node:child_process';
+import {parseContent, getImageReferences} from '../shared/content.mjs';
 
 const root = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 const dist = join(root, 'dist');
@@ -49,30 +50,47 @@ async function filesIn(directory) {
 const documents = new Map();
 const allFiles = await filesIn(dist).catch(() => []);
 const htmlFiles = allFiles.filter(path => path.endsWith('.html'));
-check(!allFiles.some(path => /\.(?:mp4|mov|webm|vtt|mp3|wav|ogg|jpe?g|png|webp|avif|gif)$/i.test(path) && path !== join(dist, 'assets/logo-original.jpeg')), 'Dabartinis build neturi publikuoti nuotraukų ar video.');
-check(htmlFiles.length > 0, 'Nėra sugeneruotų puslapių. Pirmiausia paleiskite npm run build.');
+const publicFiles = htmlFiles.filter(path => !relative(dist, path).split(sep).includes('admin'));
+const content = parseContent(JSON.parse(await readFile(join(root, 'content.json'), 'utf8')));
+const configuredMedia = new Set(getImageReferences(content).map(item => item.src));
+const mediaPattern = /^\/media\/[a-f0-9]{32}\.(?:jpg|png|webp)$/;
+const logoAssets = ['/assets/logo.svg', '/assets/logo-original.jpeg', '/assets/favicon.svg'];
+check(!allFiles.some(path => /\.(?:mp4|mov|webm|vtt|mp3|wav|ogg)$/i.test(path)), 'Dabartinis build neturi publikuoti video ar garso.');
+check(!allFiles.some(path => /\.(?:jpe?g|png|webp|avif|gif)$/i.test(path) && path !== join(dist, 'assets/logo-original.jpeg') && !(mediaPattern.test('/' + relative(dist, path).split(sep).join('/')) && configuredMedia.has('/' + relative(dist, path).split(sep).join('/')))), 'Build rasta nepasirinkta arba neleistino kelio nuotrauka.');
+check(publicFiles.length === 5, 'Turi būti penki vieši puslapiai ir viena stovykla. Pirmiausia paleiskite npm run build.');
+check(allFiles.includes(join(dist, '_worker.js')) && allFiles.includes(join(dist, '_routes.json')), 'Trūksta apsaugą ir dinaminį turinį aptarnaujančio Worker.');
+check(htmlFiles.includes(join(dist, 'admin/index.html')), 'Trūksta administratoriaus įrankio.');
 for (const file of htmlFiles) {
   const html = await readFile(file, 'utf8');
   const elements = tags(html);
   const ids = elements.filter(tag => 'id' in tag.attrs).map(tag => tag.attrs.id);
   const label = relative(dist, file);
+  const isPublic = publicFiles.includes(file);
   const titles = [...html.matchAll(/<title>([\s\S]*?)<\/title>/gi)];
-  check(elements.some(tag => tag.name === 'html' && tag.attrs.lang === 'lt'), `${label}: trūksta lietuvių kalbos žymos.`);
   check(titles.length === 1 && decode(titles[0]?.[1] ?? '').trim().length > 0, `${label}: turi būti viena netuščia antraštė title.`);
   check(elements.some(tag => tag.name === 'meta' && tag.attrs.charset?.toLowerCase() === 'utf-8'), `${label}: trūksta UTF-8.`);
   check(elements.some(tag => tag.name === 'meta' && tag.attrs.name === 'viewport' && /width\s*=\s*device-width/i.test(tag.attrs.content ?? '') && /initial-scale\s*=\s*1(?:\.0)?(?:\s*[,;]|\s*$)/i.test(tag.attrs.content ?? '')), `${label}: netinkama viewport žyma.`);
-  check(elements.filter(tag => tag.name === 'h1').length === 1, `${label}: turi būti viena h1 antraštė.`);
-  check(elements.filter(tag => tag.name === 'main').length === 1, `${label}: turi būti vienas main elementas.`);
+  if (isPublic) {
+    check(elements.some(tag => tag.name === 'html' && tag.attrs.lang === 'lt'), `${label}: trūksta lietuvių kalbos žymos.`);
+    check(elements.filter(tag => tag.name === 'h1').length === 1, `${label}: turi būti viena h1 antraštė.`);
+    check(elements.filter(tag => tag.name === 'main').length === 1, `${label}: turi būti vienas main elementas.`);
+  }
   check(ids.length === new Set(ids).size, `${label}: kartojasi elementų ID.`);
   check(!/[\u2010-\u2015\u2212]/u.test(decode(html.replace(/<[^>]*>/g, ''))), `${label}: tekste brūkšniams naudokite tik paprastą - ženklą.`);
-  check(elements.some(tag => tag.name === 'link' && tag.attrs.rel === 'stylesheet' && versionedAsset(tag.attrs.href, '/styles.css')), `${label}: stilių nuorodai trūksta versijos, kad lankytojos gautų atnaujinimus.`);
-  check(elements.some(tag => tag.name === 'script' && versionedAsset(tag.attrs.src, '/app.js')), `${label}: programos failo nuorodai trūksta versijos, kad lankytojos gautų atnaujinimus.`);
-  check(!elements.some(tag => ['video', 'audio', 'source', 'track', 'dialog'].includes(tag.name)), `${label}: dabartiniame makete neturi būti video, garso ar jų dialogo.`);
+  if (isPublic) {
+    check(elements.some(tag => tag.name === 'link' && tag.attrs.rel === 'stylesheet' && versionedAsset(tag.attrs.href, '/styles.css')), `${label}: stilių nuorodai trūksta versijos, kad lankytojos gautų atnaujinimus.`);
+    check(elements.some(tag => tag.name === 'script' && versionedAsset(tag.attrs.src, '/app.js')), `${label}: programos failo nuorodai trūksta versijos, kad lankytojos gautų atnaujinimus.`);
+    check(!elements.some(tag => ['video', 'audio', 'source', 'track', 'dialog'].includes(tag.name)), `${label}: viešame makete neturi būti video, garso ar jų dialogo.`);
+  } else {
+    check(elements.some(tag => tag.name === 'meta' && tag.attrs.name === 'robots' && /noindex/i.test(tag.attrs.content ?? '')), `${label}: administratoriaus įrankis neturi būti indeksuojamas.`);
+  }
   check(!/Čia bus|Vieta nuotraukai|Vieta bendrai stovyklos nuotraukai|Kvietimo tekstas/i.test(decode(html)), `${label}: liko nuotraukos vietos žyma arba video išrašas.`);
   for (const {name, attrs} of elements) {
     if (name === 'img') {
-      check('alt' in attrs, `${label}: logotipas neturi alt atributo (${attrs.src}).`);
-      check(['/assets/logo.svg', '/assets/logo-original.jpeg', '/assets/favicon.svg'].includes(localAssetUrl(attrs.src)?.pathname), `${label}: dabartiniame makete gali būti tik logotipo paveikslėliai.`);
+      const source = localAssetUrl(attrs.src)?.pathname;
+      check('alt' in attrs, `${label}: paveikslėlis neturi alt atributo (${attrs.src}).`);
+      check(logoAssets.includes(source) || (mediaPattern.test(source ?? '') && configuredMedia.has(source)), `${label}: paveikslėlio kelias turi būti logotipas arba redaktoriuje pasirinkta nuotrauka.`);
+      if (mediaPattern.test(source ?? '')) check(Boolean(attrs.alt?.trim()), `${label}: įkeltai nuotraukai reikia alternatyvaus teksto.`);
     }
     for (const attr of ['aria-controls', 'aria-labelledby', 'aria-describedby']) {
       if (attrs[attr]) for (const id of attrs[attr].split(/\s+/)) check(ids.includes(id), `${label}: ${attr} nurodo neegzistuojantį #${id}.`);
@@ -90,6 +108,11 @@ async function localReference(value, from) {
   catch { check(false, `${label}: netinkama nuoroda ${value}.`); return; }
   check(['http:', 'https:'].includes(url.protocol), `${label}: neleidžiamas nuorodos protokolas ${value}.`);
   if (url.origin !== 'https://local.test') return;
+  if (mediaPattern.test(url.pathname)) {
+    check(configuredMedia.has(url.pathname), `${label}: nuoroda į nepasirinktą nuotrauką ${value}.`);
+    return; // Published media is served from the database, rather than a static build file.
+  }
+  if (url.pathname === '/cdn-cgi/access/logout') return; // Cloudflare Access owns this route.
   let target;
   try {
     target = resolve(dist, '.' + decodeURIComponent(url.pathname));
@@ -121,7 +144,7 @@ for (const name of ['logo.svg', 'favicon.svg']) {
   check(embedded.length === 1 && original.equals(Buffer.from(embedded[0]?.[1] ?? '', 'base64')), `${name}: įterptas logotipas turi būti tikslus originalas.`);
 }
 
-function registrationState(html, configuredUrl, label) {
+function registrationState(html, configuredUrl, label, email = content.site.email) {
   const elements = tags(html);
   const status = elements.filter(tag => 'data-registration-status' in tag.attrs);
   const intents = elements.filter(tag => 'data-registration-intent' in tag.attrs);
@@ -138,12 +161,11 @@ function registrationState(html, configuredUrl, label) {
     check(status.every(tag => tag.attrs['data-registration-status'] === 'pending'), `${label}: be formos turi būti rodoma laukiama registracija.`);
     check(intents.length >= 1 && links.length === 0, `${label}: be formos kvietimas turi vesti į informaciją, o ne į neegzistuojančią anketą.`);
     check(!elements.some(tag => tag.name === 'a' && /^https:\/\/(?:forms\.gle\/|docs\.google\.com\/forms\/)/i.test(tag.attrs.href ?? '')), `${label}: be formos negali būti pavyzdinės Google Forms nuorodos.`);
-    check(elements.some(tag => tag.name === 'a' && tag.attrs.href?.startsWith('mailto:info@bukarciau.lt')), `${label}: laukiant registracijos turi būti tikras kontaktas.`);
+    check(elements.some(tag => tag.name === 'a' && tag.attrs.href?.startsWith('mailto:' + email)), `${label}: laukiant registracijos turi būti redaktoriuje nurodytas kontaktas.`);
   }
 }
-const content = JSON.parse(await readFile(join(root, 'content.json'), 'utf8'));
 async function indexingState(directory, isDraft, label) {
-  const files = (await filesIn(directory)).filter(file => file.endsWith('.html'));
+  const files = (await filesIn(directory)).filter(file => file.endsWith('.html') && !relative(directory, file).split(sep).includes('admin'));
   for (const file of files) {
     const html = await readFile(file, 'utf8');
     const noindex = tags(html).some(tag => tag.name === 'meta' && tag.attrs.name === 'robots' && /\bnoindex\b/i.test(tag.attrs.content ?? ''));
@@ -179,6 +201,8 @@ const fixture = await mkdtemp(join(tmpdir(), 'bukarciau-check-'));
 try {
   await mkdir(join(fixture, 'scripts'));
   for (const file of ['scripts/build.mjs', 'styles.css', 'app.js', '_headers', '_redirects']) await cp(join(root, file), join(fixture, file));
+  for (const directory of ['shared', 'server', 'admin']) await cp(join(root, directory), join(fixture, directory), {recursive:true});
+  await symlink(join(root, 'node_modules'), join(fixture, 'node_modules'), 'dir');
   await mkdir(join(fixture, 'assets'));
   for (const file of ['logo.svg', 'favicon.svg', 'logo-original.jpeg', 'montserrat-latin.woff2', 'montserrat-latin-ext.woff2', 'FONT-LICENSE.txt']) await cp(join(root, 'assets', file), join(fixture, 'assets', file));
   check(content.camps.length > 0, 'Registracijos šablonui patikrinti reikia bent vienos stovyklos.');
@@ -195,7 +219,7 @@ try {
       check(build.status === 0, `${label}: build nepavyko: ${build.stderr}`);
       if (build.status === 0) {
         for (const path of ['index.html', `stovyklos/${fixtureContent.camps[0].slug}/index.html`]) {
-          registrationState(await readFile(join(fixture, 'dist', path), 'utf8'), registrationUrl, `${label}, ${path}`);
+          registrationState(await readFile(join(fixture, 'dist', path), 'utf8'), registrationUrl, `${label}, ${path}`, fixtureContent.site.email);
         }
         await indexingState(join(fixture, 'dist'), true, label);
       }
@@ -208,7 +232,7 @@ try {
     fixtureContent.camps[0].registrationUrl = 'http://forms.gle/bukarciau-check';
     await writeFile(join(fixture, 'content.json'), JSON.stringify(fixtureContent));
     const unsafeBuild = spawnSync(process.execPath, ['scripts/build.mjs'], {cwd:fixture, encoding:'utf8'});
-    check(unsafeBuild.status !== 0 && /https:\/\//i.test(unsafeBuild.stderr), 'HTTP registracijos nuoroda turi būti atmesta aiškiu pranešimu.');
+    check(unsafeBuild.status !== 0 && /HTTPS/i.test(unsafeBuild.stderr), 'HTTP registracijos nuoroda turi būti atmesta aiškiu pranešimu.');
   }
 } finally {
   await rm(fixture, {recursive:true, force:true});
@@ -216,4 +240,4 @@ try {
 if (errors.length) {
   console.error(`Patikra nepavyko (${errors.length}):\n${errors.map(error => '• ' + error).join('\n')}`);
   process.exitCode = 1;
-} else console.log(`Patikra sėkminga: ${htmlFiles.length} puslapiai, ${assertions} patikros; failai, inkarai, originalus logotipas ir registracijos būsenos tvarkingi.`);
+} else console.log(`Patikra sėkminga: ${publicFiles.length} vieši puslapiai ir administratoriaus įrankis, ${assertions} patikros; failai, inkarai, originalus logotipas ir registracijos būsenos tvarkingi.`);

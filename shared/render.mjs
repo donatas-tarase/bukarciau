@@ -1,0 +1,128 @@
+import {normalizeContent, getPath, CONTENT_FIELDS, IMAGE_FIELDS} from './content.mjs';
+
+const e = value => String(value ?? '').replace(/[&<>"']/g, char => ({'&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;'}[char]));
+const arrow = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true"><path d="M5 12h14m-6-6 6 6-6 6"/></svg>';
+const newWindow = '<span class="sr-only"> (atsidaro naujame lange)</span>';
+const mediaPattern = /^\/media\/([a-f0-9]{32}\.(?:jpg|png|webp))$/;
+
+function routeFor(pathname) {
+  const path = String(pathname || '/').split(/[?#]/, 1)[0];
+  const aliases = {'/': '/', '/index.html': '/', '/apie-mus': '/apie-mus/', '/apie-mus/': '/apie-mus/', '/apie-mus/index.html': '/apie-mus/', '/kontaktai': '/kontaktai/', '/kontaktai/': '/kontaktai/', '/kontaktai/index.html': '/kontaktai/', '/stovyklos/stovykla-01': '/stovyklos/stovykla-01/', '/stovyklos/stovykla-01/': '/stovyklos/stovykla-01/', '/stovyklos/stovykla-01/index.html': '/stovyklos/stovykla-01/', '/404.html': '/404.html'};
+  return aliases[path] || null;
+}
+
+export function renderPage(input, pathname, {assets = {}, preview = false} = {}) {
+  const path = routeFor(pathname);
+  if (!path) return null;
+  const content = normalizeContent(input);
+  const {site, camps, copy, seo} = content;
+  const camp = camps[0];
+  const descriptorFor = path => {
+    const exact = CONTENT_FIELDS.find(field => field.path === path);
+    if (exact) return exact;
+    for (const field of CONTENT_FIELDS) {
+      if (!path.startsWith(field.path + '.')) continue;
+      const remainder = path.slice(field.path.length + 1).split('.');
+      if (field.type === 'repeater' && remainder.length === 2 && /^\d+$/.test(remainder[0])) return field.fields.find(child => child.path === remainder[1]) || field;
+      if (['list', 'paragraphs'].includes(field.type) && remainder.length === 1 && /^\d+$/.test(remainder[0])) return field;
+    }
+    return {label: 'Tekstas', type: 'text'};
+  };
+  const text = (field, type, lineBreaks = false) => {
+    const value = e(getPath(content, field));
+    const rendered = lineBreaks ? value.replace(/\r?\n/g, '<br>') : value;
+    if (!preview) return rendered;
+    const descriptor = descriptorFor(field);
+    const editorType = type || (['textarea', 'paragraphs'].includes(descriptor.type) ? 'textarea' : 'text');
+    return `<span data-cms-field="${e(field)}" data-cms-type="${e(editorType)}" tabindex="0" aria-label="Redaguoti: ${e(descriptor.label)}">${rendered}</span>`;
+  };
+  const paragraphs = (values, field) => values.map((value, index) => `<p>${text(`${field}.${index}`, 'textarea')}</p>`).join('');
+  const imageAttributes = field => {
+    if (!preview) return '';
+    const label = IMAGE_FIELDS.find(image => image.path === field)?.label || 'Nuotrauka';
+    return ` data-cms-image="${e(field)}" data-cms-label="${e(label)}" tabindex="0" aria-label="Keisti nuotrauką: ${e(label)}"`;
+  };
+  const imageSource = source => {
+    const match = typeof source === 'string' && mediaPattern.exec(source);
+    return match ? `${preview ? '/admin/api/media/' : '/media/'}${match[1]}` : null;
+  };
+  const photo = (source, alt, cls = '', field) => {
+    const src = imageSource(source);
+    return src
+      ? `<div class="photo ${cls}"${imageAttributes(field)}><img src="${e(src)}" alt="${e(alt)}" loading="lazy" decoding="async"></div>`
+      : `<div class="photo ${cls}"${preview ? '' : ' aria-hidden="true"'}${imageAttributes(field)}></div>`;
+  };
+  const registrationUrl = (() => {
+    if (!camp.registrationUrl) return null;
+    try { const url = new URL(camp.registrationUrl); return url.protocol === 'https:' && !url.username && !url.password ? url.href : null; }
+    catch { return null; }
+  })();
+  const cta = ({labelPath, cls = 'button button-solid', local = false} = {}) => registrationUrl
+    ? `<a class="${cls}" href="${e(registrationUrl)}" data-registration-link target="_blank" rel="noopener noreferrer">${text(labelPath || 'copy.actions.register')} ${arrow}${newWindow}</a>`
+    : `<a class="${cls}" href="${local ? '' : '/'}#registracija" data-registration-intent>${text(labelPath || 'copy.actions.participate')} ${arrow}</a>`;
+  const mail = `mailto:${site.email}?subject=${encodeURIComponent(copy.registration.emailSubject + ' · ' + camp.date)}`;
+  const values = separator => site.values.map((value, index) => text(`site.values.${index}`)).join(separator);
+
+  function header(current) {
+    return `<a class="skip-link" href="#turinys">Pereiti prie turinio</a><header class="site-header"><div class="header-inner"><a class="brand" href="/" aria-label="${e(site.name)} - pradžia"><img src="/assets/logo.svg" width="104" height="80" alt="Arčiau"></a><button class="menu-toggle" aria-controls="navigation" aria-expanded="false" aria-label="Atidaryti meniu"><span></span><span></span></button><nav id="navigation" aria-label="Pagrindinis meniu"><a href="/#stovykla" ${current === 'camp' ? 'aria-current="page"' : ''}>${text('copy.header.camp')}</a><a href="/apie-mus/" ${current === 'about' ? 'aria-current="page"' : ''}>${text('copy.header.about')}</a><a href="/kontaktai/" ${current === 'contact' ? 'aria-current="page"' : ''}>${text('copy.header.contact')}</a><a class="nav-contact" href="mailto:${e(site.email)}">${text('copy.header.write')} ${arrow}</a></nav></div></header>`;
+  }
+  function footer() {
+    return `<footer class="site-footer"><div class="footer-main wrap"><a class="footer-brand" href="/" aria-label="${e(site.name)} - pradžia"><img src="/assets/logo.svg" width="150" height="116" alt="Arčiau"></a><div class="footer-links"><span class="eyebrow">${text('copy.footer.contact')}</span><a href="mailto:${e(site.email)}">${text('site.email')}</a><a href="tel:${e(site.phone)}">${text('site.phoneDisplay')}</a></div><div class="footer-links"><span class="eyebrow">${text('copy.footer.about')}</span><a href="/apie-mus/">${text('site.organizers')}</a><a href="${e(site.facebook)}" target="_blank" rel="noopener noreferrer">${text('copy.footer.facebook')} ↗${newWindow}</a></div></div><div class="footer-bottom wrap"><span>© ${new Date().getUTCFullYear()} ${text('site.name')}</span><span>${values(' · ')}</span></div></footer>`;
+  }
+  function facts() {
+    return `<dl class="event-facts "><div><dt>${text('copy.camp.date')}</dt><dd>${text('camps.0.date')}</dd></div><div><dt>${text('copy.camp.location')}</dt><dd>${text(camp.location ? 'camps.0.location' : 'copy.camp.locationPending')}</dd></div><div><dt>${text('copy.camp.price')}</dt><dd>${text(camp.price ? 'camps.0.price' : 'copy.camp.pricePending')}</dd></div></dl>`;
+  }
+  function faq() {
+    return `<div class="faq">${camp.faq.map((item, index) => `<details><summary>${text(`camps.0.faq.${index}.question`)}<span aria-hidden="true">+</span></summary><p>${text(`camps.0.faq.${index}.${registrationUrl && item.answerWhenOpen ? 'answerWhenOpen' : 'answer'}`)}</p></details>`).join('')}</div>`;
+  }
+  function registration() {
+    return `<section id="registracija" class="registration-section"><div class="registration-inner wrap"><div><span class="eyebrow">${text('camps.0.date')} · ${text('site.organizers')}</span><h2>${text('copy.registration.title')}</h2><p>${text('copy.registration.intro')}</p></div><div class="registration-status" data-registration-status="${registrationUrl ? 'open' : 'pending'}">${registrationUrl
+      ? `<span class="status-label">${text('copy.registration.openLabel')}</span><p>${text('copy.registration.openText')}</p>${cta({labelPath: 'copy.registration.openButton'})}<small>${text('copy.registration.openNote')}</small>`
+      : `<span class="status-label"><span class="status-dot" aria-hidden="true"></span>${text('copy.registration.pendingLabel')}</span><p>${text('copy.registration.pendingText')}</p><a class="button button-solid" href="${e(mail)}">${text('copy.registration.pendingButton')} ${arrow}</a><a class="registration-phone" href="tel:${e(site.phone)}">${text('site.phoneDisplay')}</a>`}</div></div></section>`;
+  }
+  const practical = !camp.location && !camp.price
+    ? text('copy.camp.practicalPending')
+    : `${text(camp.location ? 'camps.0.location' : 'copy.camp.locationPending')}. ${camp.price ? text('copy.camp.price') + ': ' + text('camps.0.price') : text('copy.camp.pricePendingSentence')}.`;
+
+  let body, current = '', metadata;
+  if (path === '/') {
+    current = 'camp'; metadata = seo.home;
+    const hero = imageSource(site.heroImage);
+    const statement = imageSource(site.statementImage);
+    body = `
+<section class="hero${hero ? ' has-image' : ''}"${imageAttributes('site.heroImage')}>${hero ? `<img class="hero-image" src="${e(hero)}" alt="${e(site.heroImageAlt)}" decoding="async" fetchpriority="high">` : ''}<div class="hero-content"><span class="eyebrow">${text('copy.home.heroEyebrow')}</span><h1>${text('site.heroAccent')}</h1><p class="hero-subtitle">${text('site.heroTitle')} ${text('camps.0.date')}</p>${cta({local: true})}</div><div class="hero-bottom"><span>${values(' <i>·</i> ')}</span><a href="#susipazinkime" aria-label="Toliau - susipažinkime">↓</a></div></section>
+<section class="intro wrap section" id="susipazinkime"><div><span class="eyebrow">${text('copy.home.introEyebrow')}</span><h2>${text('copy.home.introTitle')}</h2><a class="text-link" href="/apie-mus/">${text('copy.actions.about')} ${arrow}</a></div><div class="intro-copy">${paragraphs(site.aboutText, 'site.aboutText')}</div></section>
+<div class="statement"${statement || preview ? '' : ' aria-hidden="true"'}${imageAttributes('site.statementImage')}>${statement ? `<img class="hero-image" src="${e(statement)}" alt="${e(site.statementImageAlt)}" loading="lazy" decoding="async">` : ''}</div>
+<section id="stovykla" class="camps"><span id="stovyklos" class="legacy-anchor" aria-hidden="true"></span><div class="section-heading wrap"><div><span class="eyebrow">${text('copy.home.campEyebrow')}</span><h2>${text('copy.home.campTitle')}</h2></div></div><article class="camp-row"><div class="camp-inner wrap"><div class="camp-copy"><span class="eyebrow">${text('camps.0.date')}</span><h3>${text('camps.0.title')}</h3><div class="camp-meta"><span>${practical}</span></div><p>${text('camps.0.description.0', 'textarea')}</p><a class="button" href="/stovyklos/stovykla-01/">${text('copy.actions.camp')} ${arrow}</a></div><div class="camp-visual"${camp.image || camp.secondaryImage || preview ? '' : ' aria-hidden="true"'}>${photo(camp.image, camp.imageAlt, '', 'camps.0.image')}${photo(camp.secondaryImage, camp.secondaryImageAlt, 'photo-small', 'camps.0.secondaryImage')}</div></div></article></section>
+${registration()}`;
+  } else if (path === '/apie-mus/') {
+    current = 'about'; metadata = seo.about;
+    body = `<section class="page-heading wrap"><span class="eyebrow">${text('site.name')}</span><h1>${text('site.storyTitle')}</h1></section><section class="about-story wrap"><div>${photo(site.togetherImage, site.togetherImageAlt, '', 'site.togetherImage')}</div><div class="story-copy">${paragraphs(site.story, 'site.story')}<a class="text-link" href="/#stovykla">${text('copy.actions.camp')} ${arrow}</a></div></section><section class="contact-strip wrap"><div><span class="eyebrow">${text('camps.0.date')}</span><h2>${text('copy.about.invitation')}</h2></div>${cta()}</section>`;
+  } else if (path === '/kontaktai/') {
+    current = 'contact'; metadata = seo.contact;
+    body = `<section class="contact-page wrap"><div><span class="eyebrow">${text('site.name')}</span><h1>${text('copy.contact.title')}</h1><p class="contact-intro">${text('copy.contact.intro')}</p><div class="contact-item"><span>${text('copy.contact.email')}</span><a href="mailto:${e(site.email)}">${text('site.email')} ${arrow}</a></div><div class="contact-item"><span>${text('copy.contact.phone')}</span><a href="tel:${e(site.phone)}">${text('site.phoneDisplay')} ${arrow}</a></div><div class="contact-item"><span>${text('copy.contact.social')}</span><a href="${e(site.facebook)}" target="_blank" rel="noopener noreferrer">${text('copy.footer.facebook')} ↗${newWindow}</a></div></div><div class="contact-brand"><img src="/assets/logo-original.jpeg" alt="${e(copy.contact.logoAlt)}" width="1181" height="1181"></div></section>`;
+  } else if (path === '/stovyklos/stovykla-01/') {
+    current = 'camp'; metadata = {...seo.camp, title: seo.camp.title || `${camp.title} · ${camp.date}`};
+    const included = camp.included.length || camp.notIncluded.length ? `<div class="included-grid">${camp.included.length ? `<div><h3>${text('copy.camp.included')}</h3><ul>${camp.included.map((item, index) => `<li>${text(`camps.0.included.${index}`)}</li>`).join('')}</ul></div>` : ''}${camp.notIncluded.length ? `<div><h3>${text('copy.camp.notIncluded')}</h3><ul>${camp.notIncluded.map((item, index) => `<li>${text(`camps.0.notIncluded.${index}`)}</li>`).join('')}</ul></div>` : ''}</div>` : '';
+    body = `<section class="camp-detail-heading wrap"><a class="text-link back-link" href="/#stovykla">← ${text('copy.actions.back')}</a><span class="eyebrow">${text('camps.0.date')} · ${text('site.organizers')}</span><h1>${text('camps.0.title')}</h1><p>${text('camps.0.summary')}</p>${facts()}<div class="detail-heading-action">${cta({local: true})}</div></section><div class="detail-cover wrap">${photo(camp.detailImage || camp.image, camp.detailImage ? camp.detailImageAlt : camp.imageAlt, '', 'camps.0.detailImage')}</div><div class="detail-layout wrap section"><section><span class="eyebrow">${text('copy.camp.about')}</span><h2>${text('camps.0.introTitle')}</h2>${paragraphs(camp.description, 'camps.0.description')}<h3 class="program-title">${text('copy.camp.program')}</h3>${camp.program.length ? `<div class="program">${camp.program.map((item, index) => `<div><h4>${text(`camps.0.program.${index}.title`)}</h4><p>${text(`camps.0.program.${index}.text`)}</p></div>`).join('')}</div>` : `<p>${text('copy.camp.programPending')}</p>`}${included}</section><section><span class="eyebrow">${text('copy.camp.faqEyebrow')}</span><h2>${text('copy.camp.faqTitle')}</h2>${faq()}</section></div>${registration()}`;
+  } else {
+    metadata = seo.notFound;
+    body = `<section class="not-found wrap"><span class="eyebrow">404</span><h1>${text('copy.notFound.title', 'textarea', true)}</h1><a class="button button-solid" href="/">${text('copy.actions.back')} ${arrow}</a></section>`;
+  }
+
+  const title = `${metadata.title} | ${site.name}`;
+  const canonical = path === '/404.html' ? '' : `<link rel="canonical" href="${e(site.url + path)}">`;
+  const html = `<!doctype html><html lang="lt"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>${e(title)}</title><meta name="description" content="${e(metadata.description)}">${site.draft || preview ? '<meta name="robots" content="noindex, nofollow">' : ''}<meta name="theme-color" content="#bfebac"><meta property="og:type" content="website"><meta property="og:locale" content="lt_LT"><meta property="og:title" content="${e(title)}"><meta property="og:description" content="${e(metadata.description)}">${canonical}<link rel="icon" href="/assets/favicon.svg" type="image/svg+xml"><link rel="stylesheet" href="${e(assets.styles || '/styles.css')}">${preview ? '<link rel="stylesheet" href="/admin/visual.css">' : ''}<script src="${e(assets.script || '/app.js')}" defer></script></head><body>${header(current)}<main id="turinys" tabindex="-1">${body}</main>${footer()}</body></html>`;
+  return {html, title};
+}
+
+export function renderRobots(input) {
+  const {site} = normalizeContent(input);
+  return site.draft ? 'User-agent: *\nDisallow: /\n' : `User-agent: *\nAllow: /\nSitemap: ${site.url}/sitemap.xml\n`;
+}
+
+export function renderSitemap(input) {
+  const {site} = normalizeContent(input);
+  if (site.draft) return null;
+  return `<?xml version="1.0" encoding="UTF-8"?><urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">${['/', '/apie-mus/', '/kontaktai/', '/stovyklos/stovykla-01/'].map(path => `<url><loc>${e(site.url + path)}</loc></url>`).join('')}</urlset>`;
+}

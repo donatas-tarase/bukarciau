@@ -1,55 +1,58 @@
 # Būk arčiau
 
-Svetainė `bukarciau.lt` kompiuteriams ir telefonams. Pagrindinis puslapis kviečia į vieną Miglės ir Miglės organizuojamą moterų savaitgalio stovyklą gruodžio 5 d. Grąžintas pradinis žalias maketas su Miglių prisistatymu, stovyklos informacija ir registracija. Nuotraukos ir video nerodomi, jiems skirtos dekoratyvios sritys paliktos tuščios, be užrašų. Vieta, kaina, programa ir Google Forms anketa dar nepaskelbtos.
+Svetainė [bukarciau.lt](https://bukarciau.lt) kompiuteriams ir telefonams. Pristatoma viena Miglės ir Miglės organizuojama moterų savaitgalio stovykla gruodžio 5 d. Vieta, kaina, programa ir Google Forms anketa dar nepaskelbtos. Nuotraukų sritys lieka tuščios, kol administratorius pasirenka savo nuotraukas. Video nenaudojamas.
 
-Svetainė: [bukarciau.lt](https://bukarciau.lt). Tiesioginė peržiūra: [bukarciau.pages.dev](https://bukarciau.pages.dev).
+Parengtas lietuviškas turinio valdymo įrankis `/admin/`: tekstą galima keisti paspaudus jį puslapio vaizde, o nuotrauką pasirinkti paspaudus jai skirtą vietą. Turinys ir nuotraukos redaguojami išlaikant esamą dizainą, išdėstymą ir vieną stovyklą. Yra atskiras juodraščio išsaugojimas, paskelbimas, telefono ir kompiuterio peržiūra, nuotraukų biblioteka ir paskelbtų versijų istorija.
 
-## Paleidimas
+**Produkcijos administravimo aktyvavimas dar nebaigtas.** D1 duomenų bazė sukurta ir schema pritaikyta. Dar reikia parengti Cloudflare Access prisijungimą, nustatyti leidžiamus administratorių el. paštus ir prijungti R2 nuotraukų saugyklą. Be tinkamos prisijungimo konfigūracijos serveris administravimo prieigos nesuteikia. Toliau pateikta vietinė peržiūra šių paslaugų neaktyvuoja.
 
-Reikia Node.js 20 arba naujesnės versijos. Projektas neturi išorinių vykdymo ar build priklausomybių.
+## Vietinis paleidimas
+
+Reikia Node.js **22.13 arba naujesnio** ir npm.
 
 ```sh
+npm ci
 npm run build
 npm run preview
 ```
 
-Atidaryti [http://127.0.0.1:4324](http://127.0.0.1:4324). Po pakeitimų pakartoti `npm run build` ir atnaujinti naršyklę. Generuojamas `dist/` aplankas; jo failų tiesiogiai redaguoti nereikia.
+Svetainė: [http://localhost:4324](http://localhost:4324). Redaktorius: [http://localhost:4324/admin/](http://localhost:4324/admin/).
+
+Vietinis serveris veikia tik šiame kompiuteryje, adresu `127.0.0.1`. Jis naudoja imituojamą administratoriaus tapatybę, vietinę SQLite bazę ir vietinius nuotraukų failus aplanke `.wrangler/cms-preview/`. Prisijungimo imitavimas skirtas tik kūrimui; šis serveris nekopijuojamas į `dist/` ir nenaudojamas produkcijoje. Vietiniai pakeitimai nepakeičia tikros svetainės, D1 ar R2 duomenų.
+
+Po kodo pakeitimų pakartokite `npm run build`, paleiskite vietinį serverį iš naujo ir atnaujinkite naršyklę. Norėdami pradėti vietinę peržiūrą nuo pradinio turinio, sustabdykite serverį ir pašalinkite tik `.wrangler/cms-preview/` aplanką.
 
 ```sh
+npm test
 npm run check
 ```
 
-Komanda patikrina sugeneruotus failus, nuorodas, vienos stovyklos struktūrą, logotipą ir abi registracijos būsenas: kai Google Forms nuorodos dar nėra ir kai ji pateikta. Bandomosios svetainės generuojamos laikiname aplanke; tikras turinys nekeičiamas. Maketo vaizdą papildomai reikia patikrinti kompiuterio ir telefono naršyklėje.
+Testai tikrina turinio redagavimą, prisijungimo parašą ir teises, juodraščio atskyrimą nuo paskelbto turinio, publikavimą, atkūrimą, nuotraukų prieigą ir įkėlimų tikrinimą. `check` tikrina sugeneruotus puslapius, nuorodas, vieną stovyklą, originalų logotipą ir registracijos būsenas. Jo bandomosios svetainės generuojamos laikiname aplanke. Vaizdą papildomai patikrinkite telefono ir kompiuterio naršyklėje.
 
-Build automatiškai prideda pagal failo turinį sudarytą `?v=…` versiją prie stilių ir JavaScript nuorodų. Pakeitus failą pasikeičia jo versija, todėl grįžusios lankytojos gauna atnaujinimą iš karto, nelaukdamos, kol baigs galioti ankstesnė naršyklės kopija. Šaltinių failų vardų ar `content.json` kelių dėl to keisti nereikia.
+## Turinys ir paskelbimas
 
-## Puslapiai
+Įjungus produkcijos administravimą, įprasti turinio pakeitimai atliekami redaktoriuje. „Išsaugoti juodraštį“ išsaugo darbą, o „Paskelbti pakeitimus“ atnaujina lankytojoms rodomą versiją. Išsaugomi iki 30 paskelbtų turinio versijų; atkūrimas pirmiausia sukuria juodraštį.
 
-- `/` - Miglių prisistatymas, vienintelė stovykla, praktinė informacija ir registracijos skiltis.
-- `/apie-mus/` - Miglės ir Miglės prisistatymas pagal jų kvietimą.
-- `/kontaktai/` - el. paštas, telefonas ir Facebook.
-- `/stovyklos/stovykla-01/` - stovyklos aprašymas, praktinė informacija, DUK ir registracija.
+[content.json](content.json) yra pradinis turinys naujai, tuščiai duomenų bazei ir statiniam atsarginiam build rezultatui. Kai D1 jau turi turinį, naujas kodo diegimas jo neperrašo. Pakeitus vien `content.json`, jau naudojamos D1 bazės turinys nepasikeičia.
 
-Ankstesnis antros stovyklos adresas nukreipiamas į pagrindinio puslapio stovyklos skiltį. Jį aptarnauja Cloudflare Pages taisyklės faile `_redirects`.
+Kai registracijos nuorodos nėra, kvietimas dalyvauti veda į informaciją apie ruošiamą registraciją ir tikrus kontaktus. Įrašius veikiančią HTTPS Google Forms nuorodą, mygtukai atidaro ją naujame skirtuke. Svetainė pati dalyvių registracijos duomenų nerenka.
 
-## Turinys ir publikavimas
+`site.draft` valdo tik paieškos indeksavimą. Tai atskiras nustatymas nuo redaktoriaus juodraščio: `noindex` nesuteikia privatumo ir neriboja viešos svetainės lankymo.
 
-Tekstai, kontaktai ir Google Forms nuoroda redaguojami [content.json](content.json). Laukų paaiškinimai ir ko dar reikia iš organizatorių - [docs/turinys.md](docs/turinys.md).
+## Struktūra ir talpinimas
 
-Kai `camps[0].registrationUrl` yra `null`, kvietimas „Noriu dalyvauti“ veda į registracijos informaciją. Joje aiškiai parašyta, kad anketa dar ruošiama, ir pateiktas tikras kontaktas. Įrašius tikrą HTTPS Google Forms nuorodą, registracijos mygtukai atidaro ją naujame skirtuke. Svetainė pati registracijos duomenų nerenka.
+- `/`, `/apie-mus/`, `/kontaktai/` ir `/stovyklos/stovykla-01/` - vieši puslapiai.
+- `/admin/` - prisijungimu apsaugotas redaktorius, jo failai, juodraščio peržiūra ir API.
+- `shared/content.mjs` - leidžiami turinio laukai ir jų tikrinimas.
+- `shared/render.mjs` - bendri viešų puslapių ir redaktoriaus peržiūros šablonai.
+- `server/` - Cloudflare Access JWT tikrinimas, turinio ir nuotraukų API.
+- `db/schema.sql` - D1 schema.
+- `dist/` ir `server/generated.mjs` - generuojami failai, jų tiesiogiai neredaguokite.
 
-Dabartinis build nepublikuoja nuotraukų, video ar video viršelio. Ankstesni media failai gali likti saugyklos `assets/` aplanke, tačiau į `dist/` kopijuojami tik logotipo failai ir šriftai.
+Hostingas lieka Cloudflare Pages Direct Upload, kodas - [donatas-tarase/bukarciau](https://github.com/donatas-tarase/bukarciau). `git push` kodo automatiškai nepaskelbia. Administratoriaus turinio publikavimas, kai paslaugos sukonfigūruotos, naujo kodo diegimo nereikalauja.
 
-Originalus logotipas saugomas nepakeistas: `assets/logo-original.jpeg`. `assets/logo.svg` ir favicon failai parengti iš jo; favicon neturi apatinio užrašo „Bendrystė · Saviugda · Ryšiai“.
+Į `dist/assets/` kopijuojami tik logotipai ir šriftai. Ankstesni saugykloje esantys foto, video ir viršelio failai nepaskelbiami. Administratoriaus nuotraukos saugomos R2 ir rodomos tik pagal pasirinktus turinio laukus. Originalus `assets/logo-original.jpeg` nekeičiamas; kontaktų logotipas išlaiko savo proporcijas.
 
-Hostingas - Cloudflare Pages, kodas - [donatas-tarase/bukarciau](https://github.com/donatas-tarase/bukarciau). Šiuo metu pakeitimai į GitHub automatiškai neskelbiami. Paskelbti iš projekto aplanko:
-
-```sh
-npm run build
-npm run check
-npx wrangler pages deploy dist --project-name=bukarciau --branch=main
-```
-
-[Talpinimo instrukcija](docs/talpinimas.md) apima Cloudflare prisijungimą, domeno prijungimą ir esamo pašto DNS išsaugojimą.
-
-`content.json` nustatymas `site.draft: true` įjungia `noindex` ir riboja indeksavimą `robots.txt`. Tai nėra prieigos apsauga: paskelbtą maketą gali atidaryti turintys jo adresą. Kai tikras turinys patvirtintas, pakeiskite `draft` į `false`, sugeneruokite ir paskelbkite svetainę - bus pašalintas `noindex` ir sukurtas `sitemap.xml`.
+- [Administravimo naudojimas](docs/administravimas.md)
+- [Turinio laukai ir likusi informacija](docs/turinys.md)
+- [Cloudflare sąranka ir diegimas](docs/talpinimas.md)

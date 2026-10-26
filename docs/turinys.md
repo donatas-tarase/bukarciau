@@ -1,62 +1,63 @@
-# Kaip pakeisti turinį
+# Svetainės turinys
 
-Redaguokite `content.json`, tuomet paleiskite `npm run build` ir `npm run check`. Generuojamo `dist/` aplanko tiesiogiai redaguoti nereikia.
+Turinio redaktorius leidžia keisti tekstus, kontaktus, nuotraukas, vienos stovyklos informaciją, registracijos nuorodą ir paieškos aprašymus. Dizainas, blokų tvarka, spalvos, šriftai, puslapių adresai ir logotipai nustatyti kode. Redaktorius neleidžia įterpti HTML, JavaScript ar savavališkų maketo laukų; įrašytas tekstas rodomas kaip tekstas.
 
-Svetainėje palikta viena moterų savaitgalio stovykla. Žinoma data - gruodžio 5 d.; metai ir pabaigos data nenurodyti. Tekstai remiasi Miglės ir Miglės įrašytu kvietimu. Vieta, kaina, programa ir Google Forms nuoroda dar negautos. Nežinomus duomenis palikite `null` arba tuščią masyvą - svetainė parodys jų būseną ir nerodys išgalvotų programos dienų.
+Produkcijos prisijungimo ir nuotraukų saugyklos aktyvavimas dar nebaigtas. Vietinį redaktorių galima išbandyti pagal [README](../README.md). Kasdienio naudojimo veiksmai aprašyti [administravimo instrukcijoje](administravimas.md).
 
-## Pagrindinė informacija
+## Redaguojamos sritys
 
-| Laukas | Turinys |
+| Sritis | Turinys |
 | --- | --- |
-| `site.name`, `site.url` | Pavadinimas ir pagrindinis svetainės adresas |
-| `site.draft` | `true` - maketas su `noindex`; `false` - galutinė versija su indeksavimu ir svetainės žemėlapiu |
-| `site.email`, `site.phone`, `site.phoneDisplay`, `site.facebook` | Kontaktai; `phone` be tarpų, `phoneDisplay` - rodomas numeris |
-| `site.heroAccent` | Pirmo ekrano antraštė „Būk arčiau.“ |
-| `site.heroTitle` | Trumpa eilutė po antrašte; po jos rodoma stovyklos data |
-| `site.aboutText` | Trumpas Miglių prisistatymas; kiekvienas masyvo elementas - pastraipa |
-| `site.storyTitle`, `site.story` | Prisistatymo puslapio antraštė ir pastraipos |
+| Pagrindinis puslapis | Pirmo ekrano antraštė, eilutė po ja, vertybės, trumpas prisistatymas, skyrių antraštės |
+| Stovykla | Pavadinimas, data, vieta, kaina, trumpas kvietimas, aprašymai, programa, įskaičiuoti ir neįskaičiuoti dalykai, DUK |
+| Apie mus | Organizatorių vardai, prisistatymo antraštė, pastraipos ir kvietimas puslapio apačioje |
+| Kontaktai | El. paštas, telefonas, rodomas telefono numeris, Facebook nuoroda, kontaktų tekstai |
+| Registracija | Tikra anketos nuoroda, ruošiamos ir atviros registracijos tekstai, mygtukų užrašai |
+| Meniu ir poraštė | Svetainės pavadinimas, nuorodų ir mygtukų tekstai, poraštės antraštės |
+| Paieška ir dalijimasis | Kiekvieno puslapio SEO antraštė bei aprašymas ir paieškos indeksavimo nustatymas |
+| Nuotraukos | Šešios esamos vietos, pasirinktos nuotraukos ir jų alternatyvūs aprašymai |
 
-## Vienintelė stovykla
+Tekstą galima redaguoti tiesiai puslapio vaizde. Kontaktinių nuorodų adresai, SEO, sąrašų papildymas ir kiti vaizde nematomi nustatymai pasiekiami turinio skyriuose. Tas pats laukas, panaudotas keliose puslapio vietose, keičiamas kartu.
 
-`camps` masyve palikite vieną objektą - `camps[0]`.
+## Viena stovykla
 
-| Laukas | Turinys |
+Svetainėje yra viena stovykla, jos adresas fiksuotas: `/stovyklos/stovykla-01/`. Dabartinė žinoma data - „Gruodžio 5 d.“; metai ir pabaigos data nenurodyti. Vieta, kaina, programa ir Google Forms anketa dar negautos.
+
+Nežinomą vietą, kainą ir registracijos nuorodą palikite tuščias. Duomenyse jos normalizuojamos į `null`. Kol programa nežinoma, palikite tuščią programos sąrašą. Svetainė parodo redaguojamus pranešimus apie dar ruošiamą informaciją. Tušti įskaičiuotų ir neįskaičiuotų dalykų sąrašai viešame puslapyje nerodomi.
+
+Programos įrašas turi antraštę ir aprašymą. DUK įrašas turi klausimą bei atsakymą; papildomai galima nurodyti kitą atsakymą, rodomą tik įrašius registracijos nuorodą. Jis naudingas klausimui „Kaip užsiregistruoti?“. Jei papildomas atsakymas tuščias, abiem registracijos būsenomis rodomas įprastas atsakymas.
+
+Datos ir kontaktų pakeitimai automatiškai neatnaujina jų paminėjimų laisvai parašytuose aprašymuose, DUK ar SEO. Prieš paskelbdami peržiūrėkite ir šiuos tekstus.
+
+## Registracija
+
+Registracijos skyriuje įrašykite tikrą HTTPS Google Forms nuorodą, kai ji bus paruošta. Kol nuorodos nėra, „Noriu dalyvauti“ atveria registracijos informaciją su kontaktais. Įrašius nuorodą, kvietimo mygtukai pradeda atidaryti anketą naujame skirtuke. Ruošiamos ir atviros registracijos tekstus galima keisti atskirai.
+
+Formą patikrinkite atsijungę nuo Google paskyros. Pavyzdinės nuorodos nelaikykite veikiančia registracija. Dalyvių atsakymai lieka Google Forms; šis redaktorius jų nerenka ir neadministruoja.
+
+## Nuotraukos
+
+| Vieta | Turinio laukas |
 | --- | --- |
-| `slug` | Dabar `stovykla-01`; keisti apgalvotai, nes pasikeis puslapio adresas |
-| `title`, `summary`, `introTitle` | Stovyklos pavadinimas, trumpas kvietimas ir aprašymo antraštė |
-| `date` | Patvirtinta data; dabar „Gruodžio 5 d.“ |
-| `location`, `price` | Patvirtinta vieta ir kaina arba `null` |
-| `description` | Aprašymo pastraipos |
-| `program` | Programos blokai su laukais `title` ir `text`; kol programa nežinoma - `[]` |
-| `faq` | Klausimai ir atsakymai: `question`, `answer` |
-| `registrationUrl` | Tikra Google Forms HTTPS nuoroda arba `null` |
+| Pirmo ekrano fonas | `site.heroImage` |
+| Plati sritis po prisistatymu | `site.statementImage` |
+| Puslapis „Apie mus“ | `site.togetherImage` |
+| Pagrindinė stovyklos nuotrauka | `camps.0.image` |
+| Mažoji stovyklos nuotrauka | `camps.0.secondaryImage` |
+| Plati nuotrauka stovyklos puslapyje | `camps.0.detailImage` |
 
-Paskelbus formą pakeiskite vieną reikšmę:
+Kol nuotrauka nepasirinkta, išlieka dabartinė tuščia spalvinė sritis be užrašų. Stovyklos detaliame puslapyje, nepasirinkus atskiro viršelio, naudojama pagrindinė stovyklos nuotrauka, jei ji yra. Nuotraukos pritaikomos esamiems maketo rėmeliams, todėl gali būti apkirptos pagal jų proporcijas.
 
-```json
-"registrationUrl": "https://forms.gle/JUSU_FORMOS_KODAS"
-```
+Pasirinkus nuotrauką būtina trumpai aprašyti, kas joje matoma. Tai alternatyvus tekstas ekrano skaitytuvui, jis nėra užrašas ant nuotraukos. Patvirtinti keliai turi formą `/media/<sugeneruotas-id>.jpg`, `.png` arba `.webp`; savavališkos išorinės paveikslėlių nuorodos nepriimamos.
 
-Pavyzdžio kodo nepublikuokite kaip tikros nuorodos. Tinka ir visas `https://docs.google.com/forms/...` adresas. Formą patikrinkite atsijungę nuo Google paskyros: ji turi būti prieinama numatytoms dalyvėms. Mygtukai atidarys formą naujame skirtuke. Svetainė pati registracijos duomenų nerenka.
+Įkėlimui tinka JPG, PNG ir WebP. Naršyklė nuotrauką paruošia ir sumažina iki ne didesnės kaip 1600 px ilgesniosios kraštinės; serveris papildomai tikrina tikrą formatą ir ne didesnį kaip 8 MB failą. HEIC pirmiausia eksportuokite į JPG. Video įkėlimo šiame įrankyje nėra.
 
-Kol `registrationUrl` yra `null`, kvietimas dalyvauti veda į registracijos informaciją su aiškiu pranešimu ir el. paštu. Neskelbkite išgalvotos ar neveikiančios formos nuorodos.
+Nuotraukos įkėlimas į biblioteką jos dar nepaskelbia. Pasirinkite vietą, užpildykite aprašymą, išsaugokite juodraštį ir paskelbkite. Juodraščio nuotraukas gali atverti tik administratorius; viešai aptarnaujamos tik paskelbto turinio naudojamos nuotraukos.
 
-## Vaizdai
+## Pradiniai failai ir indeksavimas
 
-Dabartiniame makete nuotraukos ir video nerodomi. Dekoratyvios sritys paliktos tuščios, be nuotraukų vietų užrašų ar ikonų. Logotipas ir favicon išlieka.
+`content.json` naudojamas kaip pradinis turinys tuščiai D1 bazei bei statiniam build rezultatui. Veikiančios CMS turinys saugomas D1. Kodo perpublikavimas jau esančios bazės turinio neperrašo. Leidžiami laukai ir ribos aprašyti `shared/content.mjs`.
 
-Laukai `site.togetherImage`, `image` ir `secondaryImage`, jei jie dar yra `content.json`, šiuo metu nenaudojami. Vien nuotraukos kelio įrašymas jų neįjungs: pirmiausia reikės pakeisti `scripts/build.mjs` ir į build kopijuojamų failų sąrašą.
+`site.draft: true` reiškia „nerodyti paieškos sistemose“: pridedamas `noindex`, ribojamas `robots.txt` ir nesudaromas `sitemap.xml`. Tai nepriklauso nuo administratoriaus juodraščio ir nepaverčia viešos svetainės privačia. Indeksavimo nustatymą keiskite paieškos skyriuje ir paskelbkite kaip kitą turinio pakeitimą.
 
-Į `dist/assets/` kopijuojami tik `logo.svg`, `favicon.svg`, nepakeistas `logo-original.jpeg`, Montserrat šriftai ir jų licencija. Ankstesni video failai bei viršelis nepublikuojami. `assets/logo-original.jpeg` nekeiskite: tai gautas originalas.
-
-Build pagal failo turinį automatiškai prideda `?v=…` prie stilių ir JavaScript nuorodų. Pakeitus šiuos failus reikia iš naujo sugeneruoti ir paskelbti svetainę.
-
-## Ko dar reikia prieš atveriant registraciją
-
-- Patikslintos stovyklos datos, atvykimo ir išvykimo laiko.
-- Vietos, kainos, programos ir informacijos, kas įskaičiuota.
-- Atvykimo informacijos, registracijos ir atšaukimo sąlygų.
-- Veikiančios Google Forms nuorodos.
-- Organizuojančių Miglių patvirtintų tekstų ir, jei norės, papildomų nuotraukų.
-
-Gavę naują informaciją atnaujinkite ir susijusius DUK atsakymus. Atsiliepimus dėkite tik gavę tikrus tekstus ir leidimą juos skelbti. Prieš viešą paleidimą patikrinkite puslapius, telefoną, el. paštą ir formą kompiuteryje bei telefone. Indeksavimą įjunkite pagal [talpinimo instrukciją](talpinimas.md), kai turinys bus patvirtintas.
+Prieš atveriant registraciją dar reikia patvirtintos vietos, kainos, atvykimo ir išvykimo laiko, programos, įskaičiuotų dalykų, registracijos bei atšaukimo sąlygų ir veikiančios anketos. Paskelbkite tik organizatorių patvirtintą informaciją ir jų pateiktas nuotraukas.

@@ -1,0 +1,18 @@
+# Existing Pages project. Access settings are configured in the account, not in source.
+name = "bukarciau"
+pages_build_output_dir = "./dist"
+compatibility_date = "2026-10-25"
+
+[[d1_databases]]
+binding = "CMS_DB"
+database_name = "bukarciau-cms"
+database_id = "1195b2cd-9db8-4e43-9673-9e8c817ea789"
+
+# After R2 activation, add CMS_MEDIA -> bukarciau-media using the setup guide.
+# ACCESS_TEAM_DOMAIN, ACCESS_AUD and ADMIN_EMAILS must be set in Pages runtime settings.
+
+[env.production]
+[[env.production.d1_databases]]
+binding = "CMS_DB"
+database_name = "bukarciau-cms"
+database_id = "1195b2cd-9db8-4e43-9673-9e8c817ea789"

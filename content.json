@@ -1,36 +1,45 @@
 {
   "site": {
     "name": "Būk arčiau",
-    "url": "https://bukarciau.lt",
+    "organizers": "Miglė ir Miglė",
     "email": "info@bukarciau.lt",
     "phone": "+37060571562",
     "phoneDisplay": "+370 605 71562",
     "facebook": "https://www.facebook.com/profile.php?id=61595415578505",
+    "heroAccent": "Būk arčiau.",
     "heroTitle": "Moterų savaitgalis.",
+    "values": [
+      "Bendrystė",
+      "Saviugda",
+      "Ryšiai"
+    ],
     "aboutText": [
       "Mes - Miglė ir Miglė. Kuriame moterų bendrystės stovyklą, kurioje galėtume pabūti su savimi ir kitų moterų draugijoje.",
       "Norime jaukaus susitikimo, kur kiekviena galėtų būti tikra, be kaukių ir bandymų kažkam kažką įrodyti."
     ],
+    "storyTitle": "Miglė ir Miglė.",
     "story": [
       "Abi esame Miglės. Mus vienija idėja sukurti moterų bendrystės stovyklą.",
       "Neabejojame, kad kiekvienai iš mūsų kartais reikia atokvėpio, poilsio nuo kasdienybės, pabūti su savimi ar kitų moterų draugijoje.",
       "Norime sukurti jaukią erdvę tikriems pokalbiams, nuoširdžiam juokui ir naujoms pažintims. Tikimės, kad čia kiekviena jausis išgirsta, pamatyta ir priimta."
     ],
-    "togetherImage": null,
     "draft": true,
-    "storyTitle": "Miglė ir Miglė.",
-    "heroAccent": "Būk arčiau."
+    "heroImage": null,
+    "heroImageAlt": "",
+    "statementImage": null,
+    "statementImageAlt": "",
+    "togetherImage": null,
+    "togetherImageAlt": "",
+    "url": "https://bukarciau.lt"
   },
   "camps": [
     {
-      "slug": "stovykla-01",
       "title": "Moterų savaitgalio stovykla",
       "summary": "Gruodžio 5 d. susitinkame pabūti kartu. Kviečia Miglė ir Miglė.",
       "date": "Gruodžio 5 d.",
       "location": null,
       "price": null,
-      "image": null,
-      "secondaryImage": null,
+      "introTitle": "Laikas sau ir bendrystei.",
       "description": [
         "Kviečiame į moterų bendrystės stovyklą: atokvėpiui nuo kasdienybės, tikriems pokalbiams ir naujoms pažintims.",
         "Norime susitikti jaukiai - be kaukių ir bandymų kažkam kažką įrodyti. Pabūti su savimi ir kitų moterų draugijoje."
@@ -41,20 +50,119 @@
       "faq": [
         {
           "question": "Kada susitinkame?",
-          "answer": "Gruodžio 5 d. Tikslius atvykimo ir išvykimo laikus paskelbsime kartu su stovyklos programa."
+          "answer": "Gruodžio 5 d. Tikslius atvykimo ir išvykimo laikus paskelbsime kartu su stovyklos programa.",
+          "answerWhenOpen": ""
         },
         {
           "question": "Kur vyks stovykla ir kokia jos kaina?",
-          "answer": "Vietą ir kainą dar tiksliname. Informaciją paskelbsime šiame puslapyje."
+          "answer": "Vietą ir kainą dar tiksliname. Informaciją paskelbsime šiame puslapyje.",
+          "answerWhenOpen": ""
         },
         {
           "question": "Kaip užsiregistruoti?",
           "answer": "Registracijos anketą ruošiame. Jos nuorodą paskelbsime šiame puslapyje. Kol kas apie stovyklą gali pasiteirauti el. paštu info@bukarciau.lt arba telefonu +370 605 71562.",
-          "kind": "registration"
+          "answerWhenOpen": "Užpildyk registracijos anketą - jos nuorodą rasi registracijos skiltyje. Jei turi klausimų, parašyk mums."
         }
       ],
       "registrationUrl": null,
-      "introTitle": "Laikas sau ir bendrystei."
+      "image": null,
+      "imageAlt": "",
+      "secondaryImage": null,
+      "secondaryImageAlt": "",
+      "detailImage": null,
+      "detailImageAlt": "",
+      "slug": "stovykla-01"
     }
-  ]
+  ],
+  "copy": {
+    "header": {
+      "camp": "Stovykla",
+      "about": "Kas mes?",
+      "contact": "Kontaktai",
+      "write": "Parašyk mums"
+    },
+    "footer": {
+      "contact": "Susisiekime",
+      "about": "Susipažinkime",
+      "facebook": "Facebook"
+    },
+    "actions": {
+      "register": "Registruotis",
+      "participate": "Noriu dalyvauti",
+      "about": "Apie mus",
+      "camp": "Apie stovyklą",
+      "back": "Į pradžią"
+    },
+    "home": {
+      "heroEyebrow": "Stovykla moterims",
+      "introEyebrow": "Susipažinkime",
+      "introTitle": "Kas mes?",
+      "campEyebrow": "Susitikime",
+      "campTitle": "Stovykla"
+    },
+    "about": {
+      "invitation": "Susitikime stovykloje."
+    },
+    "contact": {
+      "title": "Susisiekime.",
+      "intro": "Turi klausimų apie stovyklą? Parašyk arba paskambink.",
+      "email": "El. paštas",
+      "phone": "Telefonas",
+      "social": "Socialiniai tinklai",
+      "logoAlt": "Arčiau. Bendrystė, saviugda, ryšiai."
+    },
+    "camp": {
+      "date": "Kada",
+      "location": "Kur",
+      "price": "Kaina",
+      "locationPending": "Vieta dar tikslinama",
+      "pricePending": "Dar tikslinama",
+      "pricePendingSentence": "Kaina dar tikslinama",
+      "practicalPending": "Vieta ir kaina dar tikslinamos.",
+      "about": "Apie stovyklą",
+      "program": "Programa",
+      "programPending": "Programą ir tikslius laikus dar ruošiame. Juos paskelbsime čia.",
+      "included": "Į kainą įskaičiuota",
+      "notIncluded": "Į kainą neįskaičiuota",
+      "faqEyebrow": "Verta žinoti",
+      "faqTitle": "Klausimai ir atsakymai"
+    },
+    "registration": {
+      "title": "Susitinkam?",
+      "intro": "Jei tau artima mūsų idėja, kviečiame į moterų bendrystės stovyklą.",
+      "openLabel": "Registracija atidaryta",
+      "openText": "Užpildyk registracijos anketą.",
+      "openButton": "Registruotis į stovyklą",
+      "openNote": "Anketa atsidarys naujame lange.",
+      "pendingLabel": "Registracija ruošiama",
+      "pendingText": "Registracijos anketą paskelbsime čia. Kol kas apie stovyklą gali pasiteirauti tiesiai mūsų.",
+      "pendingButton": "Parašyti Miglėms",
+      "emailSubject": "Domina moterų stovykla"
+    },
+    "notFound": {
+      "title": "Šio puslapio\nneradome."
+    }
+  },
+  "seo": {
+    "home": {
+      "title": "Moterų savaitgalis · Gruodžio 5 d.",
+      "description": "Moterų savaitgalio stovykla gruodžio 5 d. Atokvėpiui, tikriems pokalbiams ir bendrystei kviečia Miglė ir Miglė."
+    },
+    "about": {
+      "title": "Miglė ir Miglė",
+      "description": "Moterų savaitgalio stovykla gruodžio 5 d. Atokvėpiui, tikriems pokalbiams ir bendrystei kviečia Miglė ir Miglė."
+    },
+    "contact": {
+      "title": "Kontaktai",
+      "description": "Moterų savaitgalio stovykla gruodžio 5 d. Atokvėpiui, tikriems pokalbiams ir bendrystei kviečia Miglė ir Miglė."
+    },
+    "camp": {
+      "title": "",
+      "description": "Moterų savaitgalio stovykla gruodžio 5 d. Atokvėpiui, tikriems pokalbiams ir bendrystei kviečia Miglė ir Miglė."
+    },
+    "notFound": {
+      "title": "Puslapis nerastas",
+      "description": "Moterų savaitgalio stovykla gruodžio 5 d. Atokvėpiui, tikriems pokalbiams ir bendrystei kviečia Miglė ir Miglė."
+    }
+  }
 }

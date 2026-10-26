@@ -1,0 +1,63 @@
+<!doctype html>
+<html lang="lt">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="robots" content="noindex,nofollow,noarchive">
+  <meta name="referrer" content="same-origin">
+  <title>Svetainės valdymas | Būk arčiau</title>
+  <link rel="icon" href="/assets/favicon.svg" type="image/svg+xml">
+  <link rel="stylesheet" href="/admin/admin.css">
+  <script type="module" src="/admin/admin.js"></script>
+</head>
+<body>
+  <a class="skip-link" href="#editor-title">Pereiti prie turinio</a>
+  <div class="admin-shell">
+    <aside class="sidebar" aria-label="Svetainės valdymas">
+      <a class="admin-brand" href="/admin/"><img src="/assets/logo.svg" alt="Būk arčiau" width="64" height="50"><span>Svetainės<br><strong>valdymas</strong></span></a>
+      <div class="sidebar-heading">Turinys</div>
+      <nav id="section-nav" aria-label="Turinio skyriai"><span class="nav-loading">Įkeliama...</span></nav>
+      <div class="sidebar-bottom">
+        <a class="site-link" href="/" target="_blank" rel="noopener noreferrer">Atverti svetainę <span aria-hidden="true">↗</span></a>
+        <div class="identity"><span class="avatar" aria-hidden="true">A</span><div><span class="identity-label">Administratorius</span><span id="identity-email">Tikrinama prieiga...</span></div></div>
+        <a class="logout-link" href="/cdn-cgi/access/logout">Atsijungti</a>
+      </div>
+    </aside>
+    <div class="workspace">
+      <header class="workspace-topbar">
+        <div class="workspace-label"><span class="status-dot" aria-hidden="true"></span> Būk arčiau <span class="workspace-divider">/</span><span>Turinio valdymas</span></div>
+        <button class="button button-quiet preview-toggle" id="preview-toggle" type="button" aria-controls="canvas-section"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7S2 12 2 12Z"/><circle cx="12" cy="12" r="3"/></svg>Peržiūrėti</button>
+      </header>
+      <div class="editor-layout">
+        <main class="editor-main" id="main">
+          <div id="notice" class="notice" role="status" aria-live="polite" hidden></div>
+          <div class="editor-heading"><div><p class="eyebrow">Svetainės turinys</p><h1 id="editor-title" tabindex="-1">Pagrindinis puslapis</h1><p id="editor-description">Keisk tekstus ir nuotraukas. Svetainės dizainas išlieka toks pats.</p></div><span class="section-number" id="section-number" aria-hidden="true">01</span></div>
+          <div id="loading-state" class="loading-state"><span class="spinner" aria-hidden="true"></span><p>Įkeliamas svetainės turinys...</p></div>
+          <section id="canvas-section" class="visual-canvas" hidden aria-label="Redaguoti tiesiai puslapyje">
+            <div class="canvas-toolbar">
+              <label class="canvas-page-label" for="preview-route">Puslapis<select id="preview-route"><option value="/">Pagrindinis puslapis</option><option value="/stovyklos/stovykla-01/">Stovykla</option><option value="/apie-mus/">Apie mus</option><option value="/kontaktai/">Kontaktai</option></select></label>
+              <div class="segmented canvas-devices" role="group" aria-label="Puslapio dydis"><button type="button" data-preview-size="desktop" aria-pressed="true">Kompiuteris</button><button type="button" data-preview-size="mobile" aria-pressed="false">Telefonas</button></div>
+              <div class="segmented canvas-modes" role="group" aria-label="Puslapio režimas"><button type="button" data-canvas-mode="edit" aria-pressed="true">Redaguoti</button><button type="button" data-canvas-mode="view" aria-pressed="false">Peržiūrėti</button></div>
+            </div>
+            <div class="canvas-context"><p id="canvas-instruction">Paspausk tekstą ir rašyk. Paspausk nuotraukos vietą, kad įkeltum savo.</p><span id="canvas-draft-status">Išsaugotas juodraštis</span></div>
+            <div id="canvas-image-inspector" class="canvas-image-inspector" hidden></div>
+            <div class="canvas-stage" id="canvas-stage"><iframe id="preview-frame" title="Redaguojamas svetainės puslapis" sandbox="allow-same-origin allow-scripts allow-popups" referrerpolicy="same-origin"></iframe></div>
+            <p id="preview-note" class="canvas-help">Pakeitimai matomi iškart. Svetainės lankytojai juos matys tik paskelbus.</p>
+          </section>
+          <form id="editor-form" novalidate hidden><div id="editor-fields"></div></form>
+          <section id="media-section" hidden aria-label="Nuotraukų valdymas"></section>
+          <section id="history-section" hidden aria-label="Versijų istorija"></section>
+          <noscript><div class="notice notice-error">Turinio valdymui reikalingas įjungtas JavaScript.</div></noscript>
+        </main>
+      </div>
+      <footer class="save-bar" id="save-bar" hidden>
+        <div class="save-status"><span class="save-indicator" id="save-indicator" aria-hidden="true"></span><div><strong id="save-status-title">Juodraštis išsaugotas</strong><span id="save-status-detail">Pakeitimai svetainėje atsiras juos paskelbus.</span></div></div>
+        <div class="save-actions"><button class="button button-outline" id="save-draft" type="button">Išsaugoti juodraštį</button><button class="button button-primary" id="publish" type="button">Paskelbti pakeitimus<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 12h14m-6-6 6 6-6 6"/></svg></button></div>
+      </footer>
+    </div>
+  </div>
+  <dialog class="cms-dialog" id="confirm-dialog" aria-labelledby="confirm-title" aria-describedby="confirm-description"><div class="dialog-heading"><span class="dialog-mark" aria-hidden="true">↗</span><button class="icon-button" data-close-confirm type="button" aria-label="Uždaryti">×</button></div><h2 id="confirm-title">Paskelbti pakeitimus?</h2><p id="confirm-description"></p><div class="dialog-actions"><button class="button button-outline" data-close-confirm type="button">Atšaukti</button><button class="button button-primary" id="confirm-action" type="button">Paskelbti</button></div></dialog>
+  <dialog class="media-dialog" id="media-picker" aria-labelledby="media-picker-title"><div class="media-dialog-heading"><div><p class="eyebrow">Nuotraukų biblioteka</p><h2 id="media-picker-title">Pasirink nuotrauką</h2></div><button class="icon-button" id="media-picker-close" type="button" aria-label="Uždaryti nuotraukų biblioteką">×</button></div><div id="media-picker-content"></div></dialog>
+  <div class="screen-reader-status" id="live-status" role="status" aria-live="polite" aria-atomic="true"></div>
+</body>
+</html>

@@ -1,80 +1,99 @@
-# Talpinimas ir domenas
+# Talpinimas ir administravimo aktyvavimas
 
-Rekomenduojama Cloudflare Pages: statinių failų užklausos nemokamos, galima prijungti GitHub ir nuosavą domeną. GitHub Pages nemokamame plane reikalauja viešos saugyklos, o jų naudojimo taisyklės riboja verslui ir komerciniams sandoriams skirtas svetaines. Mokamų stovyklų svetainei Cloudflare Pages tinkamesnis pasirinkimas. [Cloudflare kainodara](https://developers.cloudflare.com/pages/functions/pricing/), [GitHub Pages apribojimai](https://docs.github.com/en/pages/getting-started-with-github-pages/github-pages-limits)
+Hostingas lieka **Cloudflare Pages Direct Upload**, projektas `bukarciau`. Kodas saugomas [donatas-tarase/bukarciau](https://github.com/donatas-tarase/bukarciau); `git push` šiuo metu svetainės neatnaujina. Domenas `bukarciau.lt` registruotas Hostingeryje, o DNS ir el. pašto persiuntimą aptarnauja Cloudflare.
 
-`bukarciau.lt` gali likti registruotas Hostingeryje. DNS jau aptarnauja Cloudflare; vardų serveriai - `pete.ns.cloudflare.com` ir `vivienne.ns.cloudflare.com`. Registratoriaus perkelti nereikia.
+## Dabartinė būsena
 
-## Dabartinis publikavimo būdas
+Administravimo kodas ir vietinė peržiūra parengti. D1 bazė `bukarciau-cms` sukurta, o `db/schema.sql` schema pritaikyta. D1 susiejimas `CMS_DB` įrašytas `wrangler.toml`.
 
-Kodas laikomas viešoje [donatas-tarase/bukarciau](https://github.com/donatas-tarase/bukarciau) saugykloje. Publikavimui naudojamas **Cloudflare Pages Direct Upload**. `git push` šiuo metu svetainės neatnaujina.
+**Produkcijos administravimo aktyvavimas dar nebaigtas.** Reikia Cloudflare Access programos ir leidžiamų administratorių sąrašo, runtime prisijungimo parametrų, R2 saugyklos bei jos susiejimo `CMS_MEDIA`. Ši instrukcija nereiškia, kad Access ar R2 jau veikia. Kol prisijungimo konfigūracija nepilna, serveris administravimo užklausas atmeta.
 
-Iš projekto aplanko vykdykite:
+## Reikalingi susiejimai ir parametrai
+
+| Pavadinimas | Reikšmė ir paskirtis |
+| --- | --- |
+| `CMS_DB` | D1 susiejimas su esama `bukarciau-cms` baze; juodraštis, paskelbta versija, istorija ir nuotraukų metaduomenys |
+| `CMS_MEDIA` | R2 susiejimas su nuotraukų saugykla, numatytas vardas `bukarciau-media`; dar neprijungtas |
+| `ACCESS_TEAM_DOMAIN` | Savo Cloudflare Access komandos domenas, pvz. `komanda.cloudflareaccess.com` |
+| `ACCESS_AUD` | Administravimo Access programos Application Audience (AUD) reikšmė |
+| `ADMIN_EMAILS` | Tikslūs leisti administratorių el. paštai, atskirti kableliais; saugoti Pages aplinkos paslaptyje |
+
+Tikro administratoriaus el. pašto sąrašo, JWT, slapukų ir API raktų į saugyklą nedėkite. `ADMIN_EMAILS` nėra domenų ar visų lankytojų leidimas: serveris tikrina konkretaus prisijungusio žmogaus el. paštą.
+
+Cloudflare susiejimus galima nustatyti Wrangler konfigūracijoje; naudojant ją, suderinkite su Pages aplinkomis. Produkcijos ir preview aplinkų nustatymus patikrinkite atskirai. [Oficiali Pages susiejimų dokumentacija](https://developers.cloudflare.com/pages/functions/bindings/).
+
+## Cloudflare Access
+
+Cloudflare Zero Trust sukurkite administravimui skirtą **Self-hosted** programą. Ji turi aprėpti `bukarciau.lt/admin` ir visus `/admin/*` kelius: patį įrankį, jo CSS ir JavaScript, API, juodraščio peržiūrą ir privačias nuotraukas. Prisijungimui galima įjungti vienkartinį kodą el. paštu. **Allow** taisyklėje leiskite tik konkrečius administratorių adresus; jų sąrašas turi sutapti su runtime `ADMIN_EMAILS`. [Access programos sąranka](https://developers.cloudflare.com/cloudflare-one/access-controls/applications/http-apps/self-hosted-public-app/), [vienkartinio kodo prisijungimas](https://developers.cloudflare.com/cloudflare-one/integrations/identity-providers/one-time-pin/).
+
+Į Pages runtime aplinką perkelkite tikrą komandos domeną, šios programos AUD ir leistų paštų sąrašą. Parinkta Access sesija turi tilpti į serverio priimamą 24 val. tokeno amžių. Pritaikius parametrus reikia naujo Pages diegimo.
+
+Serveris papildomai tikrina `Cf-Access-Jwt-Assertion` parašą naudodamas tos komandos pasirašymo raktus, išdavėją, AUD, galiojimo laiką, reikiamus duomenis ir tikslų administratoriaus el. paštą. Vien atsiųstas el. pašto header ar slapukas teisės nesuteikia. Apsauga taikoma ir kreipiantis tiesiogiai per `pages.dev` ar diegimo adresą. [Cloudflare JWT tikrinimo paaiškinimas](https://developers.cloudflare.com/cloudflare-one/access-controls/applications/http-apps/authorization-cookie/application-token/).
+
+## R2 nuotraukų saugykla
+
+Aktyvuokite R2 paskyroje ir sukurkite privačią `bukarciau-media` saugyklą. Nekurkite viešo R2 domeno: nuotraukas aptarnauja šio projekto Worker. Pridėkite `CMS_MEDIA` susiejimą į naudojamų Pages aplinkų Wrangler konfigūraciją:
+
+```toml
+[[r2_buckets]]
+binding = "CMS_MEDIA"
+bucket_name = "bukarciau-media"
+
+[[env.production.r2_buckets]]
+binding = "CMS_MEDIA"
+bucket_name = "bukarciau-media"
+```
+
+Šis pavyzdys yra užbaigiamos sąrankos žingsnis; dabartiniame `wrangler.toml` R2 susiejimo dar nėra. Po pakeitimo atlikite naują Pages diegimą. Jeigu kuriate atskirą bandomąją Cloudflare aplinką, jai naudokite atskirus duomenis, kad testuojant nebūtų keičiamas produkcijos turinys.
+
+R2 saugo nuotraukų failus, D1 - jų metaduomenis ir nuorodas turinyje. Juodraščio nuotraukos aptarnaujamos tik per apsaugotą `/admin/api/media/` adresą. Vieši `/media/` adresai veikia tik toms nuotraukoms, kurias naudoja paskelbta turinio versija. Logiškai iš bibliotekos ištrinti objektai paliekami R2, kad istorijoje esanti versija galėtų būti atkurta.
+
+Apsaugotas `/admin/api/state` atsakymas pateikia `capabilities.media`, `capabilities.upload`, priimamus formatus ir įkėlimo dydžio ribą. Kol `CMS_MEDIA` neprijungtas, nuotraukų galimybės grąžinamos kaip `false`, o redaktorius įkėlimą išjungia ir parodo priežastį. Tiesioginė įkėlimo užklausa taip pat atmetama serveryje.
+
+## D1 ir pradinis turinys
+
+Esamos bazės iš naujo kurti nereikia. Schema yra idempotentiška; prireikus ją taikyti naujai aplinkai:
 
 ```sh
+npx wrangler d1 execute bukarciau-cms --remote --file=db/schema.sql
+```
+
+Pirmą kartą kreipiantis į tuščią bazę, turinys užpildomas build metu paruošta `content.json` versija. Vėlesnis kodo diegimas jau esančių D1 tekstų neperrašo. Turinį keiskite per redaktorių. Įprastas „Išsaugoti juodraštį“ nekeičia viešos versijos; „Paskelbti pakeitimus“ atnaujina paskelbtą D1 turinį ir sukuria istorijos įrašą.
+
+Saugoma iki 30 paskelbtų versijų. Atkuriant ankstesnė versija tampa juodraščiu ir turi būti atskirai paskelbta. Tai turinio versijų istorija; atskirų infrastruktūros atsarginių kopijų tvarkymo ji nepakeičia.
+
+## Kodo diegimas
+
+Reikia Node.js 22.13 arba naujesnio. Iš projekto aplanko:
+
+```sh
+npm ci
 npm run build
+npm test
 npm run check
 npx wrangler pages deploy dist --project-name=bukarciau --branch=main
 ```
 
-Jei Wrangler neprisijungęs, prieš diegimą vieną kartą vykdykite `npx wrangler login` ir pasirinkite Cloudflare paskyrą, kurioje yra `bukarciau.lt`. Projekto iš naujo kurti nereikia. Po diegimo patikrinkite Wrangler pateiktą adresą ir nuosavą domeną, jei jis jau prijungtas. Įkeliamas `dist` build rezultatas, ne visas projektas. [Oficiali Direct Upload instrukcija](https://developers.cloudflare.com/pages/get-started/direct-upload/)
+Jei Wrangler neprisijungęs, naudokite `npx wrangler login` ir pasirinkite paskyrą su šiuo Pages projektu. Įkeliamas visas `dist/`, įskaitant `_worker.js` ir `_routes.json`, o ne vien HTML failai. Worker maršrutizavimas būtinas administravimo apsaugai. Administravimo įrankio failų atskirai į viešą statinį hostingą nekelkite. [Direct Upload dokumentacija](https://developers.cloudflare.com/pages/get-started/direct-upload/).
 
-## Jei vėliau reikės automatinio publikavimo
+**Pages nustatymas „Settings > Runtime > Fail open / closed“ turi likti „Fail closed“.** Pasibaigus nemokamai Functions užklausų kvotai, „Fail open“ aptarnautų statinius failus aplenkdamas Worker ir jo administravimo apsaugą. „Fail closed“ tokiu atveju pateikia klaidą. Šiame projekte produkcijos ir preview aplinkoms jau nustatyta bei API patikrinta `fail_open: false`; tai paskyros Pages nustatymas, jo nėra `wrangler.toml`. [Oficialus veikimo paaiškinimas](https://developers.cloudflare.com/pages/functions/routing/#fail-open--closed).
 
-Bandant prijungti GitHub, Cloudflare grąžino `8000011` - esamo Git įdiegimo vidinę klaidą. Todėl Git integracija dabar neįjungta. Ji tvarkoma per **Cloudflare Workers & Pages** programėlės prieigą GitHub nustatymuose; turimos prieigos neatšaukite nepatikrinę, ar jos nenaudoja kiti projektai.
+Build prideda turinio hash pagrįstą `?v=` prie viešų CSS ir JavaScript adresų. Į `dist/assets/` kopijuojami tik logotipo failai, šriftai ir jų licencija. Anksčiau saugykloje likusios nuotraukos, video ir viršelis į diegimą nekopijuojami. CMS nuotraukos įkeliamos atskirai į R2.
 
-Direct Upload projekto negalima tiesiog perjungti į Git integraciją. Sutvarkius prieigą reikėtų naujo Pages projekto ir perkelti domeną tik patikrinus naują diegimą. Git integracijos nustatymai:
+Pradinis turinys apima tik vieną stovyklą. Nežinoma vieta, kaina ir registracijos anketa paliktos tuščios. Įrašius tikrą HTTPS anketą veiksmai pasikeičia abiejuose viešuose puslapiuose. Duomenų bazės sutrikimo atveju viešiems puslapiams lieka statinis build rezultatas; jis gali būti senesnis už naujausią administratoriaus paskelbtą turinį.
 
-| Nustatymas | Reikšmė |
-| --- | --- |
-| Repository | `donatas-tarase/bukarciau` |
-| Production branch | `main` |
-| Framework preset | None |
-| Build command | `npm run build` |
-| Build output directory | `dist` |
-| Root directory | Tuščias, jei `package.json` yra saugyklos šaknyje |
-| Environment variable | `NODE_VERSION` = `22` |
+## Aktyvavimo patikra
 
-[Git integracija](https://developers.cloudflare.com/pages/get-started/git-integration/), [prieigos trikčių šalinimas](https://developers.cloudflare.com/pages/configuration/git-integration/troubleshooting/)
+Po konfigūravimo ir diegimo patikrinkite prisijungimą leidžiamu adresu bei atmetimą kitu adresu. Neprisijungus neturi būti pasiekiamas nei `/admin/`, nei administravimo failai, API, juodraščio peržiūra ar jos nuotraukos. Tą patį patikrinkite `pages.dev` ir diegimo adresu.
 
-## Prijungtas domenas
+Išsaugokite bandomąjį juodraštį ir įsitikinkite, kad vieša svetainė nepasikeitė. Paskelbkite, patikrinkite rezultatą, istorijoje atkurkite ankstesnę versiją į juodraštį. Atskirai patikrinkite nuotraukos įkėlimą, jos alternatyvų tekstą, privatų juodraščio vaizdą ir viešą vaizdą tik po paskelbimo. Išbandykite telefono ir kompiuterio maketus bei Google Forms nuorodą, kai ji bus gauta.
 
-Domenai jau pridėti prie Pages projekto `bukarciau`, Cloudflare jų būsena - **active**. Svetainė: [https://bukarciau.lt](https://bukarciau.lt); tiesioginis adresas - [https://bukarciau.pages.dev](https://bukarciau.pages.dev).
+`site.draft` valdo tik SEO: `true` įjungia `noindex`, riboja `robots.txt` ir išjungia `sitemap.xml`. Tai nėra prisijungimo apsauga ir neslepia viešos svetainės. Administratoriaus juodraštis laikomas atskirai D1.
 
-Cloudflare DNS įrašai:
+## Domenas ir el. paštas
 
-| Tipas | Vardas | Reikšmė | Proxy |
-| --- | --- | --- | --- |
-| CNAME | `@` | `bukarciau.pages.dev` | Proxied |
-| CNAME | `www` | `bukarciau.pages.dev` | Proxied |
+Svetainė: [bukarciau.lt](https://bukarciau.lt), Pages adresas: [bukarciau.pages.dev](https://bukarciau.pages.dev). DNS vardų serveriai - `pete.ns.cloudflare.com` ir `vivienne.ns.cloudflare.com`. Esami `@` ir `www` CNAME nukreipti į `bukarciau.pages.dev` su proxy. `www` nukreipiamas į pagrindinį domeną išlaikant kelią ir užklausos parametrus. Administravimui naujo domeno ar DNS keitimo nereikia.
 
-Cloudflare **Single Redirect** taisyklė `www → bukarciau.lt`:
+Nekeiskite veikiančių MX, SPF, DKIM ir kitų pašto įrašų. `info@bukarciau.lt` naudoja Cloudflare Email Routing; CMS sąranka su tuo nesusijusi. Palikite esamus `route1/2/3.mx.cloudflare.net` MX ir SPF `v=spf1 include:_spf.mx.cloudflare.net ~all`. [Email Routing domenų dokumentacija](https://developers.cloudflare.com/email-service/configuration/domains/).
 
-- Sąlyga: `(http.host eq "www.bukarciau.lt")`.
-- Dinaminis adresas: `concat("https://bukarciau.lt", http.request.uri.path)`.
-- Kodas: `301`; **Preserve query string** įjungta.
-
-HTTPS patikrintas be sertifikato tikrinimo išjungimo. Po DNS pakeitimų kai kurie vietiniai DNS serveriai dar gali laikyti seną atsakymą; tokiu atveju peržiūrai naudokite `pages.dev` adresą. Keičiant talpinimą vėliau, naują domeną pirmiausia reikia susieti su Pages projektu, o tik po to nukreipti DNS. [Cloudflare custom domains](https://developers.cloudflare.com/pages/configuration/custom-domains/)
-
-## Išsaugoti pašto veikimą
-
-Keiskite tik svetainei reikalingus įrašus. Neištrinkite esamų MX ir TXT įrašų: Cloudflare Email Routing juos naudoja `info@bukarciau.lt` persiuntimui. Patikros metu domenas turėjo Cloudflare `route1/2/3.mx.cloudflare.net` MX ir SPF `v=spf1 include:_spf.mx.cloudflare.net ~all`.
-
-Palikite ir kitus esamus SPF, DKIM, DMARC bei patvirtinimo įrašus. Nejunkite Hostinger pašto ar numatytųjų DNS šablonų vien tam, kad prijungtumėte svetainę. Po prijungimo iš išorinės pašto paskyros nusiųskite bandomąjį laišką į `info@bukarciau.lt`. [Email Routing DNS dokumentacija](https://developers.cloudflare.com/email-service/configuration/domains/)
-
-## Paskelbto atnaujinimo patikra
-
-Pagrindiniame puslapyje ir adresu `/stovyklos/stovykla-01/` turi būti ta pati viena stovykla. Kompiuteryje ir telefone patikrinkite meniu, antraščių išdėstymą, kontaktų nuorodas ir registracijos mygtukus. Nuotraukos ir video šiame makete nerodomi; dekoratyvios sritys turi likti tuščios, be vietų užrašų ar ikonų.
-
-Build automatiškai prideda turinio versiją `?v=…` prie CSS ir JavaScript nuorodų. Pakeitus atitinkamą failą pasikeičia ir jo nuorodos versija, todėl ankstesnė naršyklės ar Cloudflare kopija neužstoja atnaujinimo. Failų vardų keisti nereikia; svarbu po pakeitimų iš naujo sugeneruoti ir paskelbti visą `dist/`.
-
-Į `dist/assets/` kopijuojami tik logotipo failai ir šriftai. Ankstesni saugykloje likę video ar viršelio failai į naują diegimą neįtraukiami.
-
-Kol `camps[0].registrationUrl` yra `null`, kvietimas dalyvauti turi vesti į aiškią registracijos būseną ir tikrą kontaktą. Įrašę Google Forms nuorodą patikrinkite, kad ji atsidaro tiek iš pagrindinio, tiek iš stovyklos puslapio, taip pat atsijungus nuo Google paskyros. Prieš skelbdami pašalinkite su naujais duomenimis nebesutampančius DUK atsakymus.
-
-`_redirects` nukreipia ankstesnį `/stovyklos/stovykla-02` ir `/stovyklos/stovykla-02/` adresą į `/#stovykla` kodu `301`. Failas turi būti `dist/` šaknyje kartu su `_headers`. Šį nukreipimą patikrinkite paskelbtoje Cloudflare Pages svetainėje.
-
-## Iš maketo į viešą svetainę
-
-Kol maketas ir informacija dar derinami, `content.json` palikite `site.draft: true`. Taip puslapiai generuojami su `noindex, nofollow`, o `robots.txt` riboja indeksavimą. Viešas peržiūros adresas nėra privati prieiga.
-
-Kai organizatorės patvirtins tekstus, stovyklos informaciją ir veikiančią formą, pakeiskite `site.draft` į `false`. Po `npm run build` bus pašalinta `noindex` žyma, `robots.txt` leis indeksavimą ir atsiras `sitemap.xml`. `site.url` palikite `https://bukarciau.lt`. Paleiskite `npm run check`, paskelbkite įprasta Wrangler komanda ir patikrinkite, ar tikrajame domene matoma nauja versija.
+Senas `/stovyklos/stovykla-02` ir `/stovyklos/stovykla-02/` adresas per `_redirects` nukreipiamas į `/#stovykla` kodu `301`. Publikuojant išlaikykite šią taisyklę.

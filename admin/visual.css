@@ -1,0 +1,14 @@
+/* This stylesheet is included only in the protected editing canvas. */
+html[data-cms-editing=true] [data-cms-field]{cursor:text;border-radius:2px;outline:1px solid transparent;outline-offset:5px;transition:outline-color .12s,background-color .12s;box-decoration-break:clone;-webkit-box-decoration-break:clone}
+html[data-cms-editing=true] [data-cms-field]:hover,html[data-cms-editing=true] [data-cms-field]:focus-visible{outline:1px dashed #08733e;background:#d8edcf38}
+html[data-cms-editing=true] [data-cms-field][data-cms-selected]{outline:2px solid #08733e;background:#f4fff0a8;color:#173f2b!important;caret-color:#08733e;white-space:pre-wrap;min-width:.5em}
+html[data-cms-editing=true] [data-cms-field][data-cms-selected]:empty:before{content:'Įrašyk tekstą';opacity:.45;pointer-events:none}
+html[data-cms-editing=true] [data-cms-image]{cursor:pointer;outline:2px solid transparent;outline-offset:-4px}
+html[data-cms-editing=true] [data-cms-image]:hover,html[data-cms-editing=true] [data-cms-image]:focus-visible{outline:2px dashed #08733e}
+html[data-cms-editing=true] [data-cms-image][data-cms-empty=true]{background-image:repeating-linear-gradient(135deg,#bfd4b70c 0 12px,#5b8d4512 12px 13px)}
+html[data-cms-editing=true] [data-cms-image]:focus-visible{outline-style:solid}
+html[data-cms-editing=true] [data-cms-image] img{pointer-events:none}
+html[data-cms-editing=true] a:not(:has([data-cms-field])){cursor:default}
+.faq summary>[data-cms-field]{font-size:inherit;font-weight:inherit}
+.faq details[open] summary>[data-cms-field]{transform:none}
+@media(prefers-reduced-motion:reduce){html[data-cms-editing=true] [data-cms-field]{transition:none}}
