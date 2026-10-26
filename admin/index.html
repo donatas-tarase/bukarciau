@@ -41,7 +41,7 @@
             </div>
             <div class="canvas-context"><p id="canvas-instruction">Paspausk tekstą ir rašyk. Paspausk nuotraukos vietą, kad įkeltum savo.</p><span id="canvas-draft-status">Išsaugotas juodraštis</span></div>
             <div id="canvas-image-inspector" class="canvas-image-inspector" hidden></div>
-            <div class="canvas-stage" id="canvas-stage"><iframe id="preview-frame" title="Redaguojamas svetainės puslapis" sandbox="allow-same-origin allow-scripts allow-popups" referrerpolicy="same-origin"></iframe></div>
+            <div class="canvas-stage" id="canvas-stage"><div class="canvas-loading" id="canvas-loading" role="status" aria-live="polite" hidden><div><span class="spinner" aria-hidden="true"></span><p id="canvas-loading-message">Įkeliamas puslapis...</p><button class="button button-outline" type="button" data-reload-canvas hidden>Įkelti dar kartą</button></div></div><iframe id="preview-frame" title="Redaguojamas svetainės puslapis" sandbox="allow-same-origin allow-scripts allow-popups" referrerpolicy="same-origin"></iframe></div>
             <p id="preview-note" class="canvas-help">Pakeitimai matomi iškart. Svetainės lankytojai juos matys tik paskelbus.</p>
           </section>
           <form id="editor-form" novalidate hidden><div id="editor-fields"></div></form>

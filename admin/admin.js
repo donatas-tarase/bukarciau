@@ -386,10 +386,26 @@ function insertPlainText(element, text) {
   }
   commitCanvasInput(element);
 }
+function setCanvasLoading(status) {
+  const ready = status === 'ready';
+  const failed = status === 'error';
+  $('#canvas-stage').classList.toggle('is-loading',!ready);
+  $('#canvas-stage').setAttribute('aria-busy',String(!ready && !failed));
+  $('#canvas-loading').hidden = ready;
+  $('#canvas-loading-message').textContent = failed ? 'Puslapio nepavyko paruošti. Pabandyk įkelti dar kartą.' : 'Įkeliamas puslapis...';
+  $('#canvas-loading .spinner').hidden = failed;
+  $('[data-reload-canvas]').hidden = !failed;
+  $('#preview-frame').inert = !ready;
+  $('#preview-frame').tabIndex = ready ? 0 : -1;
+}
 function bindCanvasDocument() {
+  try { bindCanvasHandlers(); setCanvasLoading('ready'); }
+  catch { setCanvasLoading('error'); }
+}
+function bindCanvasHandlers() {
   const frame = $('#preview-frame');
   const doc = frame.contentDocument;
-  if (!doc) return;
+  if (!doc) throw new Error('Canvas document unavailable.');
   doc.documentElement.dataset.cmsEditing = String(canvasMode === 'edit');
   doc.querySelectorAll('[data-cms-field],[data-cms-image]').forEach(element => {
     element.tabIndex = canvasMode === 'edit' ? 0 : -1;
@@ -453,6 +469,7 @@ function renderCanvas() {
   const rendered = renderPage(content,$('#preview-route').value,{assets:canvasAssets,preview:true});
   if (!rendered) return;
   canvasEditing = null;
+  setCanvasLoading('loading');
   $('#preview-frame').srcdoc = rendered.html;
   $('#preview-frame').title = `${canvasMode === 'edit' ? 'Redaguojamas puslapis' : 'Juodraščio peržiūra'}: ${$('#preview-route').selectedOptions[0].textContent}`;
   document.querySelectorAll('[data-canvas-mode]').forEach(button => button.setAttribute('aria-pressed',String(button.dataset.canvasMode === canvasMode)));
@@ -647,6 +664,7 @@ document.addEventListener('click',event => {
   if (target.dataset.restoreVersion) restoreVersion(target.dataset.restoreVersion);
   if (target.dataset.removeSlot) { const slot = IMAGE_FIELDS.find(slot => slot.path === target.dataset.removeSlot); if (slot) { setValue(slot.path,null); setValue(slot.altPath,''); canvasPhoto = null; renderSection(); announce('Nuotrauka pašalinta iš šios svetainės vietos. Bibliotekoje ji išliko.'); } }
   if (target.hasAttribute('data-close-photo-inspector')) { canvasPhoto = null; renderCanvasPhotoInspector(); }
+  if (target.hasAttribute('data-reload-canvas')) renderCanvas();
   if (target.dataset.previewSize) { finishCanvasEditing(); canvasDevice = target.dataset.previewSize; renderCanvas(); }
   if (target.dataset.canvasMode) { finishCanvasEditing(); canvasMode = target.dataset.canvasMode; renderCanvas(); }
 });
@@ -672,6 +690,7 @@ $('#media-picker').addEventListener('close',() => { activeSlot = null; });
 $('#preview-toggle').addEventListener('click',showPreview);
 $('#preview-route').addEventListener('change',() => { finishCanvasEditing(); canvasPhoto = null; renderCanvasPhotoInspector(); canvasScrollReset = true; renderCanvas(); });
 $('#preview-frame').addEventListener('load',bindCanvasDocument);
+$('#preview-frame').addEventListener('error',() => setCanvasLoading('error'));
 new ResizeObserver(fitCanvas).observe($('#canvas-stage'));
 document.addEventListener('keydown',event => {
   if ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === 's') { event.preventDefault(); if (!$('#confirm-dialog').open && !$('#media-picker').open) saveDraft(); }
