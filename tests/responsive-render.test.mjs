@@ -1,6 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {DEFAULT_CONTENT, IMAGE_FIELDS, IMAGE_POSITIONS, IMAGE_SIZES, CONTENT_PARTS, CONTENT_ZONES, THEME_DEFAULTS, SECTION_LAYOUT_TARGETS, getLayoutTargets, parseContent, setPath} from '../shared/content.mjs';
+import * as schema from '../shared/content.mjs';
 import {renderPage, renderTheme, renderLayoutRules} from '../shared/render.mjs';
 
 const routes = ['/', '/apie-mus/', '/kontaktai/', '/stovyklos/stovykla-01/', '/404.html'];
@@ -24,7 +25,7 @@ function tokens(html) {
   }
   return records;
 }
-const block = (id, type, zone, options = {}) => ({id:String(id).padStart(32,'0'), type, zone, text:'Naujas tekstas', url:null, source:null, alt:'', ratio:'auto', size:'normal', align:'left', background:null, color:null, ...options});
+const block = (id, type, zone, options = {}) => ({id:String(id).padStart(32,'0'), type, zone, beforePart:null, text:'Naujas tekstas', url:null, source:null, alt:'', ratio:'auto', size:'normal', align:'left', background:null, color:null, ...options});
 
 test('the editor and publication use one content tree and unique document landmarks', () => {
   const content = copy();
@@ -342,4 +343,120 @@ test('only bounded known layout values enter CSS, including unsaved drafts, and 
   content.blockLayouts={};
   assert.deepEqual(routes.map(route=>renderPage(content,route).html),original);
   assert.equal(renderTheme(content),'');
+});
+
+test('existing link destinations are editable on real anchors without changing their labels', () => {
+  assert.ok(schema.LINK_PARTS?.length,'the link registry must be available');
+  const content=copy();
+  content.linkOverrides=Object.fromEntries(schema.LINK_PARTS.map(({id})=>[id,'https://example.lt/nauja?x=1&y=2']));
+  const valid=parseContent(content),seen=new Set();
+  for (const route of routes) {
+    const original=tokens(canvas(copy(),route));
+    const edited=tokens(canvas(valid,route));
+    for (const anchor of edited.filter(tag=>tag.attrs['data-cms-link'])) {
+      const id=anchor.attrs['data-cms-link']; seen.add(id);
+      assert.equal(anchor.name,'a',id);
+      assert.equal(anchor.attrs.href,'https://example.lt/nauja?x=1&amp;y=2',id);
+      assert.equal(anchor.attrs.target,'_blank',id);
+      assert.equal(anchor.attrs.rel,'noopener noreferrer',id);
+      const before=original.find(tag=>tag.attrs['data-cms-link']===id);
+      assert.ok(before,id);
+      const beforeFields=original.filter(tag=>tag.parents.includes(before)&&tag.attrs['data-cms-field']).map(tag=>tag.attrs['data-cms-field']);
+      const afterFields=edited.filter(tag=>tag.parents.includes(anchor)&&tag.attrs['data-cms-field']).map(tag=>tag.attrs['data-cms-field']);
+      assert.deepEqual(afterFields,beforeFields,`${id}: URL changes preserve editable label fields`);
+    }
+    assert.doesNotMatch(renderPage(valid,route).html,/data-cms-link/);
+  }
+  assert.deepEqual(seen,new Set(schema.LINK_PARTS.map(({id})=>id)));
+});
+
+test('local, email and telephone overrides stay in the current tab and changed registration links lose stale behavior', () => {
+  const content=copy();
+  content.linkOverrides={
+    'home.hero.cta':'/kontaktai/#parasykite',
+    'registration.cta':'mailto:info@bukarciau.lt?subject=Klausimas',
+    'home.intro.link':'tel:+37060571562',
+    'common.footer.facebook':'#registracija'
+  };
+  const valid=parseContent(content),html=canvas(valid),elements=tokens(html);
+  for (const [id,url] of Object.entries(valid.linkOverrides)) {
+    const anchor=elements.find(tag=>tag.attrs['data-cms-link']===id);
+    assert.equal(anchor.attrs.href,url,id); assert.equal(anchor.attrs.target,undefined,id); assert.equal(anchor.attrs.rel,undefined,id);
+  }
+  const hero=elements.find(tag=>tag.attrs['data-cms-link']==='home.hero.cta');
+  assert.equal(hero.attrs['data-registration-intent'],undefined);
+  assert.doesNotMatch(html.match(/<a\b[^>]*data-cms-link="home.hero.cta"[\s\S]*?<\/a>/)[0],/data-registration-(?:intent|link)|atsidaro naujame lange/);
+  content.camps[0].registrationUrl='https://docs.google.com/forms/d/e/example/viewform';
+  assert.doesNotMatch(canvas(content).match(/<a\b[^>]*data-cms-link="registration.cta"[\s\S]*?<\/a>/)[0],/data-registration-(?:intent|link)|target="_blank"|atsidaro naujame lange/);
+});
+
+test('unsafe unsaved link overrides fall back safely and clearing overrides restores the default site', () => {
+  const content=copy(),original=routes.map(route=>renderPage(content,route).html);
+  for (const url of ['javascript:alert(1)','data:text/html,<script>alert(1)</script>','//evil.lt/x','https://name:password@example.lt/']) {
+    content.linkOverrides={'home.hero.cta':url,'contact.email':url};
+    const html=canvas(content);
+    const anchor=tokens(html).find(tag=>tag.attrs['data-cms-link']==='home.hero.cta');
+    assert.equal(anchor.attrs.href,'#registracija');
+    assert.doesNotMatch(html,/href="(?:javascript:|data:|\/\/evil|https:\/\/name:password)/);
+  }
+  content.linkOverrides={'home.hero.cta':'/kontaktai/'};
+  assert.notDeepEqual(routes.map(route=>renderPage(content,route).html),original);
+  content.linkOverrides={};
+  assert.deepEqual(routes.map(route=>renderPage(content,route).html),original);
+});
+
+test('every inside zone inserts valid sibling blocks directly into its existing group', () => {
+  const content=copy(),inside=CONTENT_ZONES.filter(zone=>zone.inside);
+  assert.ok(inside.length>=15,'inside zones cover the existing page groups');
+  const pageFor={home:'/',about:'/apie-mus/',contact:'/kontaktai/',camp:'/stovyklos/stovykla-01/'};
+  let next=100;
+  for (const zone of inside) {
+    const base=tokens(canvas(content,pageFor[zone.page]));
+    const group=base.find(tag=>tag.attrs['data-cms-drop-zone']===zone.id);
+    assert.ok(group,zone.id);
+    const first=base.find(tag=>tag.parents.includes(group)&&zone.partIds.includes(tag.attrs['data-cms-part']));
+    content.pageBlocks[zone.page].push(block(next++,'text',zone.id,{beforePart:first?.attrs['data-cms-part']||null,text:`Papildyta ${zone.id}`}));
+  }
+  const valid=parseContent(content);
+  for (const [page,route] of Object.entries(pageFor)) {
+    const records=tokens(canvas(valid,route));
+    for (const added of valid.pageBlocks[page]) {
+      const custom=records.find(tag=>tag.attrs['data-cms-block']===added.id);
+      const parent=custom.parents.at(-1);
+      assert.equal(parent.attrs['data-cms-drop-zone'],added.zone);
+      assert.equal(parent.attrs['data-cms-sort-zone'],inside.find(zone=>zone.id===added.zone).sortZone);
+      assert.ok(!custom.parents.some(tag=>['p','a','h1','h2','h3','span','ul','dl','details'].includes(tag.name)),`${added.zone}: added DIVs never nest inside phrasing content or lists`);
+      if (added.beforePart) assert.ok(records.indexOf(custom)<records.findIndex(tag=>tag.attrs['data-cms-part']===added.beforePart));
+    }
+    const desktop=canvas(valid,route,'desktop').replace('data-cms-device="desktop"','');
+    const mobile=canvas(valid,route,'mobile').replace('data-cms-device="mobile"','');
+    assert.equal(desktop,mobile,'the same group content adapts to screen width');
+    const publicHtml=renderPage(valid,route).html;
+    for (const added of valid.pageBlocks[page]) assert.ok(publicHtml.includes(added.text));
+    assert.doesNotMatch(publicHtml,/data-cms-(?:drop-zone|sort-zone|block)/);
+  }
+});
+
+test('insertions follow their chosen part through reordering and remain visible after every original part is hidden', () => {
+  const content=copy();
+  content.pageBlocks.home=[
+    block(1,'text','home.introHeading',{beforePart:'home.intro.title',text:'Prieš antraštę'}),
+    block(2,'link','home.introHeading',{beforePart:'home.intro.link',text:'Prieš nuorodą',url:'/kontaktai/'}),
+    block(3,'image','home.introParagraphs',{source:image,alt:'Vienintelė prisistatymo nuotrauka',beforePart:null})
+  ];
+  content.partOrder=['home.intro.link','home.intro.title','home.intro.eyebrow'];
+  let valid=parseContent(content),elements=tokens(canvas(valid));
+  for (const id of [1,2]) {
+    const added=valid.pageBlocks.home[id-1];
+    const index=elements.findIndex(tag=>tag.attrs['data-cms-block']===added.id);
+    const targetIndex=elements.findIndex(tag=>tag.attrs['data-cms-part']===added.beforePart);
+    assert.equal(elements[index].parents.at(-1),elements[targetIndex].parents.at(-1),'custom content is a direct sibling of the chosen part');
+    assert.ok(index<targetIndex);
+  }
+  content.hiddenParts=CONTENT_PARTS.filter(part=>part.id.startsWith('home.intro.')).map(part=>part.id);
+  content.site.statementImagePosition='left';
+  valid=parseContent(content);
+  const html=renderPage(valid,'/').html;
+  assert.ok(html.includes('Prieš antraštę')); assert.ok(html.includes('Prieš nuorodą')); assert.match(html,/alt="Vienintelė prisistatymo nuotrauka"/);
+  assert.doesNotMatch(html,/href="\/apie-mus\/"[^>]*>Apie mus/);
 });

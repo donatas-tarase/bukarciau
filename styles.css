@@ -362,3 +362,14 @@ main:focus{outline:none}
  .responsive-layout:is(.r-position-left,.r-position-right):not(.without-copy)>.responsive-layout-media>.cms-layout-photo.cms-layout-has-width,.responsive-hero:is(.hero-position-left,.hero-position-right)>.cms-layout-photo.cms-layout-has-width{width:var(--layout-image-width)!important}
  .responsive-camp-middle.cms-camp-manual-width :is(.responsive-camp-left,.responsive-camp-right)>.cms-layout-photo{width:var(--layout-image-width,var(--fixed-image-width,100%))!important}
 }
+
+/* Added content follows the flow of its chosen semantic container. */
+.cms-group-with-blocks{min-width:0}
+.cms-group-with-blocks>.cms-custom-block{min-width:0;max-width:100%;align-self:stretch;overflow-wrap:anywhere}
+.hero-content.cms-group-with-blocks>.cms-custom-block{width:100%;text-transform:none;letter-spacing:normal}
+.responsive-hero-bottom.cms-group-with-blocks{flex-wrap:wrap}
+.responsive-hero-bottom.cms-group-with-blocks>.cms-custom-block,.responsive-invitation.cms-group-with-blocks>.cms-custom-block{flex-basis:100%;width:100%;text-transform:none;letter-spacing:normal}
+.cms-group-with-blocks>.cms-custom-block p{max-width:none}
+.program-extras>.program-item{border-top:1px solid var(--line);padding-block:20px}
+.program-extras>.program-item h4{font-size:20px;font-weight:400;margin:0 0 12px}
+.cms-group-with-blocks.faq>details:last-of-type{border-bottom:1px solid var(--line)}

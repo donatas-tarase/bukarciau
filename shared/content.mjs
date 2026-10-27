@@ -62,7 +62,7 @@ export const DEFAULT_CONTENT = {
   },
   hiddenParts: [], partOrder: [], design: null,
   pageBlocks: {home: [], about: [], contact: [], camp: []},
-  blockLayouts: {}
+  blockLayouts: {}, linkOverrides: {}
 };
 
 const field = (path, label, group, type = 'text', options = {}) => ({path, label, group, type, required: true, maxLength: 250, ...options});
@@ -225,6 +225,64 @@ export const CONTENT_PARTS = [
     eyebrow: ['Klaidos kodas', []], title: ['Klaidos antraštė', ['copy.notFound.title']], back: ['Grįžimo nuoroda', ['copy.actions.back']]
   })
 ];
+const linkPartIds = new Set([
+  'common.nav.camp', 'common.nav.about', 'common.nav.contact', 'common.nav.write',
+  'common.footer.email', 'common.footer.phone', 'common.footer.organizers', 'common.footer.facebook',
+  'home.hero.cta', 'home.hero.next', 'home.intro.link', 'home.camp.link', 'registration.cta', 'registration.phone',
+  'about.link', 'about.cta', 'contact.email', 'contact.phone', 'contact.facebook', 'detail.back', 'detail.cta', 'notFound.back'
+]);
+export const LINK_PARTS = CONTENT_PARTS.filter(part => linkPartIds.has(part.id)).map(({id, label}) => ({id, label}));
+const unsafeLinkCharacters = /[\u0000-\u001f\u007f-\u009f\u2028\u2029<>"'`\\]/u;
+function decodedLink(value) {
+  let decoded = value;
+  for (let index = 0; index < 8; index++) {
+    if (unsafeLinkCharacters.test(decoded)) return null;
+    let next;
+    try { next = decodeURIComponent(decoded); } catch { return null; }
+    if (next === decoded) return decoded;
+    decoded = next;
+  }
+  return null;
+}
+export function safeLinkUrl(value) {
+  if (typeof value !== 'string' || value.length > 2000) return null;
+  const decoded = decodedLink(value);
+  if (decoded == null) return null;
+  const candidate = value.trim(), plainValue = decoded.trim();
+  if (!candidate) return null;
+  if (candidate.startsWith('#')) return /^#[\p{L}\p{N}][\p{L}\p{N}_.:-]*$/u.test(plainValue) ? candidate : null;
+  if (candidate.startsWith('/')) {
+    if (candidate.startsWith('//') || plainValue.startsWith('//')) return null;
+    try {
+      const base = 'https://internal.invalid';
+      const url = new URL(candidate, base), decodedUrl = new URL(plainValue, base);
+      if (url.origin !== base || decodedUrl.origin !== base || url.pathname.startsWith('//') || decodedUrl.pathname.startsWith('//')) return null;
+      return `${url.pathname}${url.search}${url.hash}`;
+    } catch { return null; }
+  }
+  if (/^https:\/\//i.test(candidate)) {
+    try {
+      const url = new URL(candidate);
+      return url.protocol === 'https:' && url.hostname && !url.username && !url.password ? url.href : null;
+    } catch { return null; }
+  }
+  if (/^tel:/i.test(candidate)) {
+    const match = /^tel:(\+[1-9]\d{1,14})$/i.exec(plainValue);
+    return match ? `tel:${match[1]}` : null;
+  }
+  if (/^mailto:/i.test(candidate)) {
+    try {
+      const url = new URL(candidate), email = decodeURIComponent(url.pathname);
+      const [local] = email.split('@');
+      if (url.hash || email.length > 254 || local.length > 64 || local.startsWith('.') || local.endsWith('.') || local.includes('..')) return null;
+      if (!/^[A-Za-z0-9.!#$%&*+\/=?^_{}|~-]+@[A-Za-z0-9](?:[A-Za-z0-9-]*[A-Za-z0-9])?(?:\.[A-Za-z0-9](?:[A-Za-z0-9-]*[A-Za-z0-9])?)+$/.test(email)) return null;
+      const keys = [...url.searchParams.keys()];
+      if (keys.length > 1 || keys.some(key => key !== 'subject')) return null;
+      return url.href;
+    } catch { return null; }
+  }
+  return null;
+}
 
 export const THEME_DEFAULTS = {
   background: '#fafbf5', surface: '#ffffff', primary: '#006e40', text: '#173e2c', muted: '#53634e', accent: '#bfebac',
@@ -243,21 +301,43 @@ export const BLOCK_TYPES = [
 export const BLOCK_SIZES = [{value: 'small', label: 'Mažas'}, {value: 'normal', label: 'Įprastas'}, {value: 'large', label: 'Didelis'}];
 export const BLOCK_ALIGNMENTS = [{value: 'left', label: 'Kairėje'}, {value: 'center', label: 'Centre'}, {value: 'right', label: 'Dešinėje'}];
 const zones = (page, entries) => Object.entries(entries).map(([key, label]) => ({id: `${page}.${key}`, label, page}));
+const numberedParts = (prefix, count) => Array.from({length: count}, (_, index) => `${prefix}.${index}`);
+const insideZone = (id, label, page, sortZone, partIds) => ({id, label, page, inside: true, sortZone, partIds});
+const registrationIntroParts = ['registration.eyebrow', 'registration.title', 'registration.intro'];
+const registrationStatusParts = ['registration.status', 'registration.text', 'registration.cta', 'registration.note', 'registration.phone'];
 export const CONTENT_ZONES = [
   ...zones('home', {afterHero: 'Po pirmo ekrano', beforeIntro: 'Prieš prisistatymą', afterIntro: 'Po prisistatymo', beforeCamp: 'Prieš stovyklą', afterCamp: 'Po stovyklos', beforeRegistration: 'Prieš registraciją', afterRegistration: 'Po registracijos', beforeFooter: 'Prieš poraštę'}),
   ...zones('about', {beforeStory: 'Prieš istoriją', afterStory: 'Po istorijos', beforeInvitation: 'Prieš kvietimą', afterInvitation: 'Po kvietimo', beforeFooter: 'Prieš poraštę'}),
   ...zones('contact', {beforeContent: 'Prieš kontaktus', afterContent: 'Po kontaktų', beforeFooter: 'Prieš poraštę'}),
-  ...zones('camp', {beforeDescription: 'Prieš aprašymą', afterDescription: 'Po aprašymo', beforeRegistration: 'Prieš registraciją', afterRegistration: 'Po registracijos', beforeFooter: 'Prieš poraštę'})
+  ...zones('camp', {beforeDescription: 'Prieš aprašymą', afterDescription: 'Po aprašymo', beforeRegistration: 'Prieš registraciją', afterRegistration: 'Po registracijos', beforeFooter: 'Prieš poraštę'}),
+  insideZone('home.hero', 'Pirmo ekrano tekste', 'home', 'home.hero', ['home.hero.eyebrow', 'home.hero.title', 'home.hero.subtitle', 'home.hero.cta']),
+  insideZone('home.heroBottom', 'Pirmo ekrano apačioje', 'home', 'home.heroBottom', ['home.hero.values', 'home.hero.next']),
+  insideZone('home.introHeading', 'Prisistatymo antraštėje', 'home', 'home.introHeading', ['home.intro.eyebrow', 'home.intro.title', 'home.intro.link']),
+  insideZone('home.introParagraphs', 'Prisistatymo tekste', 'home', 'home.introParagraphs', numberedParts('home.intro.paragraph', 12)),
+  insideZone('home.campHeading', 'Stovyklos skilties antraštėje', 'home', 'home.campHeading', ['home.camp.eyebrow', 'home.camp.heading']),
+  insideZone('home.campCopy', 'Stovyklos kvietime', 'home', 'home.campCopy', ['home.camp.date', 'home.camp.title', 'home.camp.meta', 'home.camp.description', 'home.camp.link']),
+  insideZone('home.registrationIntro', 'Registracijos kvietime', 'home', 'registration.intro', registrationIntroParts),
+  insideZone('home.registrationStatus', 'Registracijos informacijoje', 'home', 'registration.status', registrationStatusParts),
+  insideZone('about.heading', 'Prisistatymo puslapio antraštėje', 'about', 'about.heading', ['about.eyebrow', 'about.title']),
+  insideZone('about.story', 'Istorijos tekste', 'about', 'about.story', [...numberedParts('about.paragraph', 20), 'about.link']),
+  insideZone('about.invitation', 'Kvietime į stovyklą', 'about', 'about.invitation', ['about.invitationDate', 'about.invitationTitle', 'about.cta']),
+  insideZone('contact.copy', 'Kontaktų tekste', 'contact', 'contact.copy', ['contact.eyebrow', 'contact.title', 'contact.intro', 'contact.email', 'contact.phone', 'contact.facebook']),
+  insideZone('camp.heading', 'Stovyklos puslapio antraštėje', 'camp', 'detail.heading', ['detail.back', 'detail.eyebrow', 'detail.title', 'detail.summary', 'detail.cta']),
+  insideZone('camp.description', 'Stovyklos aprašyme', 'camp', 'detail.description', ['detail.aboutEyebrow', 'detail.introTitle', ...numberedParts('detail.paragraph', 30)]),
+  insideZone('camp.program', 'Stovyklos programoje', 'camp', 'detail.programExtras', ['detail.programHeading', 'detail.programPending', ...numberedParts('detail.program', 40)]),
+  insideZone('camp.faq', 'Klausimų ir atsakymų skiltyje', 'camp', 'detail.faqExtras', ['detail.faqEyebrow', 'detail.faqTitle', ...numberedParts('detail.faq', 40)]),
+  insideZone('camp.registrationIntro', 'Registracijos kvietime', 'camp', 'registration.intro', registrationIntroParts),
+  insideZone('camp.registrationStatus', 'Registracijos informacijoje', 'camp', 'registration.status', registrationStatusParts)
 ];
 const themeFields = Object.fromEntries(DESIGN_FIELDS.map(field => [field.key, field.type === 'color' ? {type: 'color'} : field.key === 'buttonRadius' ? {type: 'number', min: 0, max: 32} : {type: 'enum', required: true, values: FONT_FAMILIES.map(option => option.value)}]));
 const blockFields = {
   id: {type: 'id'}, type: {type: 'enum', required: true, values: BLOCK_TYPES.map(option => option.value)},
   zone: {type: 'enum', required: true, values: CONTENT_ZONES.map(zone => zone.id)}, text: {type: 'text', required: false, maxLength: 5000},
-  url: {type: 'url', required: true, nullable: true, maxLength: 2000}, source: {type: 'image', nullable: true, required: false},
+  url: {type: 'safeLink', required: true, nullable: true, maxLength: 2000}, source: {type: 'image', nullable: true, required: false},
   alt: {type: 'text', required: false, maxLength: 500}, ratio: imageRatioDescriptor,
   size: {type: 'enum', required: true, values: BLOCK_SIZES.map(option => option.value)},
   align: {type: 'enum', required: true, values: BLOCK_ALIGNMENTS.map(option => option.value)},
-  background: {type: 'color', nullable: true}, color: {type: 'color', nullable: true}
+  background: {type: 'color', nullable: true}, color: {type: 'color', nullable: true}, beforePart: {type: 'text', nullable: true, required: false, maxLength: 150}
 };
 export const LAYOUT_DIMENSION_DEFAULTS = {width: null, height: null, paddingTop: null, paddingBottom: null};
 export const LAYOUT_FIELDS = [
@@ -340,6 +420,7 @@ for (const path of ['hiddenParts', 'partOrder']) addField(path, {type: 'partIds'
 addField('design', {type: 'theme', nullable: true});
 for (const page of ['home', 'about', 'contact', 'camp']) addField(`pageBlocks.${page}`, {type: 'blocks', page});
 addField('blockLayouts', {type: 'layoutMap'});
+addField('linkOverrides', {type: 'linkMap'});
 addField('site.url', {type: 'fixed', value: 'https://bukarciau.lt'});
 addField('camps.0.slug', {type: 'fixed', value: 'stovykla-01'});
 
@@ -407,6 +488,7 @@ export function setPath(object, path, value) {
 
 function merge(defaultValue, input, node) {
   if (input === undefined) return clone(defaultValue);
+  if (node.field?.type === 'blocks' && Array.isArray(input)) return input.map(item => plain(item) ? {beforePart: null, ...clone(item)} : clone(item));
   if (node.field?.type === 'repeater') {
     if (!Array.isArray(input)) return input;
     return input.map(item => {
@@ -440,6 +522,12 @@ export function normalizeContent(input = {}) {
 
 function inspectKeys(value, node, path, issues, depth = 0) {
   if (depth > 15) { issues.push({path, message: 'Per gili turinio struktūra.'}); return; }
+  if (node.field?.type === 'linkMap') {
+    if (value === undefined) return;
+    if (!plain(value)) { issues.push({path, message: 'Netinkama nuorodų struktūra.'}); return; }
+    for (const key of Object.keys(value)) if (forbidden.has(key) || !linkPartIds.has(key)) issues.push({path: `${path}.${key}`, message: 'Šios nuorodos keisti negalima.'});
+    return;
+  }
   if (node.field?.type === 'layoutMap') {
     if (value === undefined) return;
     if (!plain(value)) { issues.push({path, message: 'Netinkama blokų matmenų struktūra.'}); return; }
@@ -499,6 +587,11 @@ function validate(value, descriptor, path, issues) {
   const issue = message => issues.push({path, message});
   if (descriptor.type === 'fixed') { if (value !== descriptor.value) issue('Šio sisteminio lauko keisti negalima.'); return; }
   if (value === null && descriptor.nullable) return;
+  if (descriptor.type === 'linkMap') {
+    if (!plain(value)) { issue('Netinkama nuorodų struktūra.'); return; }
+    for (const [id, url] of Object.entries(value)) validate(url, {type: 'safeLink', required: false, maxLength: 2000}, `${path}.${id}`, issues);
+    return;
+  }
   if (descriptor.type === 'integer') {
     if (!Number.isInteger(value) || value < descriptor.min || value > descriptor.max) issue(`Įrašykite sveikąjį skaičių nuo ${descriptor.min} iki ${descriptor.max}.`);
     return;
@@ -537,6 +630,7 @@ function validate(value, descriptor, path, issues) {
       if (ids.has(item.id)) issues.push({path: `${itemPath}.id`, message: 'Kiekvienas blokas turi turėti atskirą identifikatorių.'});
       ids.add(item.id);
       if (!CONTENT_ZONES.some(zone => zone.id === item.zone && zone.page === descriptor.page)) issues.push({path: `${itemPath}.zone`, message: 'Pasirinkite vietą šiame puslapyje.'});
+      if (item.beforePart !== null && !CONTENT_ZONES.find(zone => zone.id === item.zone)?.partIds?.includes(item.beforePart)) issues.push({path: `${itemPath}.beforePart`, message: 'Pasirinkite dalį šiame bloke.'});
       if (item.type === 'image' && item.source && typeof item.alt === 'string' && !item.alt.trim()) issues.push({path: `${itemPath}.alt`, message: 'Aprašykite rodomą nuotrauką.'});
     }
     return;
@@ -575,6 +669,7 @@ function validate(value, descriptor, path, issues) {
     try { const url = new URL(value); if (url.protocol !== 'https:' || url.username || url.password) throw new Error(); }
     catch { issue('Nuoroda turi būti galiojantis HTTPS adresas.'); }
   }
+  if (descriptor.type === 'safeLink' && !/^ *$/.test(value) && !safeLinkUrl(value)) issue('Naudokite saugią HTTPS, vidinę, el. pašto arba telefono nuorodą.');
 }
 export function parseContent(input) {
   const issues = [];
@@ -600,6 +695,7 @@ export function parseContent(input) {
   validate(normalized.hiddenParts, {type: 'partIds'}, 'hiddenParts', issues);
   validate(normalized.partOrder, {type: 'partIds'}, 'partOrder', issues);
   validate(normalized.design, {type: 'theme', nullable: true}, 'design', issues);
+  validate(normalized.linkOverrides, {type: 'linkMap'}, 'linkOverrides', issues);
   for (const page of ['home', 'about', 'contact', 'camp']) validate(normalized.pageBlocks?.[page], {type: 'blocks', page}, `pageBlocks.${page}`, issues);
   validate(normalized.blockLayouts, {type: 'layoutMap'}, 'blockLayouts', issues);
   if (plain(normalized.blockLayouts)) {

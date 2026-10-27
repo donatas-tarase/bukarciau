@@ -76,6 +76,47 @@ const upload = async h => {
   return (await response.json()).item;
 };
 
+test('Existing button destinations and inside-section blocks remain draft-only until publication and survive history restore', async () => {
+  const h = harness();
+  let current = await state(h);
+  const edited = clone(current.content);
+  edited.copy.actions.about = 'Susipažinkime iš arčiau';
+  edited.linkOverrides['home.intro.link'] = '/kontaktai/?from=prisistatymas#kontaktai';
+  edited.pageBlocks.home.push({id:'d'.repeat(32),type:'button',zone:'home.introParagraphs',beforePart:'home.intro.paragraph.1',text:'Parašyti organizatorėms',url:'mailto:info@bukarciau.lt?subject=Susitikimas',source:null,alt:'',ratio:'auto',size:'normal',align:'left',background:null,color:null});
+  const save = await h.request('/admin/api/draft',{method:'POST',body:{content:edited,revision:current.revision}});
+  assert.equal(save.status,200);
+  current = await save.json();
+  assert.equal(current.content.pageBlocks.home[0].beforePart,'home.intro.paragraph.1');
+  const oldPublic = await (await h.request('/')).text();
+  assert.doesNotMatch(oldPublic,/Susipažinkime iš arčiau|Parašyti organizatorėms|from=prisistatymas/);
+  for (const device of ['desktop','mobile']) {
+    const preview = await h.request(`/admin/preview?path=/&device=${device}`);
+    assert.equal(preview.status,200);
+    const html = await preview.text();
+    assert.match(html,/Susipažinkime iš arčiau/);
+    assert.match(html,/href="\/kontaktai\/\?from=prisistatymas#kontaktai"/);
+    assert.ok(html.indexOf('Parašyti organizatorėms') < html.indexOf('Norime jaukaus susitikimo'));
+  }
+  const invalid = clone(current.content);
+  invalid.linkOverrides['home.intro.link'] = 'javascript:alert(1)';
+  assert.equal((await h.request('/admin/api/draft',{method:'POST',body:{content:invalid,revision:current.revision}})).status,422);
+  assert.equal((await state(h)).revision,current.revision);
+  assert.equal((await h.request('/admin/api/publish',{method:'POST',body:{revision:current.revision}})).status,200);
+  const published = await (await h.request('/')).text();
+  assert.match(published,/Parašyti organizatorėms/);
+  assert.match(published,/href="mailto:info@bukarciau.lt\?subject=Susitikimas"/);
+  const versions = await (await h.request('/admin/api/history')).json();
+  const version = versions.versions.find(item=>item.revision === current.revision);
+  assert.ok(version);
+  const changed = clone(current.content); changed.pageBlocks.home=[]; changed.linkOverrides={};
+  const savedAgain = await (await h.request('/admin/api/draft',{method:'POST',body:{content:changed,revision:current.revision}})).json();
+  const restored = await h.request('/admin/api/restore',{method:'POST',body:{versionId:version.id,revision:savedAgain.revision}});
+  assert.equal(restored.status,200);
+  const restoredState = await restored.json();
+  assert.equal(restoredState.content.linkOverrides['home.intro.link'],edited.linkOverrides['home.intro.link']);
+  assert.equal(restoredState.content.pageBlocks.home[0].beforePart,'home.intro.paragraph.1');
+});
+
 test('All admin entry points and static assets reject anonymous requests on custom and Pages origins', async () => {
   const h = harness();
   for (const origin of ['https://bukarciau.lt', 'https://bukarciau.pages.dev', 'https://preview.bukarciau.pages.dev']) {
@@ -512,7 +553,7 @@ test('Shared media, text, design, extra blocks and removable parts persist throu
     'part-home-hero-title': {width: 80, height: null, paddingTop: 0, paddingBottom: 20},
     [`block-${'f'.repeat(32)}`]: {width: 60, height: 400, paddingTop: 10, paddingBottom: 10}
   };
-  const expected = clone(current.content);
+  const expected = parseContent(current.content);
   let response = await h.request('/admin/api/draft', {method: 'POST', body: {content: current.content, revision: current.revision}});
   assert.equal(response.status, 200);
   current = await response.json();

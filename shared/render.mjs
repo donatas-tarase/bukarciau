@@ -172,7 +172,7 @@ const safeUrl = value => {
 };
 
 function hasResponsiveContent(content) {
-  return Boolean(content.hiddenParts?.length || content.partOrder?.length || content.design || Object.keys(content.blockLayouts || {}).length || Object.values(content.pageBlocks || {}).some(blocks => Array.isArray(blocks) && blocks.length) || IMAGE_FIELDS.some(slot => (getPath(content, slot.positionPath) || 'default') !== 'default' || (slot.sizePath && explicitImageSize(getPath(content, slot.sizePath)))) || ['site.values', 'site.aboutText', 'site.story', 'camps.0.description'].some(path => getPath(content, path)?.length === 0));
+  return Boolean(content.hiddenParts?.length || content.partOrder?.length || content.design || Object.keys(content.blockLayouts || {}).length || Object.keys(content.linkOverrides || {}).length || Object.values(content.pageBlocks || {}).some(blocks => Array.isArray(blocks) && blocks.length) || IMAGE_FIELDS.some(slot => (getPath(content, slot.positionPath) || 'default') !== 'default' || (slot.sizePath && explicitImageSize(getPath(content, slot.sizePath)))) || ['site.values', 'site.aboutText', 'site.story', 'camps.0.description'].some(path => getPath(content, path)?.length === 0));
 }
 
 // Defaults continue through the reviewed renderer. The responsive renderer is opt-in
@@ -189,7 +189,9 @@ function renderResponsivePage(content, pathname, {assets = {}, preview = false, 
   const selectedDevice = previewDevice === 'mobile' ? 'mobile' : 'desktop';
   const pageKey = pageKeys[path];
   const knownParts = new Set((editorial.CONTENT_PARTS || []).map(part => part.id));
-  const knownZones = new Set((editorial.CONTENT_ZONES || []).filter(zone => zone.page === pageKey).map(zone => zone.id));
+  const knownLinks = new Set((editorial.LINK_PARTS || []).map(part => part.id));
+  const zoneMetadata = (editorial.CONTENT_ZONES || []).filter(zone => zone.page === pageKey);
+  const knownZones = new Set(zoneMetadata.map(zone => zone.id));
   const knownLayouts = new Map((editorial.getLayoutTargets?.(content) || []).map(target => [target.id, target]));
   const photoLayoutId = field => `photo-${field.replaceAll('.', '-')}`;
   const photoDimensions = field => boundedLayout(content, photoLayoutId(field));
@@ -220,14 +222,34 @@ function renderResponsivePage(content, pathname, {assets = {}, preview = false, 
     }
     function part(id, html) {
       if (!html || hidden.has(id)) return '';
+      if (knownLinks.has(id)) {
+        const url = editorial.safeLinkUrl?.(data.linkOverrides?.[id]);
+        html = html.replace(/<a\b([^>]*)>([\s\S]*?)<\/a>/i, (anchor, attrs, inner) => {
+          if (url) {
+            const changed = !attrs.includes(`href="${e(url)}"`);
+            attrs = attrs.replace(/\s(?:href|target|rel)="[^"]*"/g, '');
+            if (changed) attrs = attrs.replace(/\s(?:data-registration-(?:link|intent)(?:="[^"]*")?|aria-current="[^"]*")/g, '');
+            const external = /^https:/i.test(url);
+            inner = inner.replace(newWindow, '');
+            attrs += ` href="${e(url)}"${external ? ' target="_blank" rel="noopener noreferrer"' : ''}`;
+            if (external) inner += newWindow;
+          }
+          return `<a${attrs}${preview ? ` data-cms-link="${e(id)}"` : ''}>${inner}</a>`;
+        });
+      }
       const marked = preview && knownParts.has(id) ? withAttributes(html, ` data-cms-part="${e(id)}"`) : html;
       return markLayout(`part-${id.replaceAll('.', '-')}`, marked);
     }
     function group(zone, entries, cls = '', tag = 'div') {
       const sorted = entries.map((entry, index) => ({id:entry[0], html:entry[1], index})).sort((a, b) => (order.get(a.id) ?? Infinity) - (order.get(b.id) ?? Infinity) || a.index - b.index);
-      const html = sorted.map(entry => part(entry.id, entry.html)).join('');
-      if (!html) return '';
-      return `<${tag}${cls ? ` class="${cls}"` : ''}${preview ? ` data-cms-sort-zone="${e(zone)}"` : ''}>${html}</${tag}>`;
+      const target = zoneMetadata.find(target => target.inside && target.sortZone === zone);
+      const blocks = target ? (data.pageBlocks?.[pageKey] || []).filter(block => block.zone === target.id) : [];
+      const seen = new Set(sorted.map(entry => entry.id));
+      const before = id => blocks.filter(block => block.beforePart === id).map(block => renderBlock(block, target.id)).join('');
+      const html = sorted.map(entry => before(entry.id) + part(entry.id, entry.html)).join('') + blocks.filter(block => block.beforePart == null || !seen.has(block.beforePart)).map(block => renderBlock(block,target.id)).join('');
+      if (!html && !(preview && target)) return '';
+      const classes = [cls, blocks.length ? 'cms-group-with-blocks' : ''].filter(Boolean).join(' ');
+      return `<${tag}${classes ? ` class="${classes}"` : ''}${preview ? ` data-cms-sort-zone="${e(zone)}"${target ? ` data-cms-drop-zone="${e(target.id)}"` : ''}` : ''}>${html}</${tag}>`;
     }
     const registrationUrl = safeUrl(camp.registrationUrl);
     const cta = ({labelPath, cls = 'button button-solid', local = false} = {}) => registrationUrl
@@ -264,13 +286,10 @@ function renderResponsivePage(content, pathname, {assets = {}, preview = false, 
       const image = settings(field), media = photo(field);
       const position = image.position === 'default' ? fallback : image.position;
       const size = explicitImageSize(image.size);
-      const hasCopy = Boolean(html.replace(/<[^>]*>/g, '').trim());
+      const hasCopy = Boolean(html.replace(/<[^>]*>/g, '').trim() || /class="[^"]*\bcms-custom-block\b|data-cms-drop-zone=/.test(html));
       return `<div class="responsive-layout ${cls} photo-layout-${field.replaceAll('.', '-')} r-position-${e(position)}${size ? ` r-media-size-${size}` : ''}${media ? '' : ' without-media'}${hasCopy ? '' : ' without-copy'}">${media ? `<div class="responsive-layout-media">${media}</div>` : ''}${hasCopy ? `<div class="responsive-layout-copy">${html}</div>` : ''}${imageTargets(field)}</div>`;
     }
-    function zone(id) {
-      if (!knownZones.has(id)) return '';
-      const blocks = (data.pageBlocks?.[pageKey] || []).filter(block => block.zone === id);
-      const rendered = blocks.map(block => {
+    function renderBlock(block, id) {
         if (!blockId(block.id) || !['text', 'image', 'button', 'link', 'spacer'].includes(block.type)) return '';
         const size = ['small', 'normal', 'large'].includes(block.size) ? block.size : 'normal';
         const align = ['left', 'center', 'right'].includes(block.align) ? block.align : 'left';
@@ -283,12 +302,17 @@ function renderResponsivePage(content, pathname, {assets = {}, preview = false, 
           inner = src ? `<div class="photo${ratio ? ` ${ratio}` : ''}"><img src="${e(src)}" alt="${e(block.alt)}" loading="lazy" decoding="async"></div>` : preview ? '<div class="photo cms-block-placeholder" aria-hidden="true"></div>' : '';
         }
         if (['button', 'link'].includes(block.type)) {
-          const url = safeUrl(block.url);
-          inner = block.text && url ? `<a class="${block.type === 'button' ? 'button button-solid' : 'text-link'}" href="${e(url)}" target="_blank" rel="noopener noreferrer">${e(block.text)} ${arrow}${newWindow}</a>` : preview ? '<span class="cms-incomplete-block">Įrašyk nuorodos tekstą ir HTTPS adresą</span>' : '';
+          const url = typeof editorial.safeLinkUrl === 'function' ? editorial.safeLinkUrl(block.url) : safeUrl(block.url);
+          const external = /^https:/i.test(url || '');
+          inner = block.text && url ? `<a class="${block.type === 'button' ? 'button button-solid' : 'text-link'}" href="${e(url)}"${external ? ' target="_blank" rel="noopener noreferrer"' : ''}>${e(block.text)} ${arrow}${external ? newWindow : ''}</a>` : preview ? '<span class="cms-incomplete-block">Įrašyk nuorodos tekstą ir adresą</span>' : '';
         }
         if (block.type === 'spacer') inner = '<span aria-hidden="true"></span>';
         return inner ? markLayout(`block-${block.id}`, `<div class="${cls}"${attrs}>${inner}</div>`) : '';
-      }).join('');
+    }
+    function zone(id) {
+      if (!knownZones.has(id) || zoneMetadata.find(zone => zone.id === id)?.inside) return '';
+      const blocks = (data.pageBlocks?.[pageKey] || []).filter(block => block.zone === id);
+      const rendered = blocks.map(block => renderBlock(block, id)).join('');
       return rendered || preview ? `<div class="cms-content-zone wrap"${preview ? ` data-cms-drop-zone="${e(id)}" aria-label="${e(editorial.CONTENT_ZONES.find(zone => zone.id === id)?.label || id)}"` : ''}>${rendered}</div>` : '';
     }
     return {device, data, site, camp, copy, hidden, order, text, part, group, cta, values, registrationUrl, settings, photo, layout, imageTargets, zone};
@@ -398,9 +422,16 @@ function renderResponsivePage(content, pathname, {assets = {}, preview = false, 
   }
   function detailBody(c) {
     const description = c.group('detail.description', [['detail.aboutEyebrow', `<span class="eyebrow">${c.text('copy.camp.about')}</span>`], ['detail.introTitle', `<h2>${c.text('camps.0.introTitle')}</h2>`], ...c.camp.description.map((value, index) => [`detail.paragraph.${index}`, `<p>${c.text(`camps.0.description.${index}`)}</p>`])], 'detail-description');
-    const program = c.part('detail.programHeading', `<h3 class="program-title">${c.text('copy.camp.program')}</h3>`) + (c.camp.program.length ? c.group('detail.program', c.camp.program.map((value, index) => [`detail.program.${index}`, `<div><h4>${c.text(`camps.0.program.${index}.title`)}</h4><p>${c.text(`camps.0.program.${index}.text`)}</p></div>`]), 'program') : c.part('detail.programPending', `<p>${c.text('copy.camp.programPending')}</p>`));
+    const program = c.group('detail.programExtras', [
+      ['detail.programHeading', `<h3 class="program-title">${c.text('copy.camp.program')}</h3>`],
+      ...c.camp.program.map((value, index) => [`detail.program.${index}`, `<div class="program-item"><h4>${c.text(`camps.0.program.${index}.title`)}</h4><p>${c.text(`camps.0.program.${index}.text`)}</p></div>`]),
+      ['detail.programPending', c.camp.program.length ? '' : `<p>${c.text('copy.camp.programPending')}</p>`]
+    ], 'program-extras');
     const included = (field, key) => c.camp[field].length ? `<div>${c.part(`detail.${key}Heading`, `<h3>${c.text(`copy.camp.${key}`)}</h3>`)}${c.group(`detail.${key}`, c.camp[field].map((value, index) => [`detail.${key}.${index}`, `<li>${c.text(`camps.0.${field}.${index}`)}</li>`]), '', 'ul')}</div>` : '';
-    const faq = c.part('detail.faqEyebrow', `<span class="eyebrow">${c.text('copy.camp.faqEyebrow')}</span>`) + c.part('detail.faqTitle', `<h2>${c.text('copy.camp.faqTitle')}</h2>`) + c.group('detail.faq', c.camp.faq.map((item, index) => [`detail.faq.${index}`, `<details><summary>${c.text(`camps.0.faq.${index}.question`)}<span aria-hidden="true">+</span></summary><p>${c.text(`camps.0.faq.${index}.${c.registrationUrl && item.answerWhenOpen ? 'answerWhenOpen' : 'answer'}`)}</p></details>`]), 'faq');
+    const faq = c.group('detail.faqExtras', [
+      ['detail.faqEyebrow', `<span class="eyebrow">${c.text('copy.camp.faqEyebrow')}</span>`], ['detail.faqTitle', `<h2>${c.text('copy.camp.faqTitle')}</h2>`],
+      ...c.camp.faq.map((item, index) => [`detail.faq.${index}`, `<details><summary>${c.text(`camps.0.faq.${index}.question`)}<span aria-hidden="true">+</span></summary><p>${c.text(`camps.0.faq.${index}.${c.registrationUrl && item.answerWhenOpen ? 'answerWhenOpen' : 'answer'}`)}</p></details>`])
+    ], 'faq');
     const body = `<div class="detail-layout">${markLayout('section-camp-description', `<section>${description}${markLayout('section-camp-program', `<div class="detail-program">${program}</div>`)}<div class="included-grid">${included('included', 'included')}${included('notIncluded', 'notIncluded')}</div></section>`)}${markLayout('section-camp-faq', `<section>${faq}</section>`)}</div>`;
     return markLayout('section-camp-content', `<div class="responsive-detail-profile wrap section">${c.layout('camps.0.detailImage', body, 'responsive-detail-layout', 'above')}</div>`);
   }

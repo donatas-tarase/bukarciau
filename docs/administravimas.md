@@ -17,7 +17,9 @@ Baigę darbą pasirinkite „Atsijungti“. Įrankis pašalina svetainės prisij
 3. Paspauskite bet kurį nuotraukos bloką, net jei jis dar tuščias. Atsidaro viso bloko nustatymai: dydis, proporcijos, vieta, nuotraukos pasirinkimas ir bloko pašalinimas. Jei nuotrauka jau pasirinkta, galite keisti ir jos aprašymą.
 4. Patikrinkite vaizdą pasirinkę „Kompiuteris“ ir „Telefonas“. Tai tik peržiūros dydžiai: tekstai, nuotraukos ir dizaino nustatymai yra bendri abiem vaizdams. Telefone išdėstymas prisitaiko automatiškai. Režimas „Peržiūrėti“ leidžia peržiūrėti puslapį be redagavimo pasirinkimų.
 
-Nuorodų adresus, SEO, registracijos anketą ir sąrašus keiskite atitinkamuose kairiojo meniu turinio skyriuose. Taip pat galima naudoti juos visiems tekstams redaguoti įprastuose laukeliuose. Nuotraukų vietą, naujus blokus ir dizaino nustatymus galima keisti pačiame redaktoriuje.
+Paspaudus esamą mygtuką arba nuorodą dešinėje atsidaro jos užrašo ir URL laukai. Užrašą taip pat galima keisti tiesiai puslapyje. Jei tas pats užrašas naudojamas keliose puslapio vietose, jis pasikeičia visose jose. URL pakeitimas taikomas tik pasirinktai nuorodos vietai. „Grąžinti pradinį URL“ vėl naudoja pradinį adresą, pavyzdžiui, registracijos nustatymuose įrašytą anketą.
+
+Nuorodoms tinka pilnas HTTPS adresas, vidinis kelias `/apie-mus/`, inkaras `#registracija`, el. pašto adresas `mailto:info@bukarciau.lt` arba telefono nuoroda `tel:+37060571562`. SEO, bendrą registracijos anketą ir sąrašus galima keisti atitinkamuose kairiojo meniu turinio skyriuose. Juose taip pat galima redaguoti tekstus įprastuose laukeliuose.
 
 Kompiuteryje blokų įrankiai ir nustatymai yra dešinėje nuo puslapio peržiūros. Skydelis slenka atskirai, todėl pasirinkto bloko nustatymai neuždengia puslapio. Siauresniame ekrane įrankiai persikelia po peržiūra ir juos galima sutraukti. Kairįjį meniu galima sutraukti iki piktogramų mygtuku šalia logotipo; tas pats mygtukas jį vėl išskleidžia.
 
@@ -33,7 +35,9 @@ Pažymėtą bloką galima mažinti ir didinti velkant jo dešinį kraštą, apat
 
 Režime „Redaguoti“ vilkite nuotrauką į pažymėtą vietą šalia teksto, virš jo arba po juo. Nuotraukos nustatymuose vietą taip pat galima pasirinkti sąraše. Pavyzdžiui, po „Kas mes?“ esančią nuotrauką galima perkelti į kairę šalia prisistatymo. Telefone tokia nuotrauka automatiškai rodoma po tekstu.
 
-Teksto dalių tvarką galima keisti jų grupėje. Naują tekstą, nuotrauką, mygtuką, nuorodą ar tarpą pridėkite iš blokų sąrašo. Vilkite bloką į pažymėtą įterpimo vietą arba pasirinkite vietą jo nustatymuose. Įterptą bloką paspauskite, kad pakeistumėte jo turinį, nuotrauką, nuorodą ar išvaizdą. Mygtukų ir nuorodų adresams naudokite pilną HTTPS nuorodą.
+Teksto dalių tvarką galima keisti jų grupėje. Naują tekstą, nuotrauką, mygtuką, nuorodą ar tarpą pridėkite iš blokų sąrašo. Nauji elementai gali būti ir esamos skilties viduje: pirmame ekrane, prisistatymo tekstuose, prie stovyklos aprašymo ar registracijos kvietimo. Vilkite elementą ant tos grupės teksto ar mygtuko ir paleiskite prieš jį arba po jo. Galima pasirinkti vietą ir sąraše: „Viduje“ nurodo vidines grupes, o „Tarp skilčių“ - atskirus puslapio tarpus.
+
+Įterptą bloką paspauskite, kad pakeistumėte jo turinį, nuotrauką, nuorodą ar išvaizdą. Vietą grupėje patikslinkite pasirinkimu „Prieš dalį“ arba rodyklėmis. Pasirinkus kitą skiltį blokas perkeliamas į jos vidų. Telefone įterpti elementai išlieka toje pačioje turinio vietoje ir prisitaiko prie ekrano pločio.
 
 Naujo bloko perkėlimas, turinio keitimas ir ištrynimas pirmiausia keičia tik juodraštį. Blokų vietos išlieka išsaugojus ir paskelbus.
 

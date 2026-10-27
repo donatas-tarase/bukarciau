@@ -2,6 +2,7 @@ import {CONTENT_FIELDS, IMAGE_FIELDS, IMAGE_ASPECT_RATIOS, IMAGE_POSITIONS, IMAG
 import {renderPage} from '/admin/render.mjs';
 import {createEditorTools} from '/admin/editor-tools.mjs';
 import {createLayoutTools} from '/admin/layout-tools.mjs';
+import {createLinkTools} from '/admin/link-tools.mjs';
 
 const $ = selector => document.querySelector(selector);
 const escape = value => String(value ?? '').replace(/[&<>"']/g, character => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[character]));
@@ -114,10 +115,10 @@ const editorTools = createEditorTools({
   content:() => content,device:() => canvasDevice,page:() => ({'/':'home','/apie-mus/':'about','/kontaktai/':'contact','/stovyklos/stovykla-01/':'camp'}[$('#preview-route').value] || 'home'),
   mode:() => canvasMode,busy:() => busy,doc:() => $('#preview-frame').contentDocument,
   mutate:callback => { callback(content); updateDirty(); },render:() => renderCanvas(),refresh:() => renderSection(),
-  announce,notice,finish:() => { clearTimeout(canvasRenderTimer); layoutTools.cancelPending(); finishCanvasEditing(); },chooseImage:target => openMediaPicker(target),
+  announce,notice,finish:() => { clearTimeout(canvasRenderTimer); layoutTools.cancelPending(); linkTools.cancelPending(); finishCanvasEditing(); },chooseImage:target => openMediaPicker(target),
   setImage:(path,key,value) => { const slot = IMAGE_FIELDS.find(item => item.path === path); if (slot) setImageSetting(slot,key,value); },
   imageSettings:path => getImageSettings(content,path,canvasDevice),editPhoto:editCanvasPhoto,
-  clearPhoto:() => { canvasPhoto = null; renderCanvasPhotoInspector(); },
+  clearPhoto:() => { canvasPhoto = null; renderCanvasPhotoInspector(); linkTools.clearSelection(); },
   revealTools:revealWorkbench,
   selectSection,
   openPage:page => { const route = {home:'/',about:'/apie-mus/',contact:'/kontaktai/',camp:'/stovyklos/stovykla-01/'}[page]; if (route) { if ($('#preview-route').value !== route) layoutTools.clearSelection(); $('#preview-route').value = route; section = visualSection; canvasScrollReset = true; renderSection(); } }
@@ -126,8 +127,19 @@ const layoutTools = createLayoutTools({
   content:() => content,mutate:callback => { callback(content); updateDirty(); },render:() => renderCanvas(),
   doc:() => $('#preview-frame').contentDocument,mode:() => canvasMode,busy:() => busy,
   page:() => ({'/':'home','/apie-mus/':'about','/kontaktai/':'contact','/stovyklos/stovykla-01/':'camp'}[$('#preview-route').value] || 'home'),
-  announce,revealTools:revealWorkbench,finish:() => { clearTimeout(canvasRenderTimer); editorTools.cancelPending(); finishCanvasEditing(); },
-  clearOtherSelection:() => { revealWorkbench(); canvasPhoto = null; renderCanvasPhotoInspector(); editorTools.clearSelection(); }
+  announce,revealTools:revealWorkbench,finish:() => { clearTimeout(canvasRenderTimer); editorTools.cancelPending(); linkTools.cancelPending(); finishCanvasEditing(); },
+  clearOtherSelection:() => { revealWorkbench(); canvasPhoto = null; renderCanvasPhotoInspector(); editorTools.clearSelection(); linkTools.clearSelection(); }
+});
+const linkTools = createLinkTools({
+  content:() => content,doc:() => $('#preview-frame').contentDocument,mode:() => canvasMode,busy:() => busy,
+  mutate:callback => { callback(content); updateDirty(); },setText:(path,value) => { if (descriptorForCanvas(path)) setValue(path,value); },
+  render:() => renderCanvas(),announce,revealTools:revealWorkbench,
+  finish:() => { clearTimeout(canvasRenderTimer); layoutTools.cancelPending(); editorTools.cancelPending(); linkTools.cancelPending(); finishCanvasEditing(); },
+  clearPhoto:() => { canvasPhoto = null; renderCanvasPhotoInspector(); },
+  openLinkPage:id => {
+    const route = id.startsWith('about.') ? '/apie-mus/' : id.startsWith('contact.') ? '/kontaktai/' : id.startsWith('detail.') ? '/stovyklos/stovykla-01/' : id.startsWith('notFound.') ? null : '/';
+    if (route) { $('#preview-route').value = route; section = visualSection; canvasScrollReset = true; renderSection(); }
+  }
 });
 
 function announce(message) { $('#live-status').textContent = message; }
@@ -173,6 +185,7 @@ function handleError(error) {
   const issues = error.issues || error.detail?.issues;
   if (Array.isArray(issues) && issues.length) {
     const path = Array.isArray(issues[0].path) ? issues[0].path.join('.') : String(issues[0].path || '').replace(/^content\./,'');
+    if (linkTools.focusIssue(path,issues[0].message)) { revealWorkbench(); notice(error.message || 'Patikrink pažymėtą lauką.','error',action); return; }
     if (layoutTools.focusIssue(path,issues[0].message)) { revealWorkbench(); notice(error.message || 'Patikrink pažymėtą lauką.','error',action); return; }
     if (editorTools.focusIssue(path,issues[0].message)) { notice(error.message || 'Patikrink pažymėtą lauką.','error',action); return; }
     const descriptor = CONTENT_FIELDS.find(field => path === field.path || path.startsWith(`${field.path}.`));
@@ -286,7 +299,7 @@ function renderSection() {
   $('#tools-section').hidden = !['Dizainas','Pašalintos dalys'].includes(section);
   if (section !== 'Nuotraukos') $('#media-section').replaceChildren();
   if (section !== visualSection) { $('#canvas-image-inspector').replaceChildren(); $('#canvas-image-inspector').hidden = true; }
-  if (section === visualSection) { editorTools.renderPalette(); renderCanvas(); renderCanvasPhotoInspector(); layoutTools.renderInspector(); syncWorkbench(); return; }
+  if (section === visualSection) { editorTools.renderPalette(); renderCanvas(); renderCanvasPhotoInspector(); layoutTools.renderInspector(); linkTools.renderInspector(); syncWorkbench(); return; }
   if (['Dizainas','Pašalintos dalys'].includes(section)) { editorTools.renderSection(section); return; }
   if (section === 'Nuotraukos') { renderMediaSection(); return; }
   if (section === 'Versijų istorija') { renderHistory(); return; }
@@ -407,6 +420,7 @@ function commitCanvasInput(element) {
   const descriptor = CONTENT_FIELDS.find(field => field.path === path);
   setValue(path,descriptor?.nullable && !value.trim() ? null : value);
   updateCanvasMatches(path,value,element);
+  linkTools.renderInspector();
 }
 function finishCanvasEditing(cancel = false, rebuild = false) {
   if (!canvasEditing) return;
@@ -427,6 +441,7 @@ function finishCanvasEditing(cancel = false, rebuild = false) {
 function beginCanvasEditing(element) {
   if (busy || canvasMode !== 'edit') return;
   layoutTools.cancelPending();
+  linkTools.cancelPending();
   if (canvasEditing?.element === element) return;
   finishCanvasEditing();
   const path = element.dataset.cmsField;
@@ -496,6 +511,7 @@ function bindCanvasHandlers() {
   highlightCanvasPhoto();
   editorTools.bindCanvas(doc);
   layoutTools.bindCanvas(doc);
+  linkTools.bindCanvas(doc);
   doc.addEventListener('click',event => {
     if (editorTools.handleCanvasClick(event)) return;
     const field = event.target.closest('[data-cms-field]');
@@ -526,8 +542,8 @@ function bindCanvasHandlers() {
   doc.addEventListener('focusout',event => {
     if (canvasEditing?.element !== event.target) return;
     const selected = canvasEditing;
-    const nextEditable = event.relatedTarget?.closest?.('[data-cms-field],[data-cms-image]');
-    setTimeout(() => { if (canvasEditing === selected && doc.activeElement !== selected.element) finishCanvasEditing(false,!nextEditable && doc.hasFocus()); },0);
+    // Keep inspector buttons mounted when focus leaves the canvas to activate them.
+    setTimeout(() => { if (canvasEditing === selected && doc.activeElement !== selected.element) finishCanvasEditing(); },0);
   });
   doc.addEventListener('keydown',event => {
     const element = event.target.closest('[data-cms-field],[data-cms-image]');
@@ -582,6 +598,7 @@ function imageRatioControls(slot) {
 }
 function editCanvasPhoto(path) {
   layoutTools.cancelPending();
+  linkTools.clearSelection();
   const slot = IMAGE_FIELDS.find(field => field.path === path);
   if (!slot) return;
   revealWorkbench();
@@ -842,7 +859,7 @@ $('#confirm-dialog').addEventListener('cancel',event => { event.preventDefault()
 $('#media-picker-close').addEventListener('click',() => $('#media-picker').close());
 $('#media-picker').addEventListener('close',() => { activeSlot = null; });
 $('#preview-toggle').addEventListener('click',showPreview);
-$('#preview-route').addEventListener('change',() => { finishCanvasEditing(); layoutTools.clearSelection(); canvasPhoto = null; renderCanvasPhotoInspector(); canvasScrollReset = true; renderCanvas(); });
+$('#preview-route').addEventListener('change',() => { finishCanvasEditing(); layoutTools.clearSelection(); linkTools.clearSelection(); canvasPhoto = null; renderCanvasPhotoInspector(); canvasScrollReset = true; renderCanvas(); });
 $('#nav-collapse').addEventListener('click',() => { navCollapsed = !navCollapsed; syncNavigationPreference(); try { localStorage.setItem('bukarciau:sidebar-collapsed',navCollapsed ? '1' : '0'); } catch {} });
 $('#workbench-toggle').addEventListener('click',() => { workbenchCollapsed = !workbenchCollapsed; syncWorkbench(); });
 compactWorkbench.addEventListener('change',syncWorkbench);

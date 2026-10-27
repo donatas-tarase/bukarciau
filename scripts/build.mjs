@@ -26,7 +26,7 @@ await writeFile('dist/theme.css',renderTheme(content));
 const sitemap = renderSitemap(content);
 if (sitemap) await writeFile('dist/sitemap.xml',sitemap);
 await mkdir('dist/admin',{recursive:true});
-for (const file of ['index.html','admin.css','admin.js','visual.css','editor-tools.mjs','layout-tools.mjs','resize.css']) await cp(join('admin',file),join('dist/admin',file));
+for (const file of ['index.html','admin.css','admin.js','visual.css','editor-tools.mjs','layout-tools.mjs','link-tools.mjs','resize.css']) await cp(join('admin',file),join('dist/admin',file));
 await cp('shared/content.mjs','dist/admin/schema.mjs');
 await writeFile('dist/admin/render.mjs',(await readFile('shared/render.mjs','utf8')).replaceAll("from './content.mjs'","from './schema.mjs'"));
 await mkdir('server',{recursive:true});

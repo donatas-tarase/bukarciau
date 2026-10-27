@@ -20,6 +20,9 @@ export function createEditorTools(api) {
   let ghost = null;
   let suppressedSource = null;
   let scrollFrame = 0;
+  let paletteZone = null;
+  let paletteBeforePart = null;
+  let paletteBeforeId = null;
   const blocks = (page = api.page()) => api.content().pageBlocks[page];
   const partKey = () => 'hiddenParts';
   const orderKey = () => 'partOrder';
@@ -30,6 +33,53 @@ export function createEditorTools(api) {
   const changed = message => { refresh(); if (message) api.announce(message); };
   const field = (label,key,value,{type='text',help='',nullable=false,min,max}={}) => `<label class="tools-field"><span>${escape(label)}</span>${type === 'textarea' ? `<textarea class="input" rows="4" data-block-field="${key}">${escape(value)}</textarea>` : `<input class="input" type="${type}" data-block-field="${key}" value="${escape(value)}"${min == null ? '' : ` min="${min}"`}${max == null ? '' : ` max="${max}"`}${nullable ? ' data-nullable="true"' : ''}>`}${help ? `<small>${escape(help)}</small>` : ''}</label>`;
   const select = (label,key,value,values) => `<label class="tools-field"><span>${escape(label)}</span><select class="input" data-block-field="${key}">${options(values,value)}</select></label>`;
+  const zoneInfo = id => zones().find(zone => zone.id === id);
+  const partLabel = id => CONTENT_PARTS.find(part => part.id === id)?.label || id;
+  function zoneOptions(current) {
+    return [[true,'Viduje'],[false,'Tarp skilčių']].map(([inside,label]) => { const entries = zones().filter(zone => Boolean(zone.inside) === inside); return entries.length ? `<optgroup label="${label}">${entries.map(zone => `<option value="${escape(zone.id)}"${zone.id === current ? ' selected' : ''}>${escape(zone.label)}</option>`).join('')}</optgroup>` : ''; }).join('');
+  }
+  function zoneElement(id) { return api.doc()?.querySelector(`[data-cms-drop-zone="${CSS.escape(id)}"]`); }
+  function sequenceForZone(id) {
+    const container = zoneElement(id);
+    if (!container) return [];
+    const metadata = zoneInfo(id);
+    return [...container.querySelectorAll('[data-cms-part],[data-cms-block]')].filter(element => element.closest('[data-cms-drop-zone]') === container && (element.dataset.cmsBlock || metadata?.partIds?.includes(element.dataset.cmsPart))).map(element => ({kind:element.dataset.cmsBlock ? 'block' : 'part',id:element.dataset.cmsBlock || element.dataset.cmsPart,element}));
+  }
+  function anchorOptions(zoneId,current = null) {
+    const metadata = zoneInfo(zoneId);
+    const actual = sequenceForZone(zoneId).filter(item => item.kind === 'part').map(item => item.id);
+    if (current && metadata?.partIds?.includes(current) && !actual.includes(current)) actual.push(current);
+    return '<option value="">Skilties pabaigoje</option>' + actual.map(id => `<option value="${escape(id)}"${id === current ? ' selected' : ''}>${escape(partLabel(id))}</option>`).join('');
+  }
+  function validAnchor(zoneId,beforePart) { return beforePart && zoneInfo(zoneId)?.partIds?.includes(beforePart) ? beforePart : null; }
+  function placementAt(zoneId,item,after = false,movingId = null) {
+    const sequence = sequenceForZone(zoneId).filter(entry => entry.kind !== 'block' || entry.id !== movingId);
+    const index = sequence.findIndex(entry => entry.id === item?.id && entry.kind === item?.kind);
+    const next = index < 0 ? null : sequence[index+(after ? 1 : 0)];
+    if (!next) return {beforePart:null,beforeId:null};
+    if (next.kind === 'part') return {beforePart:next.id,beforeId:null};
+    const block = blocks().find(block => block.id === next.id);
+    return {beforePart:block?.beforePart || null,beforeId:next.id};
+  }
+  function setPaletteContext(element,after = true) {
+    const container = element?.closest('[data-cms-drop-zone]');
+    const metadata = container && zoneInfo(container.dataset.cmsDropZone);
+    if (!metadata) return;
+    paletteZone = metadata.id;
+    const item = element.closest('[data-cms-block],[data-cms-part]');
+    const position = item ? placementAt(paletteZone,{kind:item.dataset.cmsBlock ? 'block' : 'part',id:item.dataset.cmsBlock || item.dataset.cmsPart},after) : {beforePart:null,beforeId:null};
+    paletteBeforePart = position.beforePart; paletteBeforeId = position.beforeId;
+    if (!$('#canvas-palette').contains(document.activeElement)) renderPalette();
+  }
+  function syncPaletteAnchors() {
+    const control = $('#new-block-before');
+    if (!control) return;
+    control.innerHTML = anchorOptions(paletteZone,paletteBeforePart);
+    control.closest('label').hidden = !zoneInfo(paletteZone)?.inside;
+  }
+  function blockZoneSelect(block) {
+    return `<label class="tools-field"><span>Vieta puslapyje</span><select class="input" data-block-field="zone">${zoneOptions(block.zone)}</select></label><label class="tools-field" data-anchor-select${zoneInfo(block.zone)?.inside ? '' : ' hidden'}><span>Prieš dalį</span><select class="input" data-block-field="beforePart">${anchorOptions(block.zone,block.beforePart)}</select><small>Pasirink, tarp kurių šios skilties elementų rodyti bloką.</small></label>`;
+  }
   function blockColorField(label,key,block) {
     const value = block[key];
     const fallback = key === 'background' ? api.content().design && block.type !== 'spacer' ? theme().surface : theme().background : block.type === 'button' ? theme().buttonText : theme().text;
@@ -53,13 +103,15 @@ export function createEditorTools(api) {
     panel.querySelector('[data-clear-block-color]').disabled = value == null;
   }
 
-  function addBlock(type,zone,beforeId = null) {
+  function addBlock(type,zone,beforePart = null,beforeId = null) {
     if (api.busy() || !BLOCK_TYPES.some(option => option.value === type) || !zones().some(option => option.id === zone)) return;
     if (blocks().length >= 40) return api.notice('Šiame puslapyje jau yra 40 papildomų blokų. Pašalink nereikalingą bloką prieš pridėdamas naują.','warning');
     api.finish();
+    api.clearPhoto();
     api.revealTools();
     const id = crypto.randomUUID().replaceAll('-','');
-    const block = {id,type,zone,text:'',url:null,source:null,alt:'',ratio:'auto',size:'normal',align:'left',background:null,color:null};
+    const anchor = blocks().find(block => block.id === beforeId && block.zone === zone);
+    const block = {id,type,zone,beforePart:validAnchor(zone,anchor ? anchor.beforePart : beforePart),text:'',url:null,source:null,alt:'',ratio:'auto',size:'normal',align:'left',background:null,color:null};
     api.mutate(() => { const list = blocks(); const before = list.findIndex(item => item.id === beforeId); list.splice(before < 0 ? list.length : before,0,block); });
     selectedBlock = id; selectedPart = null;
     changed('Blokas pridėtas į puslapį.');
@@ -70,9 +122,12 @@ export function createEditorTools(api) {
     if (!api.content()) return;
     const panel = $('#canvas-palette');
     panel.hidden = api.mode() !== 'edit';
-    panel.innerHTML = `<div class="palette-heading"><strong>Pridėti bloką</strong><span>Vilk į puslapį arba pasirink vietą žemiau.</span></div><div class="palette-types">${BLOCK_TYPES.map(type => `<button class="palette-item" type="button" draggable="false" data-palette-type="${type.value}" aria-label="Pridėti: ${type.label}"><span aria-hidden="true">${({text:'T',image:'▧',button:'▰',link:'↗',spacer:'↕'})[type.value]}</span>${type.label}</button>`).join('')}</div><div class="palette-add"><label for="new-block-type">Blokas<select id="new-block-type">${options(BLOCK_TYPES,'text')}</select></label><label for="new-block-zone">Vieta<select id="new-block-zone">${zones().map(zone => `<option value="${zone.id}">${escape(zone.label)}</option>`).join('')}</select></label><button type="button" class="button button-outline" data-add-block>Pridėti</button></div>`;
+    const currentType = $('#new-block-type')?.value || 'text';
+    if (!zoneInfo(paletteZone)) { paletteZone = zones()[0]?.id; paletteBeforePart = null; paletteBeforeId = null; }
+    panel.innerHTML = `<div class="palette-heading"><strong>Pridėti bloką</strong><span>Pasirink vietą skilties viduje arba tarp skilčių. Gali ir vilkti į puslapį.</span></div><div class="palette-types">${BLOCK_TYPES.map(type => `<button class="palette-item" type="button" draggable="false" data-palette-type="${type.value}" aria-label="Pridėti: ${type.label}"><span aria-hidden="true">${({text:'T',image:'▧',button:'▰',link:'↗',spacer:'↕'})[type.value]}</span>${type.label}</button>`).join('')}</div><div class="palette-add"><label for="new-block-type">Blokas<select id="new-block-type">${options(BLOCK_TYPES,currentType)}</select></label><label for="new-block-zone">Vieta<select id="new-block-zone">${zoneOptions(paletteZone)}</select></label><label for="new-block-before"${zoneInfo(paletteZone)?.inside ? '' : ' hidden'}>Prieš dalį<select id="new-block-before">${anchorOptions(paletteZone,paletteBeforePart)}</select></label><button type="button" class="button button-outline" data-add-block>Pridėti</button></div>`;
   }
   function selectPart(element) {
+    setPaletteContext(element);
     const part = element?.closest('[data-cms-part]');
     selectedPart = part && CONTENT_PARTS.some(item => item.id === part.dataset.cmsPart) ? part.dataset.cmsPart : null;
     selectedBlock = null;
@@ -121,6 +176,7 @@ export function createEditorTools(api) {
     api.clearPhoto();
     api.revealTools();
     api.finish(); selectedBlock = id; selectedPart = null;
+    setPaletteContext(api.doc()?.querySelector(`[data-cms-block="${CSS.escape(id)}"]`));
     renderSelection(); renderBlockInspector();
     $('#canvas-extra-inspector')?.scrollIntoView({block:'nearest'});
   }
@@ -130,24 +186,41 @@ export function createEditorTools(api) {
     panel.hidden = !block || api.mode() !== 'edit';
     if (panel.hidden) return;
     const type = BLOCK_TYPES.find(item => item.value === block.type)?.label || 'Blokas';
-    panel.innerHTML = `<div class="canvas-photo-heading"><div><strong>${escape(type)}</strong><small class="inspector-device">Bendras svetainės turinys</small></div><button class="icon-button" type="button" data-close-block aria-label="Baigti bloko redagavimą">×</button></div><div class="block-settings-grid">${block.type === 'spacer' ? '' : block.type === 'image' ? `<div class="block-image-choice">${block.source ? `<img src="/admin/api/media/${escape(block.source.split('/').at(-1))}" alt="" width="140" height="100">` : '<span>Nuotrauka dar nepasirinkta</span>'}<button type="button" class="button button-outline" data-choose-block-image>${block.source ? 'Pakeisti nuotrauką' : 'Pasirinkti nuotrauką'}</button></div>${field('Nuotraukos aprašymas','alt',block.alt,{help:'Trumpai aprašyk, kas matoma nuotraukoje.'})}${select('Proporcijos','ratio',block.ratio,IMAGE_ASPECT_RATIOS)}` : field(block.type === 'text' ? 'Tekstas' : 'Nuorodos užrašas','text',block.text,{type:block.type === 'text' ? 'textarea' : 'text'})}${['button','link'].includes(block.type) ? field('Nuoroda','url',block.url || '',{type:'url',nullable:true,help:'Pilnas adresas su https://. Mygtukas bus rodomas užpildžius nuorodą.'}) : ''}${select('Vieta puslapyje','zone',block.zone,zones())}${select('Dydis','size',block.size,BLOCK_SIZES)}${select('Lygiavimas','align',block.align,BLOCK_ALIGNMENTS)}${blockColorField('Fono spalva (nebūtina)','background',block)}${blockColorField('Teksto spalva (nebūtina)','color',block)}</div><div class="canvas-photo-actions"><button class="button button-outline" type="button" data-move-block="up">↑ Aukštyn</button><button class="button button-outline" type="button" data-move-block="down">↓ Žemyn</button><button type="button" class="slot-remove" data-delete-block>Pašalinti bloką</button></div>`;
+    panel.innerHTML = `<div class="canvas-photo-heading"><div><strong>${escape(type)}</strong><small class="inspector-device">Bendras svetainės turinys</small></div><button class="icon-button" type="button" data-close-block aria-label="Baigti bloko redagavimą">×</button></div><div class="block-settings-grid">${block.type === 'spacer' ? '' : block.type === 'image' ? `<div class="block-image-choice">${block.source ? `<img src="/admin/api/media/${escape(block.source.split('/').at(-1))}" alt="" width="140" height="100">` : '<span>Nuotrauka dar nepasirinkta</span>'}<button type="button" class="button button-outline" data-choose-block-image>${block.source ? 'Pakeisti nuotrauką' : 'Pasirinkti nuotrauką'}</button></div>${field('Nuotraukos aprašymas','alt',block.alt,{help:'Trumpai aprašyk, kas matoma nuotraukoje.'})}${select('Proporcijos','ratio',block.ratio,IMAGE_ASPECT_RATIOS)}` : field(block.type === 'text' ? 'Tekstas' : 'Nuorodos užrašas','text',block.text,{type:block.type === 'text' ? 'textarea' : 'text'})}${['button','link'].includes(block.type) ? field('Nuoroda','url',block.url || '',{type:'text',nullable:true,help:'Tinka https://, svetainės kelias /kontaktai/, #registracija, mailto: arba tel: nuoroda.'}) : ''}${blockZoneSelect(block)}${select('Dydis','size',block.size,BLOCK_SIZES)}${select('Lygiavimas','align',block.align,BLOCK_ALIGNMENTS)}${blockColorField('Fono spalva (nebūtina)','background',block)}${blockColorField('Teksto spalva (nebūtina)','color',block)}</div><div class="canvas-photo-actions"><button class="button button-outline" type="button" data-move-block="up">↑ Aukštyn</button><button class="button button-outline" type="button" data-move-block="down">↓ Žemyn</button><button type="button" class="slot-remove" data-delete-block>Pašalinti bloką</button></div>`;
   }
   function changeBlock(key,value,source = null) {
     const block = selected();
     if (!block || api.busy()) return;
-    if (!['text','url','alt','ratio','size','align','background','color','zone'].includes(key)) return;
+    if (!['text','url','alt','ratio','size','align','background','color','zone','beforePart'].includes(key)) return;
     if (['url','background','color'].includes(key)) value = value.trim() || null;
-    api.mutate(() => { block[key] = value; });
+    if (key === 'zone' && !zoneInfo(value)) return;
+    if (key === 'beforePart') value = validAnchor(block.zone,value);
+    api.mutate(() => { block[key] = value; if (key === 'zone') block.beforePart = null; });
+    if (key === 'zone') {
+      const anchor = $('#canvas-extra-inspector [data-block-field="beforePart"]');
+      if (anchor) { anchor.innerHTML = anchorOptions(value); anchor.closest('[data-anchor-select]').hidden = !zoneInfo(value)?.inside; }
+    }
     if (['background','color'].includes(key)) syncBlockColor(key,value,source);
     clearTimeout(blockTimer);
     blockTimer = setTimeout(() => api.render(),180);
   }
-  function moveBlock(id,zone,beforeId = null) {
+  function moveBlock(id,zone,beforePart = null,beforeId = null) {
     if (!zones().some(item => item.id === zone)) return;
     const block = blocks().find(item => item.id === id);
     if (!block || id === beforeId) return;
-    api.mutate(() => { const list = blocks(); list.splice(list.indexOf(block),1); block.zone = zone; const before = list.findIndex(item => item.id === beforeId); list.splice(before < 0 ? list.length : before,0,block); });
+    const anchor = blocks().find(item => item.id === beforeId && item.zone === zone);
+    api.mutate(() => { const list = blocks(); list.splice(list.indexOf(block),1); block.zone = zone; block.beforePart = validAnchor(zone,anchor ? anchor.beforePart : beforePart); const before = list.findIndex(item => item.id === beforeId); list.splice(before < 0 ? list.length : before,0,block); });
     changed('Blokas perkeltas puslapyje.');
+  }
+  function moveBlockStep(direction) {
+    const block = selected();
+    if (!block) return;
+    const sequence = sequenceForZone(block.zone);
+    const index = sequence.findIndex(item => item.kind === 'block' && item.id === block.id);
+    const neighbor = sequence[index+(direction === 'up' ? -1 : 1)];
+    if (!neighbor) return api.announce(direction === 'up' ? 'Blokas jau yra skilties pradžioje.' : 'Blokas jau yra skilties pabaigoje.');
+    const position = placementAt(block.zone,neighbor,direction === 'down',block.id);
+    moveBlock(block.id,block.zone,position.beforePart,position.beforeId);
   }
   function blockImage(id,source,page = api.page()) {
     const list = api.content().pageBlocks[page];
@@ -206,7 +279,7 @@ export function createEditorTools(api) {
     doc?.documentElement.removeAttribute('data-cms-dragging');
     doc?.body.classList.remove('cms-dragging-image');
     doc?.querySelectorAll('[data-cms-image-zones]').forEach(element => { element.hidden = false; });
-    doc?.querySelectorAll('.cms-drop-active,.cms-part-drop-active').forEach(element => element.classList.remove('cms-drop-active','cms-part-drop-active'));
+    clearDropMarks(doc);
   }
   function beginDrag(event,payload) {
     if (api.busy() || api.mode() !== 'edit') { event.preventDefault(); return; }
@@ -226,35 +299,53 @@ export function createEditorTools(api) {
     if (!payload) return null;
     if (payload.kind === 'photo') return target?.closest('[data-cms-image-drop]');
     if (payload.kind === 'part') { const part = event.target.closest('[data-cms-part]'); const from = api.doc()?.querySelector(`[data-cms-part="${CSS.escape(payload.id)}"]`); return part && from?.closest('[data-cms-sort-zone]') === part.closest('[data-cms-sort-zone]') ? part : null; }
-    const direct = target?.closest('[data-cms-block]') || target?.closest('[data-cms-drop-zone]');
-    if (direct) return direct;
+    const item = event.target.closest?.('[data-cms-block],[data-cms-part]');
+    const group = event.target.closest?.('[data-cms-drop-zone]');
+    const metadata = group && zoneInfo(group.dataset.cmsDropZone);
+    if (item && metadata && (item.dataset.cmsBlock || metadata.partIds?.includes(item.dataset.cmsPart))) return item;
+    if (group && metadata) return group;
     if (!event.target.closest?.('main')) return null;
-    return [...api.doc().querySelectorAll('[data-cms-drop-zone]')].filter(element => zones().some(zone => zone.id === element.dataset.cmsDropZone)).sort((a,b) => Math.abs(a.getBoundingClientRect().top-event.clientY)-Math.abs(b.getBoundingClientRect().top-event.clientY))[0] || null;
+    const distance = element => { const rect = element.getBoundingClientRect(); return event.clientY < rect.top ? rect.top-event.clientY : event.clientY > rect.bottom ? event.clientY-rect.bottom : 0; };
+    return [...api.doc().querySelectorAll('[data-cms-drop-zone]')].filter(element => zoneInfo(element.dataset.cmsDropZone)).sort((a,b) => distance(a)-distance(b) || a.getBoundingClientRect().height-b.getBoundingClientRect().height)[0] || null;
+  }
+  function dropEdge(target,clientX,clientY) {
+    const rect = target.getBoundingClientRect();
+    let layout = target.closest('[data-cms-sort-zone],[data-cms-drop-zone]');
+    let style = layout && layout.ownerDocument.defaultView.getComputedStyle(layout);
+    while (layout?.parentElement && style?.display === 'contents') { layout = layout.parentElement; style = layout.ownerDocument.defaultView.getComputedStyle(layout); }
+    if (Number.isFinite(clientX) && style?.display.includes('flex') && ['row','row-reverse'].includes(style.flexDirection)) {
+      const right = clientX > rect.left+rect.width/2;
+      return {after:style.flexDirection === 'row-reverse' ? !right : right,axis:'x'};
+    }
+    return {after:clientY > rect.top+rect.height/2,axis:'y'};
+  }
+  function clearDropMarks(doc = api.doc()) {
+    doc?.querySelectorAll('.cms-drop-active,.cms-part-drop-active').forEach(element => { element.classList.remove('cms-drop-active','cms-part-drop-active'); element.removeAttribute('data-cms-insert-edge'); element.removeAttribute('data-cms-insert-axis'); });
+  }
+  function markDropTarget(target,payload,x,y) {
+    clearDropMarks();
+    if (!target) return;
+    target.classList.add('cms-drop-active');
+    if (['palette','block'].includes(payload?.kind) && (target.dataset.cmsPart || target.dataset.cmsBlock)) {
+      const edge = dropEdge(target,x,y);
+      target.dataset.cmsInsertEdge = edge.after ? 'after' : 'before'; target.dataset.cmsInsertAxis = edge.axis;
+    }
   }
   function applyDrop(payload,target,clientY,clientX) {
     if (!validPayload(payload) || !target) return;
     if (payload.kind === 'part') {
-      const rect = target.getBoundingClientRect();
-      let layout = target.closest('[data-cms-sort-zone]');
-      let style = layout && layout.ownerDocument.defaultView.getComputedStyle(layout);
-      while (layout?.parentElement && style?.display === 'contents') {
-        layout = layout.parentElement;
-        style = layout.ownerDocument.defaultView.getComputedStyle(layout);
-      }
-      let after = clientY > rect.top+rect.height/2;
-      if (Number.isFinite(clientX) && style?.display.includes('flex') && ['row','row-reverse'].includes(style.flexDirection)) {
-        after = clientX > rect.left+rect.width/2;
-        if (style.flexDirection === 'row-reverse') after = !after;
-      }
-      sortParts(payload.id,target.dataset.cmsPart,after);
+      sortParts(payload.id,target.dataset.cmsPart,dropEdge(target,clientX,clientY).after);
     }
     else if (payload.kind === 'photo') {
       if (target.dataset.cmsImageDrop === payload.id && IMAGE_POSITIONS.some(position => position.value === target.dataset.cmsPosition)) { api.setImage(payload.id,'position',target.dataset.cmsPosition); api.editPhoto(payload.id); changed('Nuotraukos vieta pakeista puslapyje.'); }
       else api.announce('Nuotrauką vilk į tos pačios nuotraukos pažymėtą vietą.');
     } else {
-      const zone = target.dataset.cmsBlockZone || target.dataset.cmsDropZone;
-      if (payload.kind === 'palette') addBlock(payload.type,zone,target.dataset.cmsBlock || null);
-      else moveBlock(payload.id,zone,target.dataset.cmsBlock || null);
+      if (payload.kind === 'block' && target.dataset.cmsBlock === payload.id) return;
+      const zone = target.dataset.cmsBlockZone || target.dataset.cmsDropZone || target.closest('[data-cms-drop-zone]')?.dataset.cmsDropZone;
+      const item = target.dataset.cmsBlock ? {kind:'block',id:target.dataset.cmsBlock} : target.dataset.cmsPart ? {kind:'part',id:target.dataset.cmsPart} : null;
+      const position = item ? placementAt(zone,item,dropEdge(target,clientX,clientY).after,payload.kind === 'block' ? payload.id : null) : {beforePart:null,beforeId:null};
+      if (payload.kind === 'palette') addBlock(payload.type,zone,position.beforePart,position.beforeId);
+      else moveBlock(payload.id,zone,position.beforePart,position.beforeId);
     }
   }
   function pointerPoint(event,source) {
@@ -274,8 +365,7 @@ export function createEditorTools(api) {
   function updatePointerHit(point) {
     if (!pointer?.active) return;
     pointer.hit = pointerHit(point,drag);
-    api.doc()?.querySelectorAll('.cms-drop-active').forEach(element => element.classList.remove('cms-drop-active'));
-    pointer.hit?.target.classList.add('cms-drop-active');
+    markDropTarget(pointer.hit?.target,drag,pointer.hit?.x,pointer.hit?.y);
     if (ghost) { ghost.textContent = pointer.hit ? 'Paleisk čia' : 'Vilk į puslapį'; ghost.classList.toggle('is-valid',Boolean(pointer.hit)); ghost.style.left = `${point.x+15}px`; ghost.style.top = `${point.y+15}px`; }
   }
   function scrollDuringDrag() {
@@ -331,6 +421,10 @@ export function createEditorTools(api) {
   }
   function bindCanvas(doc) {
     applyStyles(doc);
+    for (const metadata of zones().filter(zone => zone.inside)) {
+      const group = zoneElement(metadata.id);
+      if (group) { group.setAttribute('data-cms-inside-zone',''); group.toggleAttribute('data-cms-zone-empty',sequenceForZone(metadata.id).length === 0); }
+    }
     if (!$('#canvas-palette').contains(document.activeElement)) renderPalette();
     if (!$('#canvas-part-tools').contains(document.activeElement)) renderSelection();
     if (!$('#canvas-extra-inspector').contains(document.activeElement)) renderBlockInspector();
@@ -358,8 +452,7 @@ export function createEditorTools(api) {
       const payload = payloadFor(event); if (!validPayload(payload)) return;
       const target = targetFor(event,payload); if (!target) return;
       event.preventDefault(); event.dataTransfer.dropEffect = payload.kind === 'palette' ? 'copy' : 'move';
-      doc.querySelectorAll('.cms-drop-active').forEach(element => element.classList.remove('cms-drop-active'));
-      target.classList.add('cms-drop-active');
+      markDropTarget(target,payload,event.clientX,event.clientY);
     });
     doc.addEventListener('dragleave',event => { if (event.target?.classList) event.target.classList.remove('cms-drop-active'); });
     doc.addEventListener('drop',event => {
@@ -371,6 +464,7 @@ export function createEditorTools(api) {
       endDrag();
     });
     doc.addEventListener('dragend',endDrag);
+    doc.addEventListener('focusin',event => { if (event.target.closest?.('[data-cms-part],[data-cms-block]')) setPaletteContext(event.target); });
     doc.addEventListener('keydown',event => {
       if (event.key !== 'Enter' && event.key !== ' ') return;
       const block = event.target.closest('[data-cms-block]');
@@ -382,7 +476,7 @@ export function createEditorTools(api) {
     const handle = event.target.closest('[data-editor-drag-part],[data-editor-drag-photo],[data-editor-drag-block]');
     if (handle) {
       event.preventDefault(); event.stopImmediatePropagation();
-      if (handle.dataset.editorDragPart) { selectedPart = handle.dataset.editorDragPart; selectedBlock = null; renderSelection(); renderBlockInspector(); }
+      if (handle.dataset.editorDragPart) { setPaletteContext(handle); selectedPart = handle.dataset.editorDragPart; selectedBlock = null; renderSelection(); renderBlockInspector(); }
       else if (handle.dataset.editorDragPhoto) api.editPhoto(handle.dataset.editorDragPhoto);
       else selectBlock(handle.dataset.editorDragBlock);
       return true;
@@ -393,6 +487,7 @@ export function createEditorTools(api) {
     if (drop && IMAGE_POSITIONS.some(position => position.value === drop.dataset.cmsPosition)) { event.preventDefault(); event.stopImmediatePropagation(); api.setImage(drop.dataset.cmsImageDrop,'position',drop.dataset.cmsPosition); changed('Nuotraukos vieta pakeista.'); return true; }
     const part = event.target.closest('[data-cms-part]');
     if (part) selectPart(part);
+    else if (event.target.closest('[data-cms-drop-zone]')) setPaletteContext(event.target);
     return false;
   }
   function focusIssue(path,message) {
@@ -419,7 +514,7 @@ export function createEditorTools(api) {
   document.addEventListener('dragend',endDrag);
   document.addEventListener('click',event => {
     const target = event.target.closest('button'); if (!target || !api.content() || api.busy()) return;
-    if (target.hasAttribute('data-add-block')) addBlock($('#new-block-type').value,$('#new-block-zone').value);
+    if (target.hasAttribute('data-add-block')) addBlock($('#new-block-type').value,$('#new-block-zone').value,$('#new-block-before')?.value || null,paletteBeforeId);
     if (target.dataset.paletteType) { $('#new-block-type').value = target.dataset.paletteType; $('#new-block-zone').focus(); api.announce('Pasirink vietą ir spausk „Pridėti“ arba vilk bloką į puslapį.'); }
     if (target.hasAttribute('data-hide-selected-part')) hidePart(selectedPart);
     if (target.dataset.movePart) moveSelectedPart(target.dataset.movePart);
@@ -428,7 +523,7 @@ export function createEditorTools(api) {
     if (target.hasAttribute('data-close-block')) { selectedBlock = null; renderBlockInspector(); }
     if (target.hasAttribute('data-choose-block-image')) { const block = selected(); if (block) api.chooseImage({kind:'block',blockId:block.id,page:api.page(),device:api.device(),label:'Papildomo bloko nuotrauka'}); }
     if (target.hasAttribute('data-delete-block')) { const block = selected(); if (block) { api.mutate(content => { blocks().splice(blocks().indexOf(block),1); delete content.blockLayouts?.[`block-${block.id}`]; }); selectedBlock = null; changed('Papildomas blokas pašalintas.'); } }
-    if (target.dataset.moveBlock) { const block = selected(); const list = blocks().filter(item => item.zone === block?.zone); const index = list.indexOf(block); const next = list[index+(target.dataset.moveBlock === 'up' ? -1 : 1)]; if (block && next) { if (target.dataset.moveBlock === 'up') moveBlock(block.id,block.zone,next.id); else { const following = list[index+2]; moveBlock(block.id,block.zone,following?.id || null); } } }
+    if (target.dataset.moveBlock) moveBlockStep(target.dataset.moveBlock);
     if (target.hasAttribute('data-reset-theme')) { api.mutate(content => { content.design = null; }); renderSection('Dizainas'); api.render(); api.announce('Pradinis svetainės dizainas grąžintas.'); }
     if (target.dataset.clearBlockColor) { changeBlock(target.dataset.clearBlockColor,''); api.announce('Bloko spalva grąžinta pagal svetainės dizainą.'); }
   });
@@ -439,6 +534,10 @@ export function createEditorTools(api) {
     if (input.dataset.blockColorPicker) changeBlock(input.dataset.blockColorPicker,input.value,input);
     if (input.dataset.themeKey) updateTheme(input.dataset.themeKey,input.value);
     if (input.dataset.themeHex) { const valid = colors.test(input.value); input.setAttribute('aria-invalid',String(!valid)); if (valid) updateTheme(input.dataset.themeHex,input.value); }
+  });
+  document.addEventListener('change',event => {
+    if (event.target.id === 'new-block-zone') { paletteZone = event.target.value; paletteBeforePart = null; paletteBeforeId = null; syncPaletteAnchors(); }
+    if (event.target.id === 'new-block-before') { paletteBeforePart = validAnchor(paletteZone,event.target.value); paletteBeforeId = null; }
   });
   return {renderPalette,renderSection,selectPart,bindCanvas,handleCanvasClick,blockImage,applyStyles,focusIssue,cancelPending() { clearTimeout(blockTimer); },clearSelection() { selectedPart = null; selectedBlock = null; renderSelection(); renderBlockInspector(); },isMediaUsed(src) { return Object.values(api.content().pageBlocks).some(list => list.some(block => block.source === src)); }};
 }
