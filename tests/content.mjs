@@ -12,10 +12,10 @@ const publicHtml = content => routes.map(route => renderPage(content, route).htm
 const image = '/media/0123456789abcdef0123456789abcdef.jpg';
 
 test('initial editor content preserves the reviewed static public pages', () => {
-  // These baselines were compared with the previous static build on all five routes.
+  // Reviewed static pages, with the requested hero-arrow removal on the home route.
   // Ignore only the automatic copyright year; CSS is deliberately outside this contract.
   const expected = [
-    '97d7f90a83aba18a94e5d367f37a4becf4421d443e19f394a12d51fe3c1f6562',
+    '555404b01232257413a212f9c7c1ac54d74084090dec457997b015e6dc25dbff',
     'e156d0452ed92d9ead699f9d641b225f95a5d43adaf805b0ebfc377aeccd1488',
     'bfbab07c1a64b016aefb31000317fed91a1ce5527369942c18a198d1b5dc5e55',
     'fb7f708a839a08ffbd03e18139cc7b8d10c77a0f7466e4545f098e11f7e8e070',
