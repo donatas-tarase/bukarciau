@@ -145,7 +145,6 @@ main:focus{outline:none}
 .responsive-hero .hero-content>.hero-subtitle{margin:22px 0 32px}
 .responsive-hero-values{display:block;font-size:10px;letter-spacing:.14em;text-transform:uppercase;margin-top:38px}
 .responsive-hero-values i{font-style:normal;margin-inline:9px}
-.responsive-hero-next{display:grid;place-items:center;border:1px solid currentColor;border-radius:50%;width:39px;height:39px;margin-top:25px;font-size:21px}
 .responsive-hero-media{position:relative;grid-column:1;grid-row:2;width:100%;aspect-ratio:16/9;overflow:hidden;min-width:0;z-index:0;background:#d7e4c9}
 .responsive-hero-media>img{position:absolute;inset:0;width:100%;height:100%;object-fit:cover}
 .responsive-hero-media[class*="image-ratio-"]{aspect-ratio:var(--image-aspect-ratio)}
@@ -244,7 +243,6 @@ main:focus{outline:none}
 /* Default placements keep the existing first-screen and full-width photo composition. */
 .responsive-hero.hero-position-default:not(.hero-custom-ratio){height:min(740px,calc(100svh - 104px));min-height:560px}
 .responsive-hero .responsive-hero-values{position:absolute;left:36px;bottom:26px;margin:0}
-.responsive-hero .responsive-hero-next{position:absolute;right:36px;bottom:26px;margin:0}
 .responsive-hero .hero-content{padding:50px 24px 70px}
 .responsive-intro-default{position:relative}
 .responsive-statement>img{position:absolute;inset:0;width:100%;height:100%;object-fit:cover}
@@ -260,15 +258,12 @@ main:focus{outline:none}
  .responsive-hero .hero-content{padding:50px 20px 70px}
  .responsive-hero .responsive-hero-values{left:22px;bottom:23px;font-size:7px;letter-spacing:.1em}
  .responsive-hero-values i{margin-inline:5px}
- .responsive-hero .responsive-hero-next{right:22px;bottom:21px;width:35px;height:35px;font-size:18px}
  .responsive-camp-default.r-position-right,.responsive-about-layout.r-position-left{gap:30px}
 }
 .responsive-hero.hero-position-default .hero-content{position:static}
 .responsive-hero:not(.hero-position-default) .responsive-hero-values{position:static;margin-top:38px}
-.responsive-hero:not(.hero-position-default) .responsive-hero-next{position:static;margin-top:25px}
 @media(max-width:760px){
  .responsive-hero.hero-position-default.hero-custom-ratio .responsive-hero-values{position:static;margin-top:32px}
- .responsive-hero.hero-position-default.hero-custom-ratio .responsive-hero-next{position:static;margin-top:22px}
 }
 /* Keep editable headlines readable when their text needs more than one screen. */
 .responsive-hero.hero-position-default:not(.hero-custom-ratio){height:auto;min-height:max(560px,min(740px,calc(100svh - 104px)));max-height:none}
@@ -287,8 +282,7 @@ main:focus{outline:none}
 .responsive-hero>.responsive-hero-bottom{position:relative;left:auto;right:auto;bottom:auto;grid-column:1/-1;grid-row:3;align-self:end;width:100%;padding:0 36px 26px;z-index:2;gap:20px;text-align:left}
 .responsive-hero:is(.hero-position-default,.hero-position-left,.hero-position-right,.hero-hidden)>.responsive-hero-bottom{grid-row:2}
 .responsive-hero.hero-position-default .hero-content{padding-bottom:35px}
-.responsive-hero>.responsive-hero-bottom>.responsive-hero-values{position:static;left:auto;right:auto;bottom:auto;margin:0;flex:1;min-width:0;max-width:calc(100% - 60px);overflow-wrap:anywhere}
-.responsive-hero>.responsive-hero-bottom>.responsive-hero-next{position:static;left:auto;right:auto;bottom:auto;margin:0;flex-shrink:0}
+.responsive-hero>.responsive-hero-bottom>.responsive-hero-values{position:static;left:auto;right:auto;bottom:auto;margin:0;flex:1;min-width:0;max-width:100%;overflow-wrap:anywhere}
 .responsive-site .footer-bottom>span{min-width:0;max-width:100%;overflow-wrap:anywhere}
 .cms-block-button .button,.cms-themed .cms-block-button .button{color:var(--block-color,var(--button-text,#fff))}
 @media(max-width:760px){

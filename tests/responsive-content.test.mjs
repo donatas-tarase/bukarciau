@@ -294,7 +294,7 @@ test('unsafe URL schemes, credentials, HTML, backslashes and encoded controls ca
 
 test('existing link overrides accept only the finite link allowlist and string values, with empty values restoring defaults', () => {
   const partIds = new Set(CONTENT_PARTS.map(part => part.id));
-  assert.equal(LINK_PARTS.length, 22);
+  assert.equal(LINK_PARTS.length, 21);
   assert.equal(new Set(LINK_PARTS.map(part => part.id)).size, LINK_PARTS.length);
   for (const part of LINK_PARTS) {
     assert.ok(partIds.has(part.id) && part.label);
@@ -346,4 +346,49 @@ test('block insertion normalizes only legacy beforePart and rejects cross-zone a
     const invalid = clone(DEFAULT_CONTENT); invalid.pageBlocks.home = [block({zone: 'home.hero', beforePart})]; issueAt(invalid, 'pageBlocks.home.0.beforePart');
   }
   delete legacy.url; content.pageBlocks.home = [legacy]; issueAt(content, 'pageBlocks.home.0.url');
+});
+
+test('retired hero-arrow settings migrate safely from published content and history without losing unrelated edits', () => {
+  const retired = 'home.hero.next';
+  const legacy = clone(DEFAULT_CONTENT);
+  legacy.site.heroAccent = 'Išsaugota antraštė';
+  legacy.hiddenParts = [retired, 'home.intro.title'];
+  legacy.partOrder = ['home.hero.title', retired, 'home.hero.eyebrow'];
+  legacy.linkOverrides = {[retired]: '/apie-mus/', 'home.hero.cta': 'mailto:info@bukarciau.lt?subject=Stovykla'};
+  legacy.blockLayouts = {
+    'part-home-hero-next': {width: 80, height: 100, paddingTop: 10, paddingBottom: 20},
+    'part-home-hero-title': {width: 70, height: null, paddingTop: null, paddingBottom: 0}
+  };
+  legacy.pageBlocks.home = [
+    block({zone: 'home.heroBottom', beforePart: retired, text: 'Išsaugotas papildomas tekstas'}),
+    block({id: 'd'.repeat(32), zone: 'home.heroBottom', beforePart: 'home.hero.values', text: 'Tekstas prieš vertybes'})
+  ];
+  const original = clone(legacy);
+  const normalized = parseContent(legacy);
+  assert.deepEqual(legacy, original, 'Migration must not mutate the loaded snapshot.');
+  assert.equal(normalized.site.heroAccent, 'Išsaugota antraštė');
+  assert.deepEqual(normalized.hiddenParts, ['home.intro.title']);
+  assert.deepEqual(normalized.partOrder, ['home.hero.title', 'home.hero.eyebrow']);
+  assert.deepEqual(normalized.linkOverrides, {'home.hero.cta': 'mailto:info@bukarciau.lt?subject=Stovykla'});
+  assert.deepEqual(normalized.blockLayouts, {'part-home-hero-title': legacy.blockLayouts['part-home-hero-title']});
+  assert.deepEqual(normalized.pageBlocks.home, [{...legacy.pageBlocks.home[0], beforePart: null}, legacy.pageBlocks.home[1]]);
+  assert.deepEqual(parseContent(normalized), normalized, 'Migration is idempotent for reads and restored history.');
+  assert.ok(!CONTENT_PARTS.some(part => part.id === retired));
+  assert.ok(!LINK_PARTS.some(part => part.id === retired));
+  assert.ok(!CONTENT_ZONES.find(zone => zone.id === 'home.heroBottom').partIds.includes(retired));
+  assert.equal(getLayoutTarget(normalized, 'part-home-hero-next'), null);
+});
+
+test('retired-arrow compatibility does not accept unrelated unknown IDs, wrong-zone anchors or unsafe remaining values', () => {
+  const content = clone(DEFAULT_CONTENT);
+  content.linkOverrides = {'home.hero.next': '/', 'home.hero.next2': '/'}; issueAt(content, 'linkOverrides.home.hero.next2');
+  content.linkOverrides = {'home.hero.next': '/', 'home.hero.cta': 'javascript:alert(1)'}; issueAt(content, 'linkOverrides.home.hero.cta');
+  content.linkOverrides = {'home.hero.next': '/'};
+  content.hiddenParts = ['home.hero.next', 'unknown']; issueAt(content, 'hiddenParts.0');
+  content.hiddenParts = [];
+  content.blockLayouts = {'part-home-hero-next2': {...LAYOUT_DIMENSION_DEFAULTS}}; issueAt(content, 'blockLayouts.part-home-hero-next2');
+  content.blockLayouts = {};
+  content.pageBlocks.home = [block({zone: 'home.hero', beforePart: 'home.hero.next'})]; issueAt(content, 'pageBlocks.home.0.beforePart');
+  content.pageBlocks.home = [];
+  content.linkOverrides = Object.fromEntries([['home.hero.next', '/'], ['__proto__', '/']]); issueAt(content, 'linkOverrides.__proto__');
 });

@@ -171,7 +171,7 @@ export const CONTENT_PARTS = [
   ...parts('home.hero', home, {
     eyebrow: ['Pirmo ekrano paantraštė', ['copy.home.heroEyebrow']], title: ['Pirmo ekrano antraštė', ['site.heroAccent']],
     subtitle: ['Eilutė po antrašte', ['site.heroTitle', 'camps.0.date']], values: ['Pirmo ekrano vertybės', ['site.values']],
-    cta: ['Pirmo ekrano mygtukas', ['copy.actions.register', 'copy.actions.participate']], next: ['Nuoroda toliau', []]
+    cta: ['Pirmo ekrano mygtukas', ['copy.actions.register', 'copy.actions.participate']]
   }),
   ...parts('home.intro', home, {
     eyebrow: ['Prisistatymo paantraštė', ['copy.home.introEyebrow']], title: ['Prisistatymo antraštė', ['copy.home.introTitle']],
@@ -225,10 +225,11 @@ export const CONTENT_PARTS = [
     eyebrow: ['Klaidos kodas', []], title: ['Klaidos antraštė', ['copy.notFound.title']], back: ['Grįžimo nuoroda', ['copy.actions.back']]
   })
 ];
+const retiredHeroNextPart = 'home.hero.next';
 const linkPartIds = new Set([
   'common.nav.camp', 'common.nav.about', 'common.nav.contact', 'common.nav.write',
   'common.footer.email', 'common.footer.phone', 'common.footer.organizers', 'common.footer.facebook',
-  'home.hero.cta', 'home.hero.next', 'home.intro.link', 'home.camp.link', 'registration.cta', 'registration.phone',
+  'home.hero.cta', 'home.intro.link', 'home.camp.link', 'registration.cta', 'registration.phone',
   'about.link', 'about.cta', 'contact.email', 'contact.phone', 'contact.facebook', 'detail.back', 'detail.cta', 'notFound.back'
 ]);
 export const LINK_PARTS = CONTENT_PARTS.filter(part => linkPartIds.has(part.id)).map(({id, label}) => ({id, label}));
@@ -311,7 +312,7 @@ export const CONTENT_ZONES = [
   ...zones('contact', {beforeContent: 'Prieš kontaktus', afterContent: 'Po kontaktų', beforeFooter: 'Prieš poraštę'}),
   ...zones('camp', {beforeDescription: 'Prieš aprašymą', afterDescription: 'Po aprašymo', beforeRegistration: 'Prieš registraciją', afterRegistration: 'Po registracijos', beforeFooter: 'Prieš poraštę'}),
   insideZone('home.hero', 'Pirmo ekrano tekste', 'home', 'home.hero', ['home.hero.eyebrow', 'home.hero.title', 'home.hero.subtitle', 'home.hero.cta']),
-  insideZone('home.heroBottom', 'Pirmo ekrano apačioje', 'home', 'home.heroBottom', ['home.hero.values', 'home.hero.next']),
+  insideZone('home.heroBottom', 'Pirmo ekrano apačioje', 'home', 'home.heroBottom', ['home.hero.values']),
   insideZone('home.introHeading', 'Prisistatymo antraštėje', 'home', 'home.introHeading', ['home.intro.eyebrow', 'home.intro.title', 'home.intro.link']),
   insideZone('home.introParagraphs', 'Prisistatymo tekste', 'home', 'home.introParagraphs', numberedParts('home.intro.paragraph', 12)),
   insideZone('home.campHeading', 'Stovyklos skilties antraštėje', 'home', 'home.campHeading', ['home.camp.eyebrow', 'home.camp.heading']),
@@ -517,7 +518,16 @@ export function normalizeContent(input = {}) {
       return {...rest, answerWhenOpen: rest.answerWhenOpen ?? (kind === 'registration' ? registrationAnswer : '')};
     })} : item)};
   }
-  return merge(DEFAULT_CONTENT, legacy, schema);
+  const normalized = merge(DEFAULT_CONTENT, legacy, schema);
+  // Retired arrow references can exist in published content and older history.
+  // Remove only their exact settings; added blocks keep their content and order.
+  for (const path of ['hiddenParts', 'partOrder']) if (Array.isArray(normalized[path])) normalized[path] = normalized[path].filter(id => id !== retiredHeroNextPart);
+  if (plain(normalized.linkOverrides)) delete normalized.linkOverrides[retiredHeroNextPart];
+  if (plain(normalized.blockLayouts)) delete normalized.blockLayouts['part-home-hero-next'];
+  if (Array.isArray(normalized.pageBlocks?.home)) {
+    for (const block of normalized.pageBlocks.home) if (plain(block) && block.zone === 'home.heroBottom' && block.beforePart === retiredHeroNextPart) block.beforePart = null;
+  }
+  return normalized;
 }
 
 function inspectKeys(value, node, path, issues, depth = 0) {
@@ -525,7 +535,7 @@ function inspectKeys(value, node, path, issues, depth = 0) {
   if (node.field?.type === 'linkMap') {
     if (value === undefined) return;
     if (!plain(value)) { issues.push({path, message: 'Netinkama nuorodų struktūra.'}); return; }
-    for (const key of Object.keys(value)) if (forbidden.has(key) || !linkPartIds.has(key)) issues.push({path: `${path}.${key}`, message: 'Šios nuorodos keisti negalima.'});
+    for (const key of Object.keys(value)) if (forbidden.has(key) || (!linkPartIds.has(key) && key !== retiredHeroNextPart)) issues.push({path: `${path}.${key}`, message: 'Šios nuorodos keisti negalima.'});
     return;
   }
   if (node.field?.type === 'layoutMap') {
