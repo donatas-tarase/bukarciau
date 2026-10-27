@@ -80,3 +80,14 @@ main:focus{outline:none}
  .hero-ratio-layout .hero-subtitle{color:#365338}
  .hero-ratio-layout .hero-bottom{position:static;left:auto;right:auto;bottom:auto;gap:16px;width:100%;padding:0 22px 24px}
 }
+
+/* Removing a photo placement also removes its reserved column or section space. */
+.intro+.camps .section-heading{padding-top:0}
+.about-story.without-photo,.camp-inner.without-photos{grid-template-columns:minmax(0,1fr);gap:0}
+.about-story.without-photo .story-copy,.camp-inner.without-photos .camp-copy{max-width:760px}
+.camp-row.without-photos{padding-top:20px}
+.camp-inner.without-photos .camp-copy{padding-block:0}
+.camp-visual.is-standalone{margin:0}
+.camp-visual>.photo-standalone:not([class*="image-ratio-"]){aspect-ratio:4/5}
+.detail-layout.without-cover{padding-top:32px}
+@media(max-width:760px){.detail-layout.without-cover{padding-top:24px}}

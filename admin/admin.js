@@ -106,7 +106,7 @@ function handleError(error) {
   if (Array.isArray(issues) && issues.length) {
     const path = Array.isArray(issues[0].path) ? issues[0].path.join('.') : String(issues[0].path || '').replace(/^content\./,'');
     const descriptor = CONTENT_FIELDS.find(field => path === field.path || path.startsWith(`${field.path}.`));
-    const image = IMAGE_FIELDS.find(field => path === field.path || path === field.altPath || path === field.ratioPath);
+    const image = IMAGE_FIELDS.find(field => path === field.path || path === field.altPath || path === field.ratioPath || path === field.hiddenPath);
     const nextSection = image ? 'Nuotraukos' : descriptor?.group;
     if (nextSection && nextSection !== section) { section = nextSection; renderSection(); if (nextSection === 'Nuotraukos') loadMedia().catch(handleError); }
     showIssues(issues);
@@ -345,7 +345,7 @@ function finishCanvasEditing(cancel = false, rebuild = false) {
   selected.element.removeAttribute('data-cms-selected');
   selected.element.setAttribute('role','button');
   selected.element.removeAttribute('aria-multiline');
-  $('#canvas-instruction').textContent = canvasMode === 'edit' ? 'Paspausk tekstą ir rašyk. Paspausk nuotraukos vietą, kad įkeltum savo.' : 'Peržiūros režimas. Norėdamas keisti tekstą, pasirink „Redaguoti“.';
+  $('#canvas-instruction').textContent = canvasMode === 'edit' ? 'Paspausk tekstą ir rašyk. Paspausk nuotraukos bloką, kad keistum jo dydį arba nuotrauką.' : 'Peržiūros režimas. Norėdamas keisti tekstą, pasirink „Redaguoti“.';
   if (rebuild) renderCanvas();
 }
 function beginCanvasEditing(element) {
@@ -416,6 +416,7 @@ function bindCanvasHandlers() {
     if (canvasMode === 'edit') element.setAttribute('role','button');
     else { element.removeAttribute('role'); element.removeAttribute('aria-label'); }
   });
+  highlightCanvasPhoto();
   doc.addEventListener('click',event => {
     const field = event.target.closest('[data-cms-field]');
     const photo = event.target.closest('[data-cms-image]');
@@ -477,7 +478,7 @@ function renderCanvas() {
   $('#preview-frame').title = `${canvasMode === 'edit' ? 'Redaguojamas puslapis' : 'Juodraščio peržiūra'}: ${$('#preview-route').selectedOptions[0].textContent}`;
   document.querySelectorAll('[data-canvas-mode]').forEach(button => button.setAttribute('aria-pressed',String(button.dataset.canvasMode === canvasMode)));
   document.querySelectorAll('[data-preview-size]').forEach(button => button.setAttribute('aria-pressed',String(button.dataset.previewSize === canvasDevice)));
-  $('#canvas-instruction').textContent = canvasMode === 'edit' ? 'Paspausk tekstą ir rašyk. Paspausk nuotraukos vietą, kad įkeltum savo.' : 'Peržiūros režimas. Norėdamas keisti tekstą, pasirink „Redaguoti“.';
+  $('#canvas-instruction').textContent = canvasMode === 'edit' ? 'Paspausk tekstą ir rašyk. Paspausk nuotraukos bloką, kad keistum jo dydį arba nuotrauką.' : 'Peržiūros režimas. Norėdamas keisti tekstą, pasirink „Redaguoti“.';
   $('#canvas-section').classList.toggle('is-viewing',canvasMode === 'view');
   fitCanvas();
 }
@@ -496,28 +497,43 @@ function fitCanvas() {
 function imageRatioControls(slot) {
   const value = getPath(content,slot.ratioPath) || 'auto';
   const id = idFor(slot.ratioPath);
-  return `<fieldset class="field image-ratio-field" data-field-path="${escape(slot.ratioPath)}" aria-describedby="${id}-help"><legend class="field-label">Nuotraukos proporcijos</legend><div class="image-ratio-options">${IMAGE_ASPECT_RATIOS.map(option => `<label class="image-ratio-option${option.value === 'auto' ? ' image-ratio-auto' : ''}"><input class="image-ratio-input" type="radio" name="${id}" value="${escape(option.value)}" data-image-ratio="${escape(slot.ratioPath)}"${value === option.value ? ' checked' : ''}><span class="image-ratio-content"><span class="image-ratio-icon ratio-icon-${option.value.replace(':','-')}" aria-hidden="true"></span><span>${escape(option.label)}</span></span></label>`).join('')}</div><p class="field-help" id="${id}-help">Keičia nuotraukos rėmelio formą. Kraštai gali būti apkirpti, originalus failas nesikeičia.</p></fieldset>`;
+  return `<fieldset class="field image-ratio-field" data-field-path="${escape(slot.ratioPath)}" aria-describedby="${id}-help"><legend class="field-label">Bloko proporcijos</legend><div class="image-ratio-options">${IMAGE_ASPECT_RATIOS.map(option => `<label class="image-ratio-option${option.value === 'auto' ? ' image-ratio-auto' : ''}"><input class="image-ratio-input" type="radio" name="${id}" value="${escape(option.value)}" data-image-ratio="${escape(slot.ratioPath)}"${value === option.value ? ' checked' : ''}><span class="image-ratio-content"><span class="image-ratio-icon ratio-icon-${option.value.replace(':','-')}" aria-hidden="true"></span><span>${escape(option.label)}</span></span></label>`).join('')}</div><p class="field-help" id="${id}-help">Keičia viso bloko aukštį pagal jo plotį. Nuotrauka užpildo bloką be ištempimo.</p></fieldset>`;
 }
 function editCanvasPhoto(path) {
   const slot = IMAGE_FIELDS.find(field => field.path === path);
   if (!slot) return;
-  const inherited = path === 'camps.0.detailImage' && getPath(content,'camps.0.image');
-  if (!getPath(content,path) && !inherited) { openMediaPicker(path); return; }
   canvasPhoto = path;
   renderCanvasPhotoInspector();
   document.querySelector('#canvas-image-inspector input[data-image-ratio]:checked')?.focus({preventScroll:true});
   $('#canvas-image-inspector').scrollIntoView({block:'nearest',behavior:'instant'});
-  announce(`Redaguojama: ${slot.label}. Gali keisti nuotrauką, jos proporcijas ir aprašymą.`);
+  announce(`Redaguojama: ${slot.label}. Gali keisti viso bloko proporcijas, nuotrauką arba pašalinti bloką.`);
+}
+function highlightCanvasPhoto() {
+  $('#preview-frame').contentDocument?.querySelectorAll('[data-cms-image]').forEach(element => element.toggleAttribute('data-cms-photo-selected',canvasMode === 'edit' && section === visualSection && element.dataset.cmsImage === canvasPhoto));
 }
 function renderCanvasPhotoInspector() {
+  highlightCanvasPhoto();
   const panel = $('#canvas-image-inspector');
   panel.hidden = !canvasPhoto || section !== visualSection;
   if (panel.hidden) return;
   const slot = IMAGE_FIELDS.find(field => field.path === canvasPhoto);
   if (!slot) return;
-  const inherited = slot.path === 'camps.0.detailImage' && !getPath(content,slot.path);
-  const description = inherited ? '<p class="field-help">Rodoma pagrindinė stovyklos nuotrauka su jos aprašymu. Čia gali parinkti atskiras proporcijas arba pasirinkti kitą nuotrauką.</p>' : scalarInput({label:'Trumpas nuotraukos aprašymas',type:'text',required:true,maxLength:500,help:'Aprašyk, kas matoma nuotraukoje. Tai padeda ekrano skaitytuvą naudojančioms lankytojoms.'},slot.altPath,getPath(content,slot.altPath) || '');
-  panel.innerHTML = `<div class="canvas-photo-heading"><strong>${escape(slot.label)}</strong><button class="icon-button" type="button" data-close-photo-inspector aria-label="Baigti nuotraukos redagavimą">×</button></div><div class="canvas-photo-fields">${description}${imageRatioControls(slot)}</div><div class="canvas-photo-actions"><button type="button" class="button button-outline" data-choose-slot="${escape(slot.path)}">${inherited ? 'Pasirinkti atskirą nuotrauką' : 'Pakeisti nuotrauką'}</button>${inherited ? '' : `<button type="button" class="slot-remove" data-remove-slot="${escape(slot.path)}">Pašalinti iš puslapio</button>`}</div>`;
+  if (getPath(content,slot.hiddenPath)) { panel.hidden = true; return; }
+  const ownSrc = getPath(content,slot.path);
+  const inherited = slot.path === 'camps.0.detailImage' && !ownSrc && getPath(content,'camps.0.image');
+  const description = ownSrc ? scalarInput({label:'Trumpas nuotraukos aprašymas',type:'text',required:true,maxLength:500,help:'Aprašyk, kas matoma nuotraukoje. Tai padeda ekrano skaitytuvą naudojančioms lankytojoms.'},slot.altPath,getPath(content,slot.altPath) || '') : `<p class="field-help">${inherited ? 'Rodoma pagrindinė stovyklos nuotrauka su jos aprašymu. Šio bloko proporcijas gali keisti atskirai.' : 'Nuotrauka dar nepasirinkta. Gali keisti viso tuščio bloko proporcijas, įkelti nuotrauką arba pašalinti bloką.'}</p>`;
+  panel.innerHTML = `<div class="canvas-photo-heading"><strong>${escape(slot.label)}</strong><button class="icon-button" type="button" data-close-photo-inspector aria-label="Baigti nuotraukos redagavimą">×</button></div><div class="canvas-photo-fields">${description}${imageRatioControls(slot)}</div><div class="canvas-photo-actions"><button type="button" class="button button-outline" data-choose-slot="${escape(slot.path)}">${inherited ? 'Pasirinkti atskirą nuotrauką' : ownSrc ? 'Pakeisti nuotrauką' : 'Pasirinkti nuotrauką'}</button><button type="button" class="slot-remove" data-remove-slot="${escape(slot.path)}">Pašalinti bloką</button></div>`;
+}
+function setPhotoBlockHidden(path, hidden) {
+  if (busy || !content) return;
+  const slot = IMAGE_FIELDS.find(field => field.path === path);
+  if (!slot) return;
+  finishCanvasEditing();
+  setValue(slot.hiddenPath,hidden);
+  canvasPhoto = null;
+  renderSection();
+  const message = hidden ? `${slot.label}: nuotraukos blokas pašalintas. Jo vietoje tuščio rėmelio neliks.` : `${slot.label}: blokas grąžintas. Nuotrauka ir proporcijos išsaugotos.`;
+  notice(message,'success',hidden ? `<button class="notice-link" type="button" data-restore-slot="${escape(path)}">Grąžinti bloką</button>` : '');
 }
 async function loadCanvasAssets() {
   try {
@@ -550,14 +566,15 @@ function libraryMarkup(picker = false) {
 }
 function renderMediaSection() {
   const slots = IMAGE_FIELDS.map(field => {
+    if (getPath(content,field.hiddenPath)) return `<article class="image-slot is-removed"><div class="slot-preview slot-removed"><span>Blokas pašalintas</span></div><div class="slot-body"><h2>${escape(field.label)}</h2><p class="field-help">Šio nuotraukos bloko svetainėje nėra. Pasirinkta nuotrauka ir proporcijos išsaugotos.</p>${getPath(content,field.path) ? scalarInput({label:'Nuotraukos aprašymas',type:'text',required:false,maxLength:500,help:'Aprašymas išsaugomas ir gali būti naudojamas kitame bloke.'},field.altPath,getPath(content,field.altPath) || '') : ''}<button class="button button-outline" type="button" data-restore-slot="${escape(field.path)}">Grąžinti bloką</button></div></article>`;
     const ownSrc = getPath(content,field.path);
     const inherited = field.path === 'camps.0.detailImage' && !ownSrc && getPath(content,'camps.0.image');
     const src = ownSrc || inherited;
     const alt = getPath(content,inherited ? 'camps.0.imageAlt' : field.altPath);
     const ratio = getPath(content,field.ratioPath) || 'auto';
-    return `<article class="image-slot"><div class="slot-preview${src ? '' : ' empty'}"${IMAGE_ASPECT_RATIOS.some(option => option.value === ratio && ratio !== 'auto') ? ` data-preview-ratio="${ratio.replace(':','-')}"` : ''}>${src ? `<img src="${escape(sourcePreview(src))}" alt="${escape(alt)}" width="520" height="325">` : '<span class="slot-empty-label">Nuotrauka nepasirinkta</span>'}</div><div class="slot-body"><h2>${escape(field.label)}</h2><p class="field-help">${escape(inherited ? 'Rodoma pagrindinė stovyklos nuotrauka. Čia gali pasirinkti atskiras proporcijas arba kitą nuotrauką.' : field.help || field.group || '')}</p><div class="slot-actions"><button class="button button-outline" type="button" data-choose-slot="${escape(field.path)}">${inherited ? 'Pasirinkti atskirą nuotrauką' : ownSrc ? 'Pakeisti nuotrauką' : 'Pasirinkti nuotrauką'}</button>${ownSrc ? `<button class="slot-remove" type="button" data-remove-slot="${escape(field.path)}">Pašalinti iš šios vietos</button>` : ''}</div>${ownSrc ? scalarInput({label:'Trumpai aprašyk, kas nuotraukoje',type:'text',required:true,maxLength:500,help:'Aprašymas skirtas lankytojoms, kurios naudoja ekrano skaitytuvą. Pvz. „Miglė ir Miglė stovyklavietės sode“.'},field.altPath,getPath(content,field.altPath) || '') : ''}${imageRatioControls(field)}</div></article>`;
+    return `<article class="image-slot"><div class="slot-preview${src ? '' : ' empty'}"${IMAGE_ASPECT_RATIOS.some(option => option.value === ratio && ratio !== 'auto') ? ` data-preview-ratio="${ratio.replace(':','-')}"` : ''}>${src ? `<img src="${escape(sourcePreview(src))}" alt="${escape(alt)}" width="520" height="325">` : '<span class="slot-empty-label">Nuotrauka nepasirinkta</span>'}</div><div class="slot-body"><h2>${escape(field.label)}</h2><p class="field-help">${escape(inherited ? 'Rodoma pagrindinė stovyklos nuotrauka. Čia gali pasirinkti atskiras proporcijas arba kitą nuotrauką.' : field.help || field.group || '')}</p><div class="slot-actions"><button class="button button-outline" type="button" data-choose-slot="${escape(field.path)}">${inherited ? 'Pasirinkti atskirą nuotrauką' : ownSrc ? 'Pakeisti nuotrauką' : 'Pasirinkti nuotrauką'}</button><button class="slot-remove" type="button" data-remove-slot="${escape(field.path)}">Pašalinti bloką</button></div>${ownSrc ? scalarInput({label:'Trumpai aprašyk, kas nuotraukoje',type:'text',required:true,maxLength:500,help:'Aprašymas skirtas lankytojoms, kurios naudoja ekrano skaitytuvą. Pvz. „Miglė ir Miglė stovyklavietės sode“.'},field.altPath,getPath(content,field.altPath) || '') : ''}${imageRatioControls(field)}</div></article>`;
   }).join('');
-  $('#media-section').innerHTML = '<div class="help-panel">Kiekvienai nuotraukai gali pasirinkti atskiras proporcijas. „Pagal dizainą“ grąžina pradinę formą. <strong>Pakeitimai lankytojoms matomi tik juos paskelbus.</strong> Tuščios vietos gali likti be nuotraukų.</div>' + `<div class="image-slots">${slots}</div><div class="library-heading"><h2>Nuotraukų biblioteka<span class="library-count">${mediaLoaded ? media.length : ''}</span></h2></div>${uploadMarkup()}${libraryMarkup()}`;
+  $('#media-section').innerHTML = '<div class="help-panel">Kiekvieno nuotraukos bloko proporcijas gali keisti ir be nuotraukos. Nereikalingą bloką pašalink, kad neliktų tuščios vietos. <strong>Pakeitimai lankytojoms matomi tik juos paskelbus.</strong> Tuščios vietos gali likti be nuotraukų.</div>' + `<div class="image-slots">${slots}</div><div class="library-heading"><h2>Nuotraukų biblioteka<span class="library-count">${mediaLoaded ? media.length : ''}</span></h2></div>${uploadMarkup()}${libraryMarkup()}`;
 }
 function renderMediaPicker() {
   $('#media-picker-title').textContent = activeSlot?.label || 'Pasirink nuotrauką';
@@ -643,6 +660,7 @@ function selectMedia(id) {
   if (!item || !activeSlot) return;
   const changed = getPath(content,activeSlot.path) !== publicMediaUrl(item);
   setValue(activeSlot.path,publicMediaUrl(item));
+  setValue(activeSlot.hiddenPath,false);
   if (changed) setValue(activeSlot.altPath,'');
   const altPath = activeSlot.altPath;
   if (section === visualSection) canvasPhoto = activeSlot.path;
@@ -688,7 +706,8 @@ document.addEventListener('click',event => {
   if (target.dataset.selectMedia) selectMedia(target.dataset.selectMedia);
   if (target.dataset.deleteMedia) deleteMedia(target.dataset.deleteMedia);
   if (target.dataset.restoreVersion) restoreVersion(target.dataset.restoreVersion);
-  if (target.dataset.removeSlot) { const slot = IMAGE_FIELDS.find(slot => slot.path === target.dataset.removeSlot); if (slot) { setValue(slot.path,null); setValue(slot.altPath,''); canvasPhoto = null; renderSection(); announce('Nuotrauka pašalinta iš šios svetainės vietos. Bibliotekoje ji išliko.'); } }
+  if (target.dataset.removeSlot) setPhotoBlockHidden(target.dataset.removeSlot,true);
+  if (target.dataset.restoreSlot) setPhotoBlockHidden(target.dataset.restoreSlot,false);
   if (target.hasAttribute('data-close-photo-inspector')) { canvasPhoto = null; renderCanvasPhotoInspector(); }
   if (target.hasAttribute('data-reload-canvas')) renderCanvas();
   if (target.dataset.previewSize) { finishCanvasEditing(); canvasDevice = target.dataset.previewSize; renderCanvas(); }

@@ -37,3 +37,7 @@
 .slot-preview[data-preview-ratio="9-16"]{aspect-ratio:9/16}.slot-preview[data-preview-ratio="16-9"]{aspect-ratio:16/9}
 .slot-preview img{position:absolute;inset:0}
 @media(max-width:900px){.canvas-photo-fields{grid-template-columns:minmax(0,1fr);gap:16px}.canvas-photo-fields .image-ratio-field{max-width:520px}}
+.slot-preview.slot-removed{aspect-ratio:auto;height:84px;min-height:0;background:#edf0e9;color:#7b8b73;font-size:11px;border-bottom:1px dashed #d5dfcf}
+.is-removed .slot-body>.field-help{min-height:0;margin-bottom:16px}
+.is-removed .slot-body>.button{font-size:11px;min-height:38px}
+.slot-actions,.canvas-photo-actions{flex-wrap:wrap}

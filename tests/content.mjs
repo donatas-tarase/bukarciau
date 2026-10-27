@@ -214,6 +214,142 @@ test('unapproved photo ratios are rejected by the content boundary and cannot in
   }
 });
 
+test('photo visibility is a strict boolean with backwards-compatible visible defaults', () => {
+  assert.equal(new Set(IMAGE_FIELDS.map(slot => slot.hiddenPath)).size, 6);
+  const legacy = copy();
+  for (const slot of IMAGE_FIELDS) deleteField(legacy, slot.hiddenPath);
+  const migrated = parseContent(legacy);
+  for (const slot of IMAGE_FIELDS) assert.equal(getPath(migrated, slot.hiddenPath), false);
+  assert.equal(publicHtml(migrated), publicHtml(original));
+  for (const slot of IMAGE_FIELDS) {
+    for (const value of [null, 'true', 'false', 0, 1, {}, []]) {
+      const content = copy(); setPath(content, slot.hiddenPath, value);
+      assert.throws(() => parseContent(content), error => error instanceof ValidationError && error.issues.some(issue => issue.path === slot.hiddenPath));
+    }
+  }
+});
+
+test('a hidden uploaded photo can omit its description, but restoring visibility requires accessible alternative text', () => {
+  for (const slot of IMAGE_FIELDS) {
+    const content = copy();
+    setPath(content, slot.path, image);
+    setPath(content, slot.altPath, '');
+    setPath(content, slot.hiddenPath, true);
+    if (slot.path === 'camps.0.image') content.camps[0].detailImageHidden = true;
+    const parsed = parseContent(content);
+    assert.equal(getPath(parsed, slot.path), image);
+    assert.equal(getPath(parsed, slot.altPath), '');
+    setPath(parsed, slot.hiddenPath, false);
+    assert.throws(() => parseContent(parsed), error => error instanceof ValidationError && error.issues.some(issue => issue.path === slot.altPath));
+    setPath(parsed, slot.hiddenPath, true);
+    for (const invalid of [null, 123, 'a'.repeat(501)]) {
+      setPath(parsed, slot.altPath, invalid);
+      assert.throws(() => parseContent(parsed), error => error instanceof ValidationError && error.issues.some(issue => issue.path === slot.altPath));
+    }
+  }
+});
+
+test('a hidden main photo still requires alternative text when used by a visible detail cover', () => {
+  const content = copy();
+  content.camps[0].image = image;
+  content.camps[0].imageAlt = '';
+  content.camps[0].imageHidden = true;
+  content.camps[0].detailImage = null;
+  content.camps[0].detailImageHidden = false;
+  assert.throws(() => parseContent(content), error => error instanceof ValidationError && error.issues.some(issue => issue.path === 'camps.0.imageAlt'));
+  content.camps[0].detailImageHidden = true;
+  assert.equal(parseContent(content).camps[0].imageAlt, '');
+  content.camps[0].detailImageHidden = false;
+  content.camps[0].detailImage = image;
+  content.camps[0].detailImageAlt = 'Atskira stovyklos viršelio nuotrauka';
+  assert.equal(parseContent(content).camps[0].imageAlt, '');
+});
+
+test('all six photo placements can disappear from public pages and the editing canvas without losing their data', async t => {
+  const uploaded = copy();
+  for (const [index, slot] of IMAGE_FIELDS.entries()) {
+    setPath(uploaded, slot.path, `/media/${String(index + 1).padStart(32, '0')}.jpg`);
+    setPath(uploaded, slot.altPath, `Nuotrauka ${index + 1}`);
+    setPath(uploaded, slot.ratioPath, '16:9');
+  }
+  for (const slot of IMAGE_FIELDS) {
+    await t.test(slot.path, () => {
+      for (const withPhotos of [false, true]) {
+        const content = withPhotos ? structuredClone(uploaded) : copy();
+        const before = routes.map(route => renderPage(content, route, {preview: true}).html).join('\n');
+        const source = getPath(content, slot.path), ratio = getPath(content, slot.ratioPath);
+        setPath(content, slot.hiddenPath, true);
+        const parsed = parseContent(content);
+        const preview = routes.map(route => renderPage(parsed, route, {preview: true}).html).join('\n');
+        assert.equal(imageContainer(preview, slot), undefined, 'A removed frame has no selectable placeholder.');
+        assert.equal(getPath(parsed, slot.path), source);
+        assert.equal(getPath(parsed, slot.ratioPath), ratio);
+        if (withPhotos) assert.ok(getImageReferences(parsed).some(ref => ref.src === source), 'The retained image remains available for restoration.');
+        setPath(parsed, slot.hiddenPath, false);
+        assert.equal(routes.map(route => renderPage(parsed, route, {preview: true}).html).join('\n'), before, 'Restoring the placement restores its prior markup.');
+      }
+    });
+  }
+});
+
+test('removing photo sections also removes their wrappers while keeping adjacent copy and actions', () => {
+  const content = copy();
+  for (const slot of IMAGE_FIELDS) {
+    setPath(content, slot.path, image);
+    setPath(content, slot.altPath, 'Nuotrauka');
+    setPath(content, slot.ratioPath, '9:16');
+    setPath(content, slot.hiddenPath, true);
+  }
+  for (const preview of [false, true]) {
+    const home = renderPage(parseContent(content), '/', {preview}).html;
+    assert.match(home, /<section class="hero">/);
+    assert.doesNotMatch(home, /hero-ratio-layout|hero-media|class="hero-image"|class="statement|camp-visual|data-cms-image/);
+    assert.match(home, /class="camp-inner wrap without-photos"/);
+    for (const value of [content.site.heroAccent, content.site.heroTitle, ...content.site.values, content.camps[0].title, content.copy.actions.participate]) assert.ok(home.includes(value), value);
+    const about = renderPage(content, '/apie-mus/', {preview}).html;
+    assert.match(about, /class="about-story wrap without-photo"><div class="story-copy">/);
+    assert.doesNotMatch(about, /class="photo |data-cms-image/);
+    const detail = renderPage(content, '/stovyklos/stovykla-01/', {preview}).html;
+    assert.doesNotMatch(detail, /detail-cover|data-cms-image|src="\/(?:admin\/api\/)?media\//);
+    assert.match(detail, /class="detail-layout wrap section without-cover"/);
+    assert.ok(detail.includes(content.camps[0].introTitle));
+  }
+});
+
+test('a remaining secondary camp photo becomes a standalone frame with its own format', () => {
+  const content = copy();
+  content.camps[0].imageHidden = true;
+  content.camps[0].secondaryImage = image;
+  content.camps[0].secondaryImageAlt = 'Nuotrauka';
+  const secondary = IMAGE_FIELDS.find(slot => slot.path === 'camps.0.secondaryImage');
+  for (const option of IMAGE_ASPECT_RATIOS) {
+    content.camps[0].secondaryImageRatio = option.value;
+    const html = renderPage(parseContent(content), '/', {preview: true}).html;
+    assert.match(html, /class="camp-visual is-standalone"/);
+    assert.doesNotMatch(html, /photo-small|data-cms-image="camps\.0\.image"/);
+    const container = imageContainer(html, secondary);
+    assert.match(container, /class="photo photo-standalone/);
+    if (option.value === 'auto') assert.doesNotMatch(container, /image-ratio-/);
+    else assert.ok(container.includes(`image-ratio-${option.value.replace(':', '-')}`));
+  }
+  content.camps[0].secondaryImageHidden = true;
+  assert.doesNotMatch(renderPage(content, '/').html, /camp-visual|photo-standalone/);
+});
+
+test('hidden detail cover cannot reappear through the main-photo fallback, and hidden small frames leave no overlay', () => {
+  const content = copy();
+  content.camps[0].image = image;
+  content.camps[0].imageAlt = 'Pagrindinė nuotrauka';
+  content.camps[0].detailImageHidden = true;
+  const detail = renderPage(parseContent(content), '/stovyklos/stovykla-01/', {preview: true}).html;
+  assert.doesNotMatch(detail, /detail-cover|data-cms-image="camps\.0\.detailImage"|src="\/(?:admin\/api\/)?media\//);
+  content.camps[0].secondaryImageHidden = true;
+  const home = renderPage(content, '/', {preview: true}).html;
+  assert.match(home, /class="camp-visual is-standalone"/);
+  assert.doesNotMatch(home, /photo-small|data-cms-image="camps\.0\.secondaryImage"/);
+  assert.match(home, /data-cms-image="camps\.0\.image"/);
+});
+
 test('draft preview uses authenticated image URLs and never changes public indexing settings', () => {
   const content = copy(); content.site.draft = false; content.site.heroImage = image; content.site.heroImageAlt = 'Bendra nuotrauka';
   const live = renderPage(content, '/');

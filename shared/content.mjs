@@ -19,17 +19,17 @@ export const DEFAULT_CONTENT = {
       'Neabejojame, kad kiekvienai iš mūsų kartais reikia atokvėpio, poilsio nuo kasdienybės, pabūti su savimi ar kitų moterų draugijoje.',
       'Norime sukurti jaukią erdvę tikriems pokalbiams, nuoširdžiam juokui ir naujoms pažintims. Tikimės, kad čia kiekviena jausis išgirsta, pamatyta ir priimta.'
     ],
-    heroImage: null, heroImageAlt: '', heroImageRatio: 'auto',
-    statementImage: null, statementImageAlt: '', statementImageRatio: 'auto',
-    togetherImage: null, togetherImageAlt: '', togetherImageRatio: 'auto', draft: true
+    heroImage: null, heroImageAlt: '', heroImageRatio: 'auto', heroImageHidden: false,
+    statementImage: null, statementImageAlt: '', statementImageRatio: 'auto', statementImageHidden: false,
+    togetherImage: null, togetherImageAlt: '', togetherImageRatio: 'auto', togetherImageHidden: false, draft: true
   },
   camps: [{
     slug: 'stovykla-01', title: 'Moterų savaitgalio stovykla',
     summary: 'Gruodžio 5 d. susitinkame pabūti kartu. Kviečia Miglė ir Miglė.',
     date: 'Gruodžio 5 d.', location: null, price: null,
-    image: null, imageAlt: '', imageRatio: 'auto',
-    secondaryImage: null, secondaryImageAlt: '', secondaryImageRatio: 'auto',
-    detailImage: null, detailImageAlt: '', detailImageRatio: 'auto',
+    image: null, imageAlt: '', imageRatio: 'auto', imageHidden: false,
+    secondaryImage: null, secondaryImageAlt: '', secondaryImageRatio: 'auto', secondaryImageHidden: false,
+    detailImage: null, detailImageAlt: '', detailImageRatio: 'auto', detailImageHidden: false,
     description: [
       'Kviečiame į moterų bendrystės stovyklą: atokvėpiui nuo kasdienybės, tikriems pokalbiams ir naujoms pažintims.',
       'Norime susitikti jaukiai - be kaukių ir bandymų kažkam kažką įrodyti. Pabūti su savimi ir kitų moterų draugijoje.'
@@ -130,12 +130,12 @@ export const IMAGE_ASPECT_RATIOS = [
 const imageRatioDescriptor = {type: 'enum', required: true, values: IMAGE_ASPECT_RATIOS.map(option => option.value)};
 
 export const IMAGE_FIELDS = [
-  {path: 'site.heroImage', altPath: 'site.heroImageAlt', ratioPath: 'site.heroImageRatio', label: 'Pirmo ekrano nuotrauka', group: home, help: 'Plati nuotrauka. Kol neįkelta, lieka dabartinis žalias fonas.'},
-  {path: 'site.statementImage', altPath: 'site.statementImageAlt', ratioPath: 'site.statementImageRatio', label: 'Plati nuotrauka po prisistatymu', group: home, help: 'Kol neįkelta, lieka tuščia dekoratyvi sritis.'},
-  {path: 'site.togetherImage', altPath: 'site.togetherImageAlt', ratioPath: 'site.togetherImageRatio', label: 'Nuotrauka puslapyje Apie mus', group: about},
-  {path: 'camps.0.image', altPath: 'camps.0.imageAlt', ratioPath: 'camps.0.imageRatio', label: 'Pagrindinė stovyklos nuotrauka', group: camp},
-  {path: 'camps.0.secondaryImage', altPath: 'camps.0.secondaryImageAlt', ratioPath: 'camps.0.secondaryImageRatio', label: 'Mažoji stovyklos nuotrauka', group: camp},
-  {path: 'camps.0.detailImage', altPath: 'camps.0.detailImageAlt', ratioPath: 'camps.0.detailImageRatio', label: 'Plati nuotrauka stovyklos puslapyje', group: camp}
+  {path: 'site.heroImage', altPath: 'site.heroImageAlt', ratioPath: 'site.heroImageRatio', hiddenPath: 'site.heroImageHidden', label: 'Pirmo ekrano nuotrauka', group: home, help: 'Plati nuotrauka. Kol neįkelta, lieka dabartinis žalias fonas.'},
+  {path: 'site.statementImage', altPath: 'site.statementImageAlt', ratioPath: 'site.statementImageRatio', hiddenPath: 'site.statementImageHidden', label: 'Plati nuotrauka po prisistatymu', group: home, help: 'Kol neįkelta, lieka tuščia dekoratyvi sritis.'},
+  {path: 'site.togetherImage', altPath: 'site.togetherImageAlt', ratioPath: 'site.togetherImageRatio', hiddenPath: 'site.togetherImageHidden', label: 'Nuotrauka puslapyje Apie mus', group: about},
+  {path: 'camps.0.image', altPath: 'camps.0.imageAlt', ratioPath: 'camps.0.imageRatio', hiddenPath: 'camps.0.imageHidden', label: 'Pagrindinė stovyklos nuotrauka', group: camp},
+  {path: 'camps.0.secondaryImage', altPath: 'camps.0.secondaryImageAlt', ratioPath: 'camps.0.secondaryImageRatio', hiddenPath: 'camps.0.secondaryImageHidden', label: 'Mažoji stovyklos nuotrauka', group: camp},
+  {path: 'camps.0.detailImage', altPath: 'camps.0.detailImageAlt', ratioPath: 'camps.0.detailImageRatio', hiddenPath: 'camps.0.detailImageHidden', label: 'Plati nuotrauka stovyklos puslapyje', group: camp}
 ];
 
 export class ValidationError extends Error {
@@ -164,6 +164,7 @@ for (const image of IMAGE_FIELDS) {
   addField(image.path, {type: 'image', nullable: true, required: false});
   addField(image.altPath, {type: 'text', required: false, maxLength: 500});
   addField(image.ratioPath, imageRatioDescriptor);
+  addField(image.hiddenPath, {type: 'boolean', required: true});
 }
 addField('site.url', {type: 'fixed', value: 'https://bukarciau.lt'});
 addField('camps.0.slug', {type: 'fixed', value: 'stovykla-01'});
@@ -321,9 +322,11 @@ export function parseContent(input) {
   validate(getPath(normalized, 'camps.0.slug'), {type: 'fixed', value: 'stovykla-01'}, 'camps.0.slug', issues);
   for (const image of IMAGE_FIELDS) {
     const source = getPath(normalized, image.path), alt = getPath(normalized, image.altPath);
+    const visibleDetailFallback = image.path === 'camps.0.image' && !getPath(normalized, 'camps.0.detailImage') && getPath(normalized, 'camps.0.detailImageHidden') !== true;
     validate(source, {type: 'image', required: false, nullable: true}, image.path, issues);
-    validate(alt, {type: 'text', required: Boolean(source), maxLength: 500}, image.altPath, issues);
+    validate(alt, {type: 'text', required: Boolean(source) && (getPath(normalized, image.hiddenPath) !== true || visibleDetailFallback), maxLength: 500}, image.altPath, issues);
     validate(getPath(normalized, image.ratioPath), imageRatioDescriptor, image.ratioPath, issues);
+    validate(getPath(normalized, image.hiddenPath), {type: 'boolean'}, image.hiddenPath, issues);
   }
   if (issues.length) throw new ValidationError(issues);
   return normalized;

@@ -7,6 +7,7 @@ html[data-cms-editing=true] [data-cms-image]{cursor:pointer;outline:2px solid tr
 html[data-cms-editing=true] [data-cms-image]:hover,html[data-cms-editing=true] [data-cms-image]:focus-visible{outline:2px dashed #08733e}
 html[data-cms-editing=true] [data-cms-image][data-cms-empty=true]{background-image:repeating-linear-gradient(135deg,#bfd4b70c 0 12px,#5b8d4512 12px 13px)}
 html[data-cms-editing=true] [data-cms-image]:focus-visible{outline-style:solid}
+html[data-cms-editing=true] [data-cms-image][data-cms-photo-selected]{outline:2px solid #08733e;outline-offset:-2px}
 html[data-cms-editing=true] [data-cms-image] img{pointer-events:none}
 html[data-cms-editing=true] a:not(:has([data-cms-field])){cursor:default}
 .faq summary>[data-cms-field]{font-size:inherit;font-weight:inherit}

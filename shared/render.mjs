@@ -41,8 +41,12 @@ export function renderPage(input, pathname, {assets = {}, preview = false} = {})
     return `<span data-cms-field="${e(field)}" data-cms-type="${e(editorType)}" tabindex="0" aria-label="Redaguoti: ${e(descriptor.label)}">${rendered}</span>`;
   };
   const paragraphs = (values, field) => values.map((value, index) => `<p>${text(`${field}.${index}`, 'textarea')}</p>`).join('');
+  const imageHidden = field => {
+    const slot = IMAGE_FIELDS.find(image => image.path === field);
+    return Boolean(slot && getPath(content, slot.hiddenPath) === true);
+  };
   const imageAttributes = field => {
-    if (!preview) return '';
+    if (!preview || imageHidden(field)) return '';
     const label = IMAGE_FIELDS.find(image => image.path === field)?.label || 'Nuotrauka';
     return ` data-cms-image="${e(field)}" data-cms-label="${e(label)}" tabindex="0" aria-label="Keisti nuotrauką: ${e(label)}"`;
   };
@@ -51,11 +55,13 @@ export function renderPage(input, pathname, {assets = {}, preview = false} = {})
     return match ? `${preview ? '/admin/api/media/' : '/media/'}${match[1]}` : null;
   };
   const imageRatioClass = field => {
+    if (imageHidden(field)) return '';
     const slot = IMAGE_FIELDS.find(image => image.path === field);
     const cls = slot && imageRatioClasses.get(getPath(content, slot.ratioPath));
     return cls ? ` ${cls}` : '';
   };
   const photo = (source, alt, cls = '', field) => {
+    if (imageHidden(field)) return '';
     const src = imageSource(source);
     return src
       ? `<div class="photo ${cls}${imageRatioClass(field)}"${imageAttributes(field)}><img src="${e(src)}" alt="${e(alt)}" loading="lazy" decoding="async"></div>`
@@ -96,27 +102,36 @@ export function renderPage(input, pathname, {assets = {}, preview = false} = {})
   let body, current = '', metadata;
   if (path === '/') {
     current = 'camp'; metadata = seo.home;
-    const hero = imageSource(site.heroImage);
+    const hero = imageHidden('site.heroImage') ? null : imageSource(site.heroImage);
     const statement = imageSource(site.statementImage);
     const heroRatioClass = imageRatioClass('site.heroImage');
     const heroImage = hero ? `<img class="hero-image" src="${e(hero)}" alt="${e(site.heroImageAlt)}" decoding="async" fetchpriority="high">` : '';
     const heroMedia = heroRatioClass ? `<div class="hero-media${heroRatioClass}"${imageAttributes('site.heroImage')}>${heroImage}</div>` : heroImage;
+    const statementBlock = imageHidden('site.statementImage') ? '' : `<div class="statement${imageRatioClass('site.statementImage')}"${statement || preview ? '' : ' aria-hidden="true"'}${imageAttributes('site.statementImage')}>${statement ? `<img class="hero-image" src="${e(statement)}" alt="${e(site.statementImageAlt)}" loading="lazy" decoding="async">` : ''}</div>`;
+    const mainHidden = imageHidden('camps.0.image');
+    const secondaryHidden = imageHidden('camps.0.secondaryImage');
+    const campPhotosHidden = mainHidden && secondaryHidden;
+    const campVisual = campPhotosHidden ? '' : `<div class="camp-visual${mainHidden || secondaryHidden ? ' is-standalone' : ''}"${(!mainHidden && camp.image) || (!secondaryHidden && camp.secondaryImage) || preview ? '' : ' aria-hidden="true"'}>${photo(camp.image, camp.imageAlt, '', 'camps.0.image')}${photo(camp.secondaryImage, camp.secondaryImageAlt, mainHidden ? 'photo-standalone' : 'photo-small', 'camps.0.secondaryImage')}</div>`;
     body = `
 <section class="hero${hero ? ' has-image' : ''}${heroRatioClass ? ' hero-ratio-layout' : ''}"${heroRatioClass ? '' : imageAttributes('site.heroImage')}>${heroMedia}<div class="hero-content"><span class="eyebrow">${text('copy.home.heroEyebrow')}</span><h1>${text('site.heroAccent')}</h1><p class="hero-subtitle">${text('site.heroTitle')} ${text('camps.0.date')}</p>${cta({local: true})}</div><div class="hero-bottom"><span>${values(' <i>·</i> ')}</span><a href="#susipazinkime" aria-label="Toliau - susipažinkime">↓</a></div></section>
 <section class="intro wrap section" id="susipazinkime"><div><span class="eyebrow">${text('copy.home.introEyebrow')}</span><h2>${text('copy.home.introTitle')}</h2><a class="text-link" href="/apie-mus/">${text('copy.actions.about')} ${arrow}</a></div><div class="intro-copy">${paragraphs(site.aboutText, 'site.aboutText')}</div></section>
-<div class="statement${imageRatioClass('site.statementImage')}"${statement || preview ? '' : ' aria-hidden="true"'}${imageAttributes('site.statementImage')}>${statement ? `<img class="hero-image" src="${e(statement)}" alt="${e(site.statementImageAlt)}" loading="lazy" decoding="async">` : ''}</div>
-<section id="stovykla" class="camps"><span id="stovyklos" class="legacy-anchor" aria-hidden="true"></span><div class="section-heading wrap"><div><span class="eyebrow">${text('copy.home.campEyebrow')}</span><h2>${text('copy.home.campTitle')}</h2></div></div><article class="camp-row"><div class="camp-inner wrap"><div class="camp-copy"><span class="eyebrow">${text('camps.0.date')}</span><h3>${text('camps.0.title')}</h3><div class="camp-meta"><span>${practical}</span></div><p>${text('camps.0.description.0', 'textarea')}</p><a class="button" href="/stovyklos/stovykla-01/">${text('copy.actions.camp')} ${arrow}</a></div><div class="camp-visual"${camp.image || camp.secondaryImage || preview ? '' : ' aria-hidden="true"'}>${photo(camp.image, camp.imageAlt, '', 'camps.0.image')}${photo(camp.secondaryImage, camp.secondaryImageAlt, 'photo-small', 'camps.0.secondaryImage')}</div></div></article></section>
+${statementBlock}
+<section id="stovykla" class="camps"><span id="stovyklos" class="legacy-anchor" aria-hidden="true"></span><div class="section-heading wrap"><div><span class="eyebrow">${text('copy.home.campEyebrow')}</span><h2>${text('copy.home.campTitle')}</h2></div></div><article class="camp-row${campPhotosHidden ? ' without-photos' : ''}"><div class="camp-inner wrap${campPhotosHidden ? ' without-photos' : ''}"><div class="camp-copy"><span class="eyebrow">${text('camps.0.date')}</span><h3>${text('camps.0.title')}</h3><div class="camp-meta"><span>${practical}</span></div><p>${text('camps.0.description.0', 'textarea')}</p><a class="button" href="/stovyklos/stovykla-01/">${text('copy.actions.camp')} ${arrow}</a></div>${campVisual}</div></article></section>
 ${registration()}`;
   } else if (path === '/apie-mus/') {
     current = 'about'; metadata = seo.about;
-    body = `<section class="page-heading wrap"><span class="eyebrow">${text('site.name')}</span><h1>${text('site.storyTitle')}</h1></section><section class="about-story wrap"><div>${photo(site.togetherImage, site.togetherImageAlt, '', 'site.togetherImage')}</div><div class="story-copy">${paragraphs(site.story, 'site.story')}<a class="text-link" href="/#stovykla">${text('copy.actions.camp')} ${arrow}</a></div></section><section class="contact-strip wrap"><div><span class="eyebrow">${text('camps.0.date')}</span><h2>${text('copy.about.invitation')}</h2></div>${cta()}</section>`;
+    const togetherHidden = imageHidden('site.togetherImage');
+    const aboutPhoto = togetherHidden ? '' : `<div>${photo(site.togetherImage, site.togetherImageAlt, '', 'site.togetherImage')}</div>`;
+    body = `<section class="page-heading wrap"><span class="eyebrow">${text('site.name')}</span><h1>${text('site.storyTitle')}</h1></section><section class="about-story wrap${togetherHidden ? ' without-photo' : ''}">${aboutPhoto}<div class="story-copy">${paragraphs(site.story, 'site.story')}<a class="text-link" href="/#stovykla">${text('copy.actions.camp')} ${arrow}</a></div></section><section class="contact-strip wrap"><div><span class="eyebrow">${text('camps.0.date')}</span><h2>${text('copy.about.invitation')}</h2></div>${cta()}</section>`;
   } else if (path === '/kontaktai/') {
     current = 'contact'; metadata = seo.contact;
     body = `<section class="contact-page wrap"><div><span class="eyebrow">${text('site.name')}</span><h1>${text('copy.contact.title')}</h1><p class="contact-intro">${text('copy.contact.intro')}</p><div class="contact-item"><span>${text('copy.contact.email')}</span><a href="mailto:${e(site.email)}">${text('site.email')} ${arrow}</a></div><div class="contact-item"><span>${text('copy.contact.phone')}</span><a href="tel:${e(site.phone)}">${text('site.phoneDisplay')} ${arrow}</a></div><div class="contact-item"><span>${text('copy.contact.social')}</span><a href="${e(site.facebook)}" target="_blank" rel="noopener noreferrer">${text('copy.footer.facebook')} ↗${newWindow}</a></div></div><div class="contact-brand"><img src="/assets/logo-original.jpeg" alt="${e(copy.contact.logoAlt)}" width="1181" height="1181"></div></section>`;
   } else if (path === '/stovyklos/stovykla-01/') {
     current = 'camp'; metadata = {...seo.camp, title: seo.camp.title || `${camp.title} · ${camp.date}`};
     const included = camp.included.length || camp.notIncluded.length ? `<div class="included-grid">${camp.included.length ? `<div><h3>${text('copy.camp.included')}</h3><ul>${camp.included.map((item, index) => `<li>${text(`camps.0.included.${index}`)}</li>`).join('')}</ul></div>` : ''}${camp.notIncluded.length ? `<div><h3>${text('copy.camp.notIncluded')}</h3><ul>${camp.notIncluded.map((item, index) => `<li>${text(`camps.0.notIncluded.${index}`)}</li>`).join('')}</ul></div>` : ''}</div>` : '';
-    body = `<section class="camp-detail-heading wrap"><a class="text-link back-link" href="/#stovykla">← ${text('copy.actions.back')}</a><span class="eyebrow">${text('camps.0.date')} · ${text('site.organizers')}</span><h1>${text('camps.0.title')}</h1><p>${text('camps.0.summary')}</p>${facts()}<div class="detail-heading-action">${cta({local: true})}</div></section><div class="detail-cover wrap">${photo(camp.detailImage || camp.image, camp.detailImage ? camp.detailImageAlt : camp.imageAlt, '', 'camps.0.detailImage')}</div><div class="detail-layout wrap section"><section><span class="eyebrow">${text('copy.camp.about')}</span><h2>${text('camps.0.introTitle')}</h2>${paragraphs(camp.description, 'camps.0.description')}<h3 class="program-title">${text('copy.camp.program')}</h3>${camp.program.length ? `<div class="program">${camp.program.map((item, index) => `<div><h4>${text(`camps.0.program.${index}.title`)}</h4><p>${text(`camps.0.program.${index}.text`)}</p></div>`).join('')}</div>` : `<p>${text('copy.camp.programPending')}</p>`}${included}</section><section><span class="eyebrow">${text('copy.camp.faqEyebrow')}</span><h2>${text('copy.camp.faqTitle')}</h2>${faq()}</section></div>${registration()}`;
+    const coverHidden = imageHidden('camps.0.detailImage');
+    const detailCover = coverHidden ? '' : `<div class="detail-cover wrap">${photo(camp.detailImage || camp.image, camp.detailImage ? camp.detailImageAlt : camp.imageAlt, '', 'camps.0.detailImage')}</div>`;
+    body = `<section class="camp-detail-heading wrap"><a class="text-link back-link" href="/#stovykla">← ${text('copy.actions.back')}</a><span class="eyebrow">${text('camps.0.date')} · ${text('site.organizers')}</span><h1>${text('camps.0.title')}</h1><p>${text('camps.0.summary')}</p>${facts()}<div class="detail-heading-action">${cta({local: true})}</div></section>${detailCover}<div class="detail-layout wrap section${coverHidden ? ' without-cover' : ''}"><section><span class="eyebrow">${text('copy.camp.about')}</span><h2>${text('camps.0.introTitle')}</h2>${paragraphs(camp.description, 'camps.0.description')}<h3 class="program-title">${text('copy.camp.program')}</h3>${camp.program.length ? `<div class="program">${camp.program.map((item, index) => `<div><h4>${text(`camps.0.program.${index}.title`)}</h4><p>${text(`camps.0.program.${index}.text`)}</p></div>`).join('')}</div>` : `<p>${text('copy.camp.programPending')}</p>`}${included}</section><section><span class="eyebrow">${text('copy.camp.faqEyebrow')}</span><h2>${text('copy.camp.faqTitle')}</h2>${faq()}</section></div>${registration()}`;
   } else {
     metadata = seo.notFound;
     body = `<section class="not-found wrap"><span class="eyebrow">404</span><h1>${text('copy.notFound.title', 'textarea', true)}</h1><a class="button button-solid" href="/">${text('copy.actions.back')} ${arrow}</a></section>`;

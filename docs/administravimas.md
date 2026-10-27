@@ -14,7 +14,7 @@ Baigę darbą pasirinkite „Atsijungti“. Įrankis pašalina svetainės prisij
 
 1. Pasirinkite „Redaguoti puslapyje“ ir viršuje nurodykite norimą puslapį.
 2. Režime „Redaguoti“ paspauskite tekstą ir rašykite jo vietoje. Pakeitimas iškart matomas redaktoriuje. `Esc` atšaukia šio teksto redagavimą, kol jis dar aktyvus.
-3. Paspauskite tuščią nuotraukos vietą, kad pasirinktumėte ją iš bibliotekos arba įkeltumėte naują. Paspaudus esamą nuotrauką atsidaro jos nustatymai: galite keisti proporcijas, aprašymą arba pasirinkti kitą nuotrauką.
+3. Paspauskite bet kurį nuotraukos bloką, net jei jis dar tuščias. Atsidaro viso bloko nustatymai: proporcijos, nuotraukos pasirinkimas ir bloko pašalinimas. Jei nuotrauka jau pasirinkta, galite keisti ir jos aprašymą.
 4. Patikrinkite vaizdą pasirinkę „Kompiuteris“ ir „Telefonas“. Režimas „Peržiūrėti“ leidžia peržiūrėti puslapį be redagavimo pasirinkimų.
 
 Nuorodų adresus, SEO, registracijos anketą ir sąrašus keiskite atitinkamuose kairiojo meniu turinio skyriuose. Taip pat galima naudoti juos visiems tekstams redaguoti įprastuose laukeliuose. Blokų vietos, spalvos, šriftai ir bendras maketas lieka nustatyti dizaino kode.
@@ -39,11 +39,15 @@ Nuotraukas galite įkelti redaguodami pasirinktą vietą arba skyriuje „Nuotra
 
 Pasirinkę nuotrauką pridėkite trumpą alternatyvų aprašymą, pavyzdžiui, kas ir kur joje matoma. Šis aprašymas skirtas ekrano skaitytuvams ir nerodomas kaip antraštė ant vaizdo. Išsaugokite juodraštį ir paskelbkite pakeitimą.
 
-Kiekvienos nuotraukos nustatymuose galite pasirinkti rėmelio proporcijas: 1:1, 2:3, 3:2, 4:3, 9:16 arba 16:9. Pasirinkimas „Pagal dizainą“ grąžina pradinę to bloko formą. Ta pati bibliotekos nuotrauka skirtingose puslapio vietose gali turėti skirtingas proporcijas. Nuotrauka užpildo rėmelį be ištempimo; dalis jos kraštų gali būti apkirpta. Originalus failas bibliotekoje nesikeičia.
+Nustatymas „Bloko proporcijos“ keičia viso nuotraukos bloko formą ir aukštį pagal jo plotį: 1:1, 2:3, 3:2, 4:3, 9:16 arba 16:9. Jis veikia ir tuščiame bloke. Pasirinkimas „Pagal dizainą“ grąžina pradinę to bloko formą. Ta pati bibliotekos nuotrauka skirtingose puslapio vietose gali turėti skirtingas proporcijas. Nuotrauka užpildo visą bloką be ištempimo; dalis jos kraštų gali būti apkirpta. Originalus failas bibliotekoje nesikeičia.
 
 Proporcijas taip pat galite keisti skyriuje „Nuotraukos“. Redaktoriaus peržiūra atsinaujina iškart. Kaip ir tekstus, šį pakeitimą pirmiausia išsaugokite juodraštyje ir tik tada paskelbkite. Patikrinkite vaizdą ir kompiuterio, ir telefono peržiūroje.
 
-„Pašalinti iš šios vietos“ atlaisvina konkrečią maketo vietą. Failas lieka bibliotekoje. Iš bibliotekos galima ištrinti tik nuotrauką, kurios nenaudoja išsaugotas juodraštis ar paskelbta versija. Po pašalinimo iš turinio pirmiausia išsaugokite ir paskelbkite pakeitimus. Bibliotekos ištrynimas yra loginis: objektas paliekamas saugykloje, kad būtų įmanomas versijos atkūrimas.
+„Pašalinti bloką“ pašalina visą pasirinktą nuotraukos vietą, kartu su tuščiu rėmeliu. Gretimas tekstas prisitaiko prie likusios vietos. Pirmo ekrano atveju pašalinama tik nuotrauka ir jai skirtas rėmelis; antraštė, tekstai ir registracijos mygtukas lieka. Pakeitimas pirmiausia matomas juodraštyje ir lankytojoms atsiranda tik paskelbus.
+
+Pašalintą bloką rasite skyriuje „Nuotraukos“. Paspauskite „Grąžinti bloką“: pasirinkta nuotrauka, jos aprašymas ir proporcijos bus išlikę. Grąžinti taip pat galima iškart po pašalinimo rodomame pranešime. Nereikia failo įkelti dar kartą.
+
+Bloko pašalinimas failo iš bibliotekos neištrina. Iš bibliotekos galima ištrinti tik nuotrauką, kuri nepriskirta išsaugoto juodraščio ar paskelbtos versijos blokams. Bibliotekos ištrynimas yra loginis: objektas paliekamas saugykloje, kad būtų įmanomas versijos atkūrimas.
 
 Jei po konfigūracijos pakeitimų pasirodo pranešimas, kad nuotraukų įkėlimas neparuoštas, reikia patikrinti `CMS_MEDIA` susiejimą ir iš naujo įdiegti projektą pagal techninę instrukciją.
 

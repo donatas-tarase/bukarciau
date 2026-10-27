@@ -357,6 +357,79 @@ test('Photo ratios persist independently through draft, publish and history rest
   assert.doesNotMatch(await (await h.request('/')).text(), /image-ratio-|src="\/media\//);
 });
 
+test('Photo placement removal is draft-only until published and restores through current and legacy history', async () => {
+  const h = harness();
+  let current = await state(h);
+  const legacy = clone(current.content);
+  for (const slot of IMAGE_FIELDS) {
+    const parts = slot.hiddenPath.split('.');
+    delete getPath(legacy, parts.slice(0, -1).join('.'))[parts.at(-1)];
+  }
+  const initialVersion = '00000000000000000000000000000000';
+  h.db.sqlite.prepare('UPDATE cms_versions SET content_json = ? WHERE id = ?').run(JSON.stringify(legacy), initialVersion);
+  const item = await upload(h);
+  for (const [index, slot] of IMAGE_FIELDS.entries()) {
+    setPath(current.content, slot.path, item.url);
+    setPath(current.content, slot.altPath, `Nuotrauka ${index + 1}`);
+    setPath(current.content, slot.ratioPath, '16:9');
+  }
+  current = await (await h.request('/admin/api/draft', {method: 'POST', body: {content: current.content, revision: current.revision}})).json();
+  assert.equal((await h.request('/admin/api/publish', {method: 'POST', body: {revision: current.revision}})).status, 200);
+  const visibleVersion = (await (await h.request('/admin/api/history')).json()).versions[0];
+  for (const slot of IMAGE_FIELDS) setPath(current.content, slot.hiddenPath, true);
+  current = await (await h.request('/admin/api/draft', {method: 'POST', body: {content: current.content, revision: current.revision}})).json();
+  for (const slot of IMAGE_FIELDS) {
+    assert.equal(getPath(current.content, slot.hiddenPath), true);
+    assert.equal(getPath(current.content, slot.path), item.url);
+    assert.equal(getPath(current.content, slot.ratioPath), '16:9');
+  }
+  assert.match(await (await h.request('/')).text(), /class="hero-media image-ratio-16-9"/);
+  assert.doesNotMatch(await (await h.request('/admin/preview?path=/')).text(), /data-cms-image|hero-media|class="statement|camp-visual/);
+  assert.equal((await h.request('/admin/api/publish', {method: 'POST', body: {revision: current.revision}})).status, 200);
+  for (const path of ['/', '/apie-mus/', '/stovyklos/stovykla-01/']) assert.doesNotMatch(await (await h.request(path)).text(), /src="\/media\/|hero-media|class="statement|camp-visual|detail-cover/);
+  const hiddenVersion = (await (await h.request('/admin/api/history')).json()).versions[0];
+  current = await (await h.request('/admin/api/restore', {method: 'POST', body: {versionId: visibleVersion.id, revision: current.revision}})).json();
+  for (const slot of IMAGE_FIELDS) assert.equal(getPath(current.content, slot.hiddenPath), false);
+  assert.doesNotMatch(await (await h.request('/')).text(), /hero-media/);
+  assert.equal((await h.request('/admin/api/publish', {method: 'POST', body: {revision: current.revision}})).status, 200);
+  assert.match(await (await h.request('/')).text(), /hero-media/);
+  current = await (await h.request('/admin/api/restore', {method: 'POST', body: {versionId: hiddenVersion.id, revision: current.revision}})).json();
+  for (const slot of IMAGE_FIELDS) assert.equal(getPath(current.content, slot.hiddenPath), true);
+  current = await (await h.request('/admin/api/restore', {method: 'POST', body: {versionId: initialVersion, revision: current.revision}})).json();
+  for (const slot of IMAGE_FIELDS) assert.equal(getPath(current.content, slot.hiddenPath), false, 'Legacy history defaults to visible placements.');
+});
+
+test('Removing a newly uploaded photo placement saves without alt text, while showing it again requires a description', async () => {
+  const h = harness();
+  const item = await upload(h);
+  let current = await state(h);
+  current.content.site.statementImage = item.url;
+  current.content.site.statementImageAlt = '';
+  current.content.site.statementImageHidden = true;
+  let response = await h.request('/admin/api/draft', {method: 'POST', body: {content: current.content, revision: current.revision}});
+  assert.equal(response.status, 200);
+  current = await response.json();
+  assert.equal(current.content.site.statementImage, item.url);
+  current.content.site.statementImageHidden = false;
+  response = await h.request('/admin/api/draft', {method: 'POST', body: {content: current.content, revision: current.revision}});
+  assert.equal(response.status, 422);
+  assert.ok((await response.json()).error.issues.some(issue => issue.path === 'site.statementImageAlt'));
+  assert.equal((await state(h)).revision, current.revision);
+  current.content.site.statementImageAlt = 'Moterų stovyklos nuotrauka';
+  response = await h.request('/admin/api/draft', {method: 'POST', body: {content: current.content, revision: current.revision}});
+  assert.equal(response.status, 200);
+  current = await response.json();
+  current.content.camps[0].image = item.url;
+  current.content.camps[0].imageAlt = '';
+  current.content.camps[0].imageHidden = true;
+  response = await h.request('/admin/api/draft', {method: 'POST', body: {content: current.content, revision: current.revision}});
+  assert.equal(response.status, 422, 'The visible detail cover still uses the hidden main photo as its fallback.');
+  assert.ok((await response.json()).error.issues.some(issue => issue.path === 'camps.0.imageAlt'));
+  current.content.camps[0].detailImageHidden = true;
+  response = await h.request('/admin/api/draft', {method: 'POST', body: {content: current.content, revision: current.revision}});
+  assert.equal(response.status, 200);
+});
+
 test('Unknown media, SVG disguised as JPEG, oversized bodies and external previews are rejected', async () => {
   const h = harness();
   const content = clone(DEFAULT_CONTENT);
