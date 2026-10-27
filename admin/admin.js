@@ -1,6 +1,7 @@
-import {CONTENT_FIELDS, IMAGE_FIELDS, IMAGE_ASPECT_RATIOS, IMAGE_POSITIONS, getImageSettings, getImageReferences, getPath as rawGetPath, parseContent} from '/admin/schema.mjs';
+import {CONTENT_FIELDS, IMAGE_FIELDS, IMAGE_ASPECT_RATIOS, IMAGE_POSITIONS, IMAGE_SIZES, getImageSettings, getImageReferences, getPath as rawGetPath, parseContent} from '/admin/schema.mjs';
 import {renderPage} from '/admin/render.mjs';
 import {createEditorTools} from '/admin/editor-tools.mjs';
+import {createLayoutTools} from '/admin/layout-tools.mjs';
 
 const $ = selector => document.querySelector(selector);
 const escape = value => String(value ?? '').replace(/[&<>"']/g, character => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[character]));
@@ -55,6 +56,26 @@ let canvasRenderTimer = null;
 let canvasScroll = {x:0,y:0};
 let canvasScrollReset = false;
 let canvasAssets = {styles:'/styles.css',script:'/app.js'};
+let navCollapsed = false;
+let workbenchCollapsed = false;
+const compactWorkbench = window.matchMedia('(max-width: 1099px)');
+try { navCollapsed = localStorage.getItem('bukarciau:sidebar-collapsed') === '1'; } catch {}
+
+function syncNavigationPreference() {
+  document.body.classList.toggle('nav-collapsed',navCollapsed);
+  const button = $('#nav-collapse');
+  button.setAttribute('aria-expanded',String(!navCollapsed));
+  button.setAttribute('aria-label',navCollapsed ? 'Išskleisti meniu' : 'Sutraukti meniu');
+  button.title = navCollapsed ? 'Išskleisti meniu' : 'Sutraukti meniu';
+  requestAnimationFrame(fitCanvas);
+}
+function syncWorkbench() {
+  const collapsed = compactWorkbench.matches && workbenchCollapsed;
+  $('#workbench-panels').hidden = collapsed;
+  $('#workbench-toggle').setAttribute('aria-expanded',String(!collapsed));
+  $('#workbench-toggle').setAttribute('aria-label',collapsed ? 'Išskleisti redagavimo įrankius' : 'Sutraukti redagavimo įrankius');
+}
+function revealWorkbench() { workbenchCollapsed = false; syncWorkbench(); }
 
 function rawSet(path, value) {
   const parts = path.split('.');
@@ -64,15 +85,23 @@ function rawSet(path, value) {
   target[parts.at(-1)] = value;
 }
 function imageFieldFor(path) {
-  const keys = {path:'source',altPath:'alt',ratioPath:'ratio',hiddenPath:'hidden',positionPath:'position'};
+  const keys = {path:'source',altPath:'alt',ratioPath:'ratio',hiddenPath:'hidden',positionPath:'position',sizePath:'size'};
   for (const slot of IMAGE_FIELDS) for (const [property,key] of Object.entries(keys)) if (slot[property] === path) return {slot,key};
   return null;
 }
 function getPath(object,path) { return rawGetPath(object,path); }
 function setImageSetting(slot,key,value) {
-  const property = {source:'path',alt:'altPath',ratio:'ratioPath',hidden:'hiddenPath',position:'positionPath'}[key];
+  const property = {source:'path',alt:'altPath',ratio:'ratioPath',hidden:'hiddenPath',position:'positionPath',size:'sizePath'}[key];
   rawSet(slot[property],value);
   updateDirty();
+}
+function clearPhotoDimensions(slot,keys) {
+  layoutTools.cancelPending();
+  const id = `photo-${slot.path.replaceAll('.','-')}`;
+  const layout = content.blockLayouts?.[id];
+  if (!layout) return;
+  for (const key of keys) layout[key] = null;
+  if (Object.values(layout).every(value => value == null)) delete content.blockLayouts[id];
 }
 function setValue(path, value) {
   const image = imageFieldFor(path);
@@ -85,12 +114,20 @@ const editorTools = createEditorTools({
   content:() => content,device:() => canvasDevice,page:() => ({'/':'home','/apie-mus/':'about','/kontaktai/':'contact','/stovyklos/stovykla-01/':'camp'}[$('#preview-route').value] || 'home'),
   mode:() => canvasMode,busy:() => busy,doc:() => $('#preview-frame').contentDocument,
   mutate:callback => { callback(content); updateDirty(); },render:() => renderCanvas(),refresh:() => renderSection(),
-  announce,notice,finish:() => { clearTimeout(canvasRenderTimer); finishCanvasEditing(); },chooseImage:target => openMediaPicker(target),
+  announce,notice,finish:() => { clearTimeout(canvasRenderTimer); layoutTools.cancelPending(); finishCanvasEditing(); },chooseImage:target => openMediaPicker(target),
   setImage:(path,key,value) => { const slot = IMAGE_FIELDS.find(item => item.path === path); if (slot) setImageSetting(slot,key,value); },
   imageSettings:path => getImageSettings(content,path,canvasDevice),editPhoto:editCanvasPhoto,
   clearPhoto:() => { canvasPhoto = null; renderCanvasPhotoInspector(); },
+  revealTools:revealWorkbench,
   selectSection,
-  openPage:page => { const route = {home:'/',about:'/apie-mus/',contact:'/kontaktai/',camp:'/stovyklos/stovykla-01/'}[page]; if (route) { $('#preview-route').value = route; section = visualSection; canvasScrollReset = true; renderSection(); } }
+  openPage:page => { const route = {home:'/',about:'/apie-mus/',contact:'/kontaktai/',camp:'/stovyklos/stovykla-01/'}[page]; if (route) { if ($('#preview-route').value !== route) layoutTools.clearSelection(); $('#preview-route').value = route; section = visualSection; canvasScrollReset = true; renderSection(); } }
+});
+const layoutTools = createLayoutTools({
+  content:() => content,mutate:callback => { callback(content); updateDirty(); },render:() => renderCanvas(),
+  doc:() => $('#preview-frame').contentDocument,mode:() => canvasMode,busy:() => busy,
+  page:() => ({'/':'home','/apie-mus/':'about','/kontaktai/':'contact','/stovyklos/stovykla-01/':'camp'}[$('#preview-route').value] || 'home'),
+  announce,revealTools:revealWorkbench,finish:() => { clearTimeout(canvasRenderTimer); editorTools.cancelPending(); finishCanvasEditing(); },
+  clearOtherSelection:() => { revealWorkbench(); canvasPhoto = null; renderCanvasPhotoInspector(); editorTools.clearSelection(); }
 });
 
 function announce(message) { $('#live-status').textContent = message; }
@@ -136,9 +173,10 @@ function handleError(error) {
   const issues = error.issues || error.detail?.issues;
   if (Array.isArray(issues) && issues.length) {
     const path = Array.isArray(issues[0].path) ? issues[0].path.join('.') : String(issues[0].path || '').replace(/^content\./,'');
+    if (layoutTools.focusIssue(path,issues[0].message)) { revealWorkbench(); notice(error.message || 'Patikrink pažymėtą lauką.','error',action); return; }
     if (editorTools.focusIssue(path,issues[0].message)) { notice(error.message || 'Patikrink pažymėtą lauką.','error',action); return; }
     const descriptor = CONTENT_FIELDS.find(field => path === field.path || path.startsWith(`${field.path}.`));
-    const image = IMAGE_FIELDS.find(field => path === field.path || path === field.altPath || path === field.ratioPath || path === field.hiddenPath);
+    const image = IMAGE_FIELDS.find(field => path === field.path || path === field.altPath || path === field.ratioPath || path === field.hiddenPath || path === field.positionPath || path === field.sizePath);
     const nextSection = image ? 'Nuotraukos' : descriptor?.group;
     if (nextSection && nextSection !== section) { section = nextSection; renderSection(); if (nextSection === 'Nuotraukos') loadMedia().catch(handleError); }
     showIssues(issues);
@@ -196,6 +234,7 @@ function applyState(next) {
   dirty = false;
   $('#identity-email').textContent = next.identity?.email || 'Prieiga patvirtinta';
   $('.avatar').textContent = (next.identity?.email || 'A').slice(0,1).toUpperCase();
+  $('.identity').title = next.identity?.email || 'Administratorius';
   $('#loading-state').hidden = true;
   $('#save-bar').hidden = false;
   renderSection();
@@ -204,6 +243,7 @@ function applyState(next) {
 
 function renderNavigation() {
   $('#section-nav').innerHTML = `<button type="button" class="nav-item nav-item-visual" data-section="${visualSection}"${section === visualSection ? ' aria-current="page"' : ''}><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M3 8h18M8 8v13m4-5 5-5 2 2-5 5h-2Z"/></svg><span>${visualSection}</span></button><div class="nav-divider" aria-hidden="true"></div>` + groups.map((group,index) => `<button type="button" class="nav-item" data-section="${escape(group)}"${section === group ? ' aria-current="page"' : ''}>${icon(index)}<span>${escape(group)}</span></button>`).join('') + '<div class="nav-divider" aria-hidden="true"></div>' + ['Nuotraukos','Dizainas','Pašalintos dalys','Versijų istorija'].map((name,index) => `<button type="button" class="nav-item" data-section="${name}"${section === name ? ' aria-current="page"' : ''}>${icon(index === 0 ? 7 : index === 3 ? 8 : 5)}<span>${name}</span></button>`).join('');
+  $('#section-nav').querySelectorAll('.nav-item').forEach(button => { button.setAttribute('aria-label',button.textContent.trim()); button.title = button.textContent.trim(); });
 }
 function scalarInput(field, path, value) {
   const id = idFor(path);
@@ -246,7 +286,7 @@ function renderSection() {
   $('#tools-section').hidden = !['Dizainas','Pašalintos dalys'].includes(section);
   if (section !== 'Nuotraukos') $('#media-section').replaceChildren();
   if (section !== visualSection) { $('#canvas-image-inspector').replaceChildren(); $('#canvas-image-inspector').hidden = true; }
-  if (section === visualSection) { editorTools.renderPalette(); renderCanvas(); renderCanvasPhotoInspector(); return; }
+  if (section === visualSection) { editorTools.renderPalette(); renderCanvas(); renderCanvasPhotoInspector(); layoutTools.renderInspector(); syncWorkbench(); return; }
   if (['Dizainas','Pašalintos dalys'].includes(section)) { editorTools.renderSection(section); return; }
   if (section === 'Nuotraukos') { renderMediaSection(); return; }
   if (section === 'Versijų istorija') { renderHistory(); return; }
@@ -386,6 +426,7 @@ function finishCanvasEditing(cancel = false, rebuild = false) {
 }
 function beginCanvasEditing(element) {
   if (busy || canvasMode !== 'edit') return;
+  layoutTools.cancelPending();
   if (canvasEditing?.element === element) return;
   finishCanvasEditing();
   const path = element.dataset.cmsField;
@@ -454,6 +495,7 @@ function bindCanvasHandlers() {
   });
   highlightCanvasPhoto();
   editorTools.bindCanvas(doc);
+  layoutTools.bindCanvas(doc);
   doc.addEventListener('click',event => {
     if (editorTools.handleCanvasClick(event)) return;
     const field = event.target.closest('[data-cms-field]');
@@ -475,7 +517,7 @@ function bindCanvasHandlers() {
     event.preventDefault(); event.stopImmediatePropagation();
     if (url.hash && (url.pathname === $('#preview-route').value || link.getAttribute('href').startsWith('#'))) { doc.querySelector(url.hash)?.scrollIntoView({behavior:'smooth'}); return; }
     const allowed = [...$('#preview-route').options].some(option => option.value === url.pathname);
-    if (canvasMode === 'view' && allowed) { finishCanvasEditing(); canvasScrollReset = true; $('#preview-route').value = url.pathname; renderCanvas(); }
+    if (canvasMode === 'view' && allowed) { finishCanvasEditing(); layoutTools.clearSelection(); canvasScrollReset = true; $('#preview-route').value = url.pathname; renderCanvas(); }
     else announce('Kitą puslapį pasirink viršuje esančiame puslapių sąraše.');
   },true);
   doc.addEventListener('input',event => { const element = event.target.closest('[data-cms-field]'); if (element && canvasEditing?.element === element) commitCanvasInput(element); });
@@ -512,7 +554,7 @@ function renderCanvas() {
   if (!rendered) return;
   canvasEditing = null;
   setCanvasLoading('loading');
-  $('#preview-frame').srcdoc = rendered.html;
+  $('#preview-frame').srcdoc = rendered.html.includes('/admin/resize.css') ? rendered.html : rendered.html.replace('</head>','<link rel="stylesheet" href="/admin/resize.css"></head>');
   $('#preview-frame').title = `${canvasMode === 'edit' ? 'Redaguojamas puslapis' : 'Juodraščio peržiūra'}: ${$('#preview-route').selectedOptions[0].textContent}`;
   document.querySelectorAll('[data-canvas-mode]').forEach(button => button.setAttribute('aria-pressed',String(button.dataset.canvasMode === canvasMode)));
   document.querySelectorAll('[data-preview-size]').forEach(button => button.setAttribute('aria-pressed',String(button.dataset.previewSize === canvasDevice)));
@@ -534,12 +576,15 @@ function fitCanvas() {
 }
 function imageRatioControls(slot) {
   const value = getPath(content,slot.ratioPath) || 'auto';
+  const sizeValue = getImageSettings(content,slot).size;
   const id = idFor(slot.ratioPath);
-  return `<fieldset class="field image-ratio-field" data-field-path="${escape(slot.ratioPath)}" aria-describedby="${id}-help"><legend class="field-label">Bloko proporcijos</legend><div class="image-ratio-options">${IMAGE_ASPECT_RATIOS.map(option => `<label class="image-ratio-option${option.value === 'auto' ? ' image-ratio-auto' : ''}"><input class="image-ratio-input" type="radio" name="${id}" value="${escape(option.value)}" data-image-ratio="${escape(slot.ratioPath)}"${value === option.value ? ' checked' : ''}><span class="image-ratio-content"><span class="image-ratio-icon ratio-icon-${option.value.replace(':','-')}" aria-hidden="true"></span><span>${escape(option.label)}</span></span></label>`).join('')}</div><p class="field-help" id="${id}-help">Keičia viso bloko aukštį pagal jo plotį. Nuotrauka užpildo bloką be ištempimo.</p></fieldset><label class="tools-field"><span>Nuotraukos vieta</span><select class="input" data-image-position="${escape(slot.path)}">${IMAGE_POSITIONS.map(position => `<option value="${position.value}"${getPath(content,slot.positionPath) === position.value ? ' selected' : ''}>${escape(position.label)}</option>`).join('')}</select><small>Telefone blokai automatiškai išdėstomi vienas po kito.</small></label>`;
+  return `<fieldset class="field image-ratio-field" data-field-path="${escape(slot.ratioPath)}" aria-describedby="${id}-help"><legend class="field-label">Bloko proporcijos</legend><div class="image-ratio-options">${IMAGE_ASPECT_RATIOS.map(option => `<label class="image-ratio-option${option.value === 'auto' ? ' image-ratio-auto' : ''}"><input class="image-ratio-input" type="radio" name="${id}" value="${escape(option.value)}" data-image-ratio="${escape(slot.ratioPath)}"${value === option.value ? ' checked' : ''}><span class="image-ratio-content"><span class="image-ratio-icon ratio-icon-${option.value.replace(':','-')}" aria-hidden="true"></span><span>${escape(option.label)}</span></span></label>`).join('')}</div><p class="field-help" id="${id}-help">Keičia viso bloko aukštį pagal jo plotį. Nuotrauka užpildo bloką be ištempimo.</p></fieldset><label class="tools-field" data-field-path="${escape(slot.sizePath)}"><span>Dydis</span><select class="input" data-image-size="${escape(slot.path)}">${IMAGE_SIZES.map(size => `<option value="${size.value}"${sizeValue === size.value ? ' selected' : ''}>${escape(size.label)}</option>`).join('')}</select><small>${slot.path === 'site.heroImage' ? 'Pasirinkus dydį pirmo ekrano nuotrauka rodoma šalia teksto, telefone - po juo.' : 'Keičia nuotraukos bloko plotį. Proporcijos nustatomos atskirai.'}</small></label><label class="tools-field"><span>Nuotraukos vieta</span><select class="input" data-image-position="${escape(slot.path)}">${IMAGE_POSITIONS.map(position => `<option value="${position.value}"${getPath(content,slot.positionPath) === position.value ? ' selected' : ''}>${escape(position.label)}</option>`).join('')}</select><small>Telefone blokai automatiškai išdėstomi vienas po kito.</small></label>`;
 }
 function editCanvasPhoto(path) {
+  layoutTools.cancelPending();
   const slot = IMAGE_FIELDS.find(field => field.path === path);
   if (!slot) return;
+  revealWorkbench();
   editorTools.clearSelection();
   canvasPhoto = path;
   renderCanvasPhotoInspector();
@@ -771,11 +816,13 @@ document.addEventListener('input',event => {
 });
 document.addEventListener('change',event => {
   if (event.target.matches('[data-upload-file]')) uploadPhoto(event.target.files[0]);
+  if (event.target.dataset.imageSize) { const slot = IMAGE_FIELDS.find(field => field.path === event.target.dataset.imageSize); if (slot && IMAGE_SIZES.some(size => size.value === event.target.value)) { clearPhotoDimensions(slot,['width','height']); setImageSetting(slot,'size',event.target.value); renderCanvas(); announce(`Nuotraukos dydis: ${IMAGE_SIZES.find(size => size.value === event.target.value).label}.`); } }
   if (event.target.dataset.imagePosition) { const slot = IMAGE_FIELDS.find(field => field.path === event.target.dataset.imagePosition); if (slot && IMAGE_POSITIONS.some(position => position.value === event.target.value)) { setImageSetting(slot,'position',event.target.value); renderCanvas(); announce('Nuotraukos vieta pakeista.'); } }
   const input = event.target.closest('[data-image-ratio]');
   if (!input || !content || busy || !input.checked) return;
   const slot = IMAGE_FIELDS.find(field => field.ratioPath === input.dataset.imageRatio);
   if (!slot || !IMAGE_ASPECT_RATIOS.some(option => option.value === input.value)) return;
+  clearPhotoDimensions(slot,['height']);
   setValue(slot.ratioPath,input.value);
   input.closest('.field')?.querySelector('.field-error')?.remove();
   input.closest('.field')?.querySelectorAll('[aria-invalid]').forEach(element => element.removeAttribute('aria-invalid'));
@@ -795,7 +842,10 @@ $('#confirm-dialog').addEventListener('cancel',event => { event.preventDefault()
 $('#media-picker-close').addEventListener('click',() => $('#media-picker').close());
 $('#media-picker').addEventListener('close',() => { activeSlot = null; });
 $('#preview-toggle').addEventListener('click',showPreview);
-$('#preview-route').addEventListener('change',() => { finishCanvasEditing(); canvasPhoto = null; renderCanvasPhotoInspector(); canvasScrollReset = true; renderCanvas(); });
+$('#preview-route').addEventListener('change',() => { finishCanvasEditing(); layoutTools.clearSelection(); canvasPhoto = null; renderCanvasPhotoInspector(); canvasScrollReset = true; renderCanvas(); });
+$('#nav-collapse').addEventListener('click',() => { navCollapsed = !navCollapsed; syncNavigationPreference(); try { localStorage.setItem('bukarciau:sidebar-collapsed',navCollapsed ? '1' : '0'); } catch {} });
+$('#workbench-toggle').addEventListener('click',() => { workbenchCollapsed = !workbenchCollapsed; syncWorkbench(); });
+compactWorkbench.addEventListener('change',syncWorkbench);
 $('#preview-frame').addEventListener('load',bindCanvasDocument);
 $('#preview-frame').addEventListener('error',() => setCanvasLoading('error'));
 new ResizeObserver(fitCanvas).observe($('#canvas-stage'));
@@ -804,5 +854,7 @@ document.addEventListener('keydown',event => {
 });
 window.addEventListener('beforeunload',event => { if (dirty || busy || uploadBusy) { event.preventDefault(); event.returnValue = ''; } });
 renderNavigation();
+syncNavigationPreference();
+syncWorkbench();
 try { const [next] = await Promise.all([api('state'),loadCanvasAssets()]); applyState(next); }
 catch (error) { $('#loading-state').hidden = true; handleError(error); }

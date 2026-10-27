@@ -9,6 +9,7 @@ const imageRatioClasses = new Map([
   ['1:1', 'image-ratio-1-1'], ['2:3', 'image-ratio-2-3'], ['3:2', 'image-ratio-3-2'],
   ['4:3', 'image-ratio-4-3'], ['9:16', 'image-ratio-9-16'], ['16:9', 'image-ratio-16-9']
 ]);
+const explicitImageSize = value => ['small', 'normal', 'large'].includes(value) ? value : null;
 
 function routeFor(pathname) {
   const path = String(pathname || '/').split(/[?#]/, 1)[0];
@@ -158,6 +159,11 @@ export function renderSitemap(input) {
 const pageKeys = {'/': 'home', '/apie-mus/': 'about', '/kontaktai/': 'contact', '/stovyklos/stovykla-01/': 'camp'};
 const safeColor = value => typeof value === 'string' && /^#[a-f0-9]{6}$/i.test(value);
 const blockId = value => typeof value === 'string' && /^[a-f0-9]{32}$/.test(value);
+const layoutBounds = {width:[20,100], height:[40,2000], paddingTop:[0,240], paddingBottom:[0,240]};
+const boundedLayout = (content, id) => Object.fromEntries(Object.entries(layoutBounds).map(([key, [min,max]]) => {
+  const value = content.blockLayouts?.[id]?.[key];
+  return [key, Number.isInteger(value) && value >= min && value <= max ? value : null];
+}));
 const withClass = (html, value) => html.replace(/^(\s*<[a-z][\w-]*)([^>]*>)/i, (all, tag, rest) => /\bclass="/.test(rest) ? tag + rest.replace(/\bclass="/, `class="${value} `) : `${tag} class="${value}"${rest}`);
 const withAttributes = (html, attributes) => html.replace(/^(\s*<[a-z][\w-]*)(?=[\s>])/i, `$1${attributes}`);
 const safeUrl = value => {
@@ -166,7 +172,7 @@ const safeUrl = value => {
 };
 
 function hasResponsiveContent(content) {
-  return Boolean(content.hiddenParts?.length || content.partOrder?.length || content.design || Object.values(content.pageBlocks || {}).some(blocks => Array.isArray(blocks) && blocks.length) || IMAGE_FIELDS.some(slot => (getPath(content, slot.positionPath) || 'default') !== 'default') || ['site.values', 'site.aboutText', 'site.story', 'camps.0.description'].some(path => getPath(content, path)?.length === 0));
+  return Boolean(content.hiddenParts?.length || content.partOrder?.length || content.design || Object.keys(content.blockLayouts || {}).length || Object.values(content.pageBlocks || {}).some(blocks => Array.isArray(blocks) && blocks.length) || IMAGE_FIELDS.some(slot => (getPath(content, slot.positionPath) || 'default') !== 'default' || (slot.sizePath && explicitImageSize(getPath(content, slot.sizePath)))) || ['site.values', 'site.aboutText', 'site.story', 'camps.0.description'].some(path => getPath(content, path)?.length === 0));
 }
 
 // Defaults continue through the reviewed renderer. The responsive renderer is opt-in
@@ -184,6 +190,20 @@ function renderResponsivePage(content, pathname, {assets = {}, preview = false, 
   const pageKey = pageKeys[path];
   const knownParts = new Set((editorial.CONTENT_PARTS || []).map(part => part.id));
   const knownZones = new Set((editorial.CONTENT_ZONES || []).filter(zone => zone.page === pageKey).map(zone => zone.id));
+  const knownLayouts = new Map((editorial.getLayoutTargets?.(content) || []).map(target => [target.id, target]));
+  const photoLayoutId = field => `photo-${field.replaceAll('.', '-')}`;
+  const photoDimensions = field => boundedLayout(content, photoLayoutId(field));
+  const hasPhotoDimensions = field => ['width', 'height'].some(key => typeof photoDimensions(field)[key] === 'number');
+  function markLayout(id, html) {
+    if (!html) return '';
+    const target = knownLayouts.get(id);
+    if (!target || !/^[a-zA-Z0-9-]+$/.test(id)) return html;
+    const dimensions = boundedLayout(content, id);
+    const flags = ['width','height'].filter(key => typeof dimensions[key] === 'number').map(key => ` cms-layout-has-${key}`).join('');
+    const padding = ['paddingTop','paddingBottom'].some(key => typeof dimensions[key] === 'number');
+    const marked = withClass(html, `cms-layout cms-layout-${target.type} cms-layout-${id}${flags}${padding ? ' cms-layout-has-padding' : ''}`);
+    return preview ? withAttributes(marked, ` data-cms-layout="${id}"`) : marked;
+  }
   function profile(device) {
     const data = content;
     const {site, camps, copy} = data;
@@ -200,7 +220,8 @@ function renderResponsivePage(content, pathname, {assets = {}, preview = false, 
     }
     function part(id, html) {
       if (!html || hidden.has(id)) return '';
-      return preview && knownParts.has(id) ? withAttributes(html, ` data-cms-part="${e(id)}"`) : html;
+      const marked = preview && knownParts.has(id) ? withAttributes(html, ` data-cms-part="${e(id)}"`) : html;
+      return markLayout(`part-${id.replaceAll('.', '-')}`, marked);
     }
     function group(zone, entries, cls = '', tag = 'div') {
       const sorted = entries.map((entry, index) => ({id:entry[0], html:entry[1], index})).sort((a, b) => (order.get(a.id) ?? Infinity) - (order.get(b.id) ?? Infinity) || a.index - b.index);
@@ -230,8 +251,9 @@ function renderResponsivePage(content, pathname, {assets = {}, preview = false, 
       if (image.hidden) return '';
       const src = source(image.source);
       const ratio = imageRatioClasses.get(image.ratio);
+      const size = explicitImageSize(image.size);
       const label = IMAGE_FIELDS.find(slot => slot.path === field)?.label || 'Nuotrauka';
-      return `<div class="${cls}${ratio ? ` ${ratio}` : ''}"${preview ? ` data-cms-image="${e(field)}" data-cms-label="${e(label)}" tabindex="0" aria-label="Keisti nuotrauką: ${e(label)}"` : src ? '' : ' aria-hidden="true"'}>${src ? `<img src="${e(src)}" alt="${e(image.alt)}" loading="${field === 'site.heroImage' ? 'eager' : 'lazy'}" decoding="async"${field === 'site.heroImage' ? ' fetchpriority="high"' : ''}>` : ''}</div>`;
+      return markLayout(photoLayoutId(field), `<div class="${cls}${ratio ? ` ${ratio}` : ''}${size ? ` image-size-${size}` : ''}"${preview ? ` data-cms-image="${e(field)}" data-cms-label="${e(label)}" tabindex="0" aria-label="Keisti nuotrauką: ${e(label)}"` : src ? '' : ' aria-hidden="true"'}>${src ? `<img src="${e(src)}" alt="${e(image.alt)}" loading="${field === 'site.heroImage' ? 'eager' : 'lazy'}" decoding="async"${field === 'site.heroImage' ? ' fetchpriority="high"' : ''}>` : ''}</div>`);
     }
     function imageTargets(field) {
       if (!preview || settings(field).hidden) return '';
@@ -241,8 +263,9 @@ function renderResponsivePage(content, pathname, {assets = {}, preview = false, 
     function layout(field, html, cls = '', fallback = 'below') {
       const image = settings(field), media = photo(field);
       const position = image.position === 'default' ? fallback : image.position;
+      const size = explicitImageSize(image.size);
       const hasCopy = Boolean(html.replace(/<[^>]*>/g, '').trim());
-      return `<div class="responsive-layout ${cls} r-position-${e(position)}${media ? '' : ' without-media'}${hasCopy ? '' : ' without-copy'}">${media ? `<div class="responsive-layout-media">${media}</div>` : ''}${hasCopy ? `<div class="responsive-layout-copy">${html}</div>` : ''}${imageTargets(field)}</div>`;
+      return `<div class="responsive-layout ${cls} photo-layout-${field.replaceAll('.', '-')} r-position-${e(position)}${size ? ` r-media-size-${size}` : ''}${media ? '' : ' without-media'}${hasCopy ? '' : ' without-copy'}">${media ? `<div class="responsive-layout-media">${media}</div>` : ''}${hasCopy ? `<div class="responsive-layout-copy">${html}</div>` : ''}${imageTargets(field)}</div>`;
     }
     function zone(id) {
       if (!knownZones.has(id)) return '';
@@ -264,7 +287,7 @@ function renderResponsivePage(content, pathname, {assets = {}, preview = false, 
           inner = block.text && url ? `<a class="${block.type === 'button' ? 'button button-solid' : 'text-link'}" href="${e(url)}" target="_blank" rel="noopener noreferrer">${e(block.text)} ${arrow}${newWindow}</a>` : preview ? '<span class="cms-incomplete-block">Įrašyk nuorodos tekstą ir HTTPS adresą</span>' : '';
         }
         if (block.type === 'spacer') inner = '<span aria-hidden="true"></span>';
-        return inner ? `<div class="${cls}"${attrs}>${inner}</div>` : '';
+        return inner ? markLayout(`block-${block.id}`, `<div class="${cls}"${attrs}>${inner}</div>`) : '';
       }).join('');
       return rendered || preview ? `<div class="cms-content-zone wrap"${preview ? ` data-cms-drop-zone="${e(id)}" aria-label="${e(editorial.CONTENT_ZONES.find(zone => zone.id === id)?.label || id)}"` : ''}>${rendered}</div>` : '';
     }
@@ -287,11 +310,12 @@ function renderResponsivePage(content, pathname, {assets = {}, preview = false, 
     return `<a class="skip-link" href="#turinys">Pereiti prie turinio</a><header class="site-header"><div class="header-inner"><a class="brand" href="/" aria-label="${e(content.site.name)} - pradžia"><img src="/assets/logo.svg" width="104" height="80" alt="Arčiau"></a><button class="menu-toggle" aria-controls="navigation" aria-expanded="false" aria-label="Atidaryti meniu"><span></span><span></span></button><nav id="navigation" aria-label="Pagrindinis meniu">${links}</nav></div></header>`;
   }
   function footer(c) {
-    return `<footer class="site-footer"><div class="footer-main wrap"><a class="footer-brand" href="/" aria-label="${e(c.site.name)} - pradžia"><img src="/assets/logo.svg" width="150" height="116" alt="Arčiau"></a>${c.group('footer.contact', [
+    const main = `<div class="footer-main wrap"><a class="footer-brand" href="/" aria-label="${e(c.site.name)} - pradžia"><img src="/assets/logo.svg" width="150" height="116" alt="Arčiau"></a>${c.group('footer.contact', [
       ['common.footer.contactHeading', `<span class="eyebrow">${c.text('copy.footer.contact')}</span>`], ['common.footer.email', `<a href="mailto:${e(c.site.email)}">${c.text('site.email')}</a>`], ['common.footer.phone', `<a href="tel:${e(c.site.phone)}">${c.text('site.phoneDisplay')}</a>`]
     ], 'footer-links')}${c.group('footer.about', [
       ['common.footer.aboutHeading', `<span class="eyebrow">${c.text('copy.footer.about')}</span>`], ['common.footer.organizers', `<a href="/apie-mus/">${c.text('site.organizers')}</a>`], ['common.footer.facebook', `<a href="${e(safeUrl(c.site.facebook) || 'https://www.facebook.com/')}" target="_blank" rel="noopener noreferrer">${c.text('copy.footer.facebook')} ↗${newWindow}</a>`]
-    ], 'footer-links')}</div>${c.group('footer.bottom', [['common.footer.copyright', `<span>© ${new Date().getUTCFullYear()} ${c.text('site.name')}</span>`], ['common.footer.values', c.site.values.length ? `<span>${c.values(' · ')}</span>` : '']], 'footer-bottom wrap')}</footer>`;
+    ], 'footer-links')}</div>`;
+    return `<footer class="site-footer">${markLayout('section-footer', main)}${c.group('footer.bottom', [['common.footer.copyright', `<span>© ${new Date().getUTCFullYear()} ${c.text('site.name')}</span>`], ['common.footer.values', c.site.values.length ? `<span>${c.values(' · ')}</span>` : '']], 'footer-bottom wrap')}</footer>`;
   }
   function facts(c) {
     return c.group('detail.facts', [
@@ -311,13 +335,15 @@ function renderResponsivePage(content, pathname, {assets = {}, preview = false, 
     const status = withAttributes(c.group('registration.status', entries, 'registration-status'), ` data-registration-status="${c.registrationUrl ? 'open' : 'pending'}"`);
     return intro || status ? `<div class="registration-inner wrap${!intro || !status ? ' responsive-single-column' : ''}">${intro}${status}</div>` : '';
   }
-  const registrationSection = () => {
+  const registrationSection = (id = pageKey === 'home' ? 'section-home-registration' : 'section-camp-registration') => {
     const inner = variant(registration);
-    return inner ? `<section id="registracija" class="registration-section">${inner}</section>` : '<div id="registracija"></div>';
+    return inner ? markLayout(id, `<section id="registracija" class="registration-section">${inner}</section>`) : '<div id="registracija"></div>';
   };
   function hero() {
     const c = active, image = c.settings('site.heroImage');
-    const classes = `hero-position-${image.position}${image.hidden ? ' hero-hidden' : ''}${image.ratio !== 'auto' ? ' hero-custom-ratio' : ''}${image.source && !image.hidden ? ' hero-has-photo' : ''}`;
+    const size = explicitImageSize(image.size);
+    const position = (size || hasPhotoDimensions('site.heroImage')) && image.position === 'default' ? 'right' : image.position;
+    const classes = `hero-position-${position} photo-layout-site-heroImage${size ? ` hero-photo-size-${size}` : ''}${image.hidden ? ' hero-hidden' : ''}${image.ratio !== 'auto' ? ' hero-custom-ratio' : ''}${image.source && !image.hidden ? ' hero-has-photo' : ''}`;
     const media = c.photo('site.heroImage', 'hero-media responsive-hero-media');
     const copy = c.group('home.hero', [
       ['home.hero.eyebrow', `<span class="eyebrow">${c.text('copy.home.heroEyebrow')}</span>`],
@@ -329,16 +355,16 @@ function renderResponsivePage(content, pathname, {assets = {}, preview = false, 
       ['home.hero.values', c.site.values.length ? `<span class="responsive-hero-values">${c.values(' <i>·</i> ')}</span>` : ''],
       ['home.hero.next', '<a class="responsive-hero-next" href="#susipazinkime" aria-label="Toliau - susipažinkime">↓</a>']
     ], 'hero-bottom responsive-hero-bottom');
-    return `<section class="hero responsive-hero ${classes}">${media}${copy}${bottom}${c.imageTargets('site.heroImage')}</section>`;
+    return markLayout('section-home-hero', `<section class="hero responsive-hero ${classes}">${media}${copy}${bottom}${c.imageTargets('site.heroImage')}</section>`);
   }
   function homeIntro(c) {
     const heading = c.group('home.introHeading', [['home.intro.eyebrow', `<span class="eyebrow">${c.text('copy.home.introEyebrow')}</span>`], ['home.intro.title', `<h2>${c.text('copy.home.introTitle')}</h2>`], ['home.intro.link', `<a class="text-link" href="/apie-mus/">${c.text('copy.actions.about')} ${arrow}</a>`]], 'intro-heading');
     const paragraphs = c.group('home.introParagraphs', c.site.aboutText.map((value, index) => [`home.intro.paragraph.${index}`, `<p>${c.text(`site.aboutText.${index}`)}</p>`]), 'intro-copy');
     if (c.settings('site.statementImage').position === 'default') {
-      const copy = heading || paragraphs ? `<div class="intro wrap section${!heading || !paragraphs ? ' responsive-single-column' : ''}">${heading}${paragraphs}</div>` : '';
+      const copy = heading || paragraphs ? markLayout('section-home-intro', `<div class="intro wrap section${!heading || !paragraphs ? ' responsive-single-column' : ''}">${heading}${paragraphs}</div>`) : '';
       return `<div class="responsive-intro-profile responsive-intro-default">${copy}${c.photo('site.statementImage', 'statement responsive-statement')}${c.imageTargets('site.statementImage')}</div>`;
     }
-    return `<div class="responsive-intro-profile wrap section">${c.layout('site.statementImage', `<div class="intro${!heading || !paragraphs ? ' responsive-single-column' : ''}">${heading}${paragraphs}</div>`, 'responsive-intro-layout', 'below')}</div>`;
+    return markLayout('section-home-intro', `<div class="responsive-intro-profile wrap section">${c.layout('site.statementImage', `<div class="intro${!heading || !paragraphs ? ' responsive-single-column' : ''}">${heading}${paragraphs}</div>`, 'responsive-intro-layout', 'below')}</div>`);
   }
   function campCard(c) {
     const practical = !c.camp.location && !c.camp.price ? c.text('copy.camp.practicalPending') : `${c.text(c.camp.location ? 'camps.0.location' : 'copy.camp.locationPending')}. ${c.camp.price ? c.text('copy.camp.price') + ': ' + c.text('camps.0.price') : c.text('copy.camp.pricePendingSentence')}.`;
@@ -346,40 +372,46 @@ function renderResponsivePage(content, pathname, {assets = {}, preview = false, 
     const main = c.settings('camps.0.image'), secondary = c.settings('camps.0.secondaryImage');
     const photos = [['camps.0.image', main], ['camps.0.secondaryImage', secondary]].filter(([, image]) => !image.hidden);
     let layout;
-    if (main.position === 'default' && secondary.position === 'default') {
+    if (main.position === 'default' && secondary.position === 'default' && !explicitImageSize(main.size) && !explicitImageSize(secondary.size) && !hasPhotoDimensions('camps.0.image') && !hasPhotoDimensions('camps.0.secondaryImage')) {
       const media = photos.length ? `<div class="camp-visual${photos.length === 1 ? ' is-standalone' : ''}">${c.photo('camps.0.image')}${c.photo('camps.0.secondaryImage', main.hidden ? 'photo photo-standalone' : 'photo photo-small')}</div>` : '';
       layout = `<div class="responsive-layout responsive-camp-default r-position-${'right'}${media ? '' : ' without-media'}">${media ? `<div class="responsive-layout-media">${media}</div>` : ''}<div class="responsive-layout-copy">${copy}</div></div>`;
     } else {
       const positions = {above:[], below:[], left:[], right:[]};
-      for (const [field, image] of photos) positions[image.position === 'default' ? ('right') : image.position].push(c.photo(field));
-      const column = position => positions[position].length ? `<div class="responsive-camp-${position}">${positions[position].join('')}</div>` : '';
-      layout = `${column('above')}<div class="responsive-camp-middle${positions.left.length ? ' has-left' : ''}${positions.right.length ? ' has-right' : ''}">${column('left')}<div class="responsive-layout-copy">${copy}</div>${column('right')}</div>${column('below')}`;
+      for (const [field, image] of photos) {
+        const position = image.position === 'default' ? (field === 'camps.0.secondaryImage' ? 'below' : 'right') : image.position;
+        positions[position].push({field, image});
+      }
+      const sizes = ['small', 'normal', 'large'];
+      const columnSize = position => sizes[Math.max(...positions[position].map(({image}) => sizes.indexOf(explicitImageSize(image.size) || 'large')))];
+      const column = position => positions[position].length ? `<div class="responsive-camp-${position}${['left','right'].includes(position) ? ` r-camp-column-${columnSize(position)}` : ''}">${positions[position].map(({field}) => c.photo(field)).join('')}</div>` : '';
+      const manualWidth = ['camps.0.image','camps.0.secondaryImage'].some(field => photoDimensions(field).width != null);
+      layout = `${column('above')}<div class="responsive-camp-middle${manualWidth ? ' cms-camp-manual-width' : ''}${positions.left.length ? ` has-left r-left-size-${columnSize('left')}` : ''}${positions.right.length ? ` has-right r-right-size-${columnSize('right')}` : ''}">${column('left')}<div class="responsive-layout-copy">${copy}</div>${column('right')}</div>${column('below')}`;
     }
     return `<article class="camp-row"><div class="responsive-camp-profile wrap">${layout}${c.imageTargets('camps.0.image')}${c.imageTargets('camps.0.secondaryImage')}</div></article>`;
   }
   function aboutStory(c) {
     const copy = c.group('about.story', [...c.site.story.map((value, index) => [`about.paragraph.${index}`, `<p>${c.text(`site.story.${index}`)}</p>`]), ['about.link', `<a class="text-link" href="/#stovykla">${c.text('copy.actions.camp')} ${arrow}</a>`]], 'story-copy');
-    return `<div class="responsive-about-profile wrap">${c.layout('site.togetherImage', copy, 'responsive-about-layout', 'left')}</div>`;
+    return markLayout('section-about-story', `<div class="responsive-about-profile wrap">${c.layout('site.togetherImage', copy, 'responsive-about-layout', 'left')}</div>`);
   }
   function aboutInvitation(c) {
-    return c.group('about.invitation', [['about.invitationDate', `<span class="eyebrow">${c.text('camps.0.date')}</span>`], ['about.invitationTitle', `<h2>${c.text('copy.about.invitation')}</h2>`], ['about.cta', c.cta()]], 'contact-strip wrap responsive-invitation');
+    return markLayout('section-about-invitation', c.group('about.invitation', [['about.invitationDate', `<span class="eyebrow">${c.text('camps.0.date')}</span>`], ['about.invitationTitle', `<h2>${c.text('copy.about.invitation')}</h2>`], ['about.cta', c.cta()]], 'contact-strip wrap responsive-invitation'));
   }
   function detailBody(c) {
     const description = c.group('detail.description', [['detail.aboutEyebrow', `<span class="eyebrow">${c.text('copy.camp.about')}</span>`], ['detail.introTitle', `<h2>${c.text('camps.0.introTitle')}</h2>`], ...c.camp.description.map((value, index) => [`detail.paragraph.${index}`, `<p>${c.text(`camps.0.description.${index}`)}</p>`])], 'detail-description');
     const program = c.part('detail.programHeading', `<h3 class="program-title">${c.text('copy.camp.program')}</h3>`) + (c.camp.program.length ? c.group('detail.program', c.camp.program.map((value, index) => [`detail.program.${index}`, `<div><h4>${c.text(`camps.0.program.${index}.title`)}</h4><p>${c.text(`camps.0.program.${index}.text`)}</p></div>`]), 'program') : c.part('detail.programPending', `<p>${c.text('copy.camp.programPending')}</p>`));
     const included = (field, key) => c.camp[field].length ? `<div>${c.part(`detail.${key}Heading`, `<h3>${c.text(`copy.camp.${key}`)}</h3>`)}${c.group(`detail.${key}`, c.camp[field].map((value, index) => [`detail.${key}.${index}`, `<li>${c.text(`camps.0.${field}.${index}`)}</li>`]), '', 'ul')}</div>` : '';
     const faq = c.part('detail.faqEyebrow', `<span class="eyebrow">${c.text('copy.camp.faqEyebrow')}</span>`) + c.part('detail.faqTitle', `<h2>${c.text('copy.camp.faqTitle')}</h2>`) + c.group('detail.faq', c.camp.faq.map((item, index) => [`detail.faq.${index}`, `<details><summary>${c.text(`camps.0.faq.${index}.question`)}<span aria-hidden="true">+</span></summary><p>${c.text(`camps.0.faq.${index}.${c.registrationUrl && item.answerWhenOpen ? 'answerWhenOpen' : 'answer'}`)}</p></details>`]), 'faq');
-    const body = `<div class="detail-layout"><section>${description}${program}<div class="included-grid">${included('included', 'included')}${included('notIncluded', 'notIncluded')}</div></section><section>${faq}</section></div>`;
-    return `<div class="responsive-detail-profile wrap section">${c.layout('camps.0.detailImage', body, 'responsive-detail-layout', 'above')}</div>`;
+    const body = `<div class="detail-layout">${markLayout('section-camp-description', `<section>${description}${markLayout('section-camp-program', `<div class="detail-program">${program}</div>`)}<div class="included-grid">${included('included', 'included')}${included('notIncluded', 'notIncluded')}</div></section>`)}${markLayout('section-camp-faq', `<section>${faq}</section>`)}</div>`;
+    return markLayout('section-camp-content', `<div class="responsive-detail-profile wrap section">${c.layout('camps.0.detailImage', body, 'responsive-detail-layout', 'above')}</div>`);
   }
   let body = '', metadata;
   if (pageKey === 'home') {
     metadata = content.seo.home;
     const campHeading = variant(c => c.group('home.campHeading', [['home.camp.eyebrow', `<span class="eyebrow">${c.text('copy.home.campEyebrow')}</span>`], ['home.camp.heading', `<h2>${c.text('copy.home.campTitle')}</h2>`]], 'section-heading wrap responsive-section-heading'));
-    body = `${hero()}${zone('home.afterHero')}${zone('home.beforeIntro')}<section id="susipazinkime" class="responsive-intro">${variant(homeIntro)}</section>${zone('home.afterIntro')}${zone('home.beforeCamp')}<section id="stovykla" class="camps"><span id="stovyklos" class="legacy-anchor" aria-hidden="true"></span>${campHeading}${variant(campCard)}</section>${zone('home.afterCamp')}${zone('home.beforeRegistration')}${registrationSection()}${zone('home.afterRegistration')}`;
+    body = `${hero()}${zone('home.afterHero')}${zone('home.beforeIntro')}<section id="susipazinkime" class="responsive-intro">${variant(homeIntro)}</section>${zone('home.afterIntro')}${zone('home.beforeCamp')}${markLayout('section-home-camp', `<section id="stovykla" class="camps"><span id="stovyklos" class="legacy-anchor" aria-hidden="true"></span>${campHeading}${variant(campCard)}</section>`)}${zone('home.afterCamp')}${zone('home.beforeRegistration')}${registrationSection()}${zone('home.afterRegistration')}`;
   } else if (pageKey === 'about') {
     metadata = content.seo.about;
-    body = `${active.group('about.heading', [['about.eyebrow', `<span class="eyebrow">${active.text('site.name')}</span>`], ['about.title', `<h1>${active.text('site.storyTitle')}</h1>`]], 'page-heading wrap', 'section')}${zone('about.beforeStory')}${aboutStory(active)}${zone('about.afterStory')}${zone('about.beforeInvitation')}${aboutInvitation(active)}${zone('about.afterInvitation')}`;
+    body = `${markLayout('section-about-heading', active.group('about.heading', [['about.eyebrow', `<span class="eyebrow">${active.text('site.name')}</span>`], ['about.title', `<h1>${active.text('site.storyTitle')}</h1>`]], 'page-heading wrap', 'section'))}${zone('about.beforeStory')}${aboutStory(active)}${zone('about.afterStory')}${zone('about.beforeInvitation')}${aboutInvitation(active)}${zone('about.afterInvitation')}`;
   } else if (pageKey === 'contact') {
     metadata = content.seo.contact;
     const c = active;
@@ -391,7 +423,7 @@ function renderResponsivePage(content, pathname, {assets = {}, preview = false, 
       ['contact.phone', `<div class="contact-item"><span>${c.text('copy.contact.phone')}</span><a href="tel:${e(c.site.phone)}">${c.text('site.phoneDisplay')} ${arrow}</a></div>`],
       ['contact.facebook', `<div class="contact-item"><span>${c.text('copy.contact.social')}</span>${facebook ? `<a href="${e(facebook)}" target="_blank" rel="noopener noreferrer">${c.text('copy.footer.facebook')} ↗${newWindow}</a>` : `<span>${c.text('copy.footer.facebook')}</span>`}</div>`]
     ], 'contact-copy');
-    body = `${zone('contact.beforeContent')}<section class="contact-page wrap${copy ? '' : ' responsive-single-column'}">${copy}<div class="contact-brand"><img src="/assets/logo-original.jpeg" alt="${e(c.copy.contact.logoAlt)}" width="1181" height="1181"></div></section>${zone('contact.afterContent')}`;
+    body = `${zone('contact.beforeContent')}${markLayout('section-contact-content', `<section class="contact-page wrap${copy ? '' : ' responsive-single-column'}">${copy}<div class="contact-brand"><img src="/assets/logo-original.jpeg" alt="${e(c.copy.contact.logoAlt)}" width="1181" height="1181"></div></section>`)}${zone('contact.afterContent')}`;
   } else if (pageKey === 'camp') {
     metadata = {...content.seo.camp, title:content.seo.camp.title || `${content.camps[0].title} · ${content.camps[0].date}`};
     const c = active;
@@ -401,7 +433,7 @@ function renderResponsivePage(content, pathname, {assets = {}, preview = false, 
       ['detail.title', `<h1>${c.text('camps.0.title')}</h1>`], ['detail.summary', `<p>${c.text('camps.0.summary')}</p>`],
       ['detail.cta', `<div class="detail-heading-action">${c.cta({local:true})}</div>`]
     ], 'detail-heading-copy');
-    body = `<section class="camp-detail-heading wrap">${top}${facts(c)}</section>${zone('camp.beforeDescription')}${detailBody(c)}${zone('camp.afterDescription')}${zone('camp.beforeRegistration')}${registrationSection()}${zone('camp.afterRegistration')}`;
+    body = `${markLayout('section-camp-heading', `<section class="camp-detail-heading wrap">${top}${facts(c)}</section>`)}${zone('camp.beforeDescription')}${detailBody(c)}${zone('camp.afterDescription')}${zone('camp.beforeRegistration')}${registrationSection()}${zone('camp.afterRegistration')}`;
   } else {
     metadata = content.seo.notFound;
     body = active.group('notFound.copy', [['notFound.eyebrow', '<span class="eyebrow">404</span>'], ['notFound.title', `<h1>${active.text('copy.notFound.title', true)}</h1>`], ['notFound.back', `<a class="button button-solid" href="/">${active.text('copy.actions.back')} ${arrow}</a>`]], 'not-found wrap', 'section');
@@ -413,6 +445,87 @@ function renderResponsivePage(content, pathname, {assets = {}, preview = false, 
   const themed = Boolean(content.design);
   const html = `<!doctype html><html lang="lt"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>${e(title)}</title><meta name="description" content="${e(metadata.description)}">${content.site.draft || preview ? '<meta name="robots" content="noindex, nofollow">' : ''}<meta name="theme-color" content="#bfebac"><meta property="og:type" content="website"><meta property="og:locale" content="lt_LT"><meta property="og:title" content="${e(title)}"><meta property="og:description" content="${e(metadata.description)}">${canonical}<link rel="icon" href="/assets/favicon.svg" type="image/svg+xml"><link rel="stylesheet" href="${e(assets.styles || '/styles.css')}">${theme ? `<link rel="stylesheet" href="${e(assets.theme || '/theme.css')}">` : ''}${preview ? '<link rel="stylesheet" href="/admin/visual.css">' : ''}<script src="${e(assets.script || '/app.js')}" defer></script></head><body class="responsive-site cms-page-${pageKey || 'not-found'}${themed ? ' cms-themed' : ''}"${preview ? ` data-cms-device="${selectedDevice}"` : ''}>${header()}<main id="turinys" tabindex="-1">${body}</main>${variant(footer)}</body></html>`;
   return {html, title};
+}
+
+export function renderLayoutRules(input) {
+  const content = normalizeContent(input);
+  const targets = new Map((editorial.getLayoutTargets?.(content) || []).map(target => [target.id, target]));
+  const rules = [];
+  const add = (selector, properties) => { if (Object.keys(properties).length) rules.push({selector, properties}); };
+  for (const id of Object.keys(content.blockLayouts || {})) {
+    const target = targets.get(id);
+    if (!target || !/^[a-zA-Z0-9-]+$/.test(id)) continue;
+    const dimensions = boundedLayout(content, id);
+    const selector = `.cms-layout-${id}`;
+    const properties = {};
+    const photo = target.type === 'photo';
+    if (dimensions.width != null) {
+      if (photo) properties['--layout-image-width'] = `${dimensions.width}%`;
+      else properties.width = `${dimensions.width}%`;
+      Object.assign(properties, {'max-width':'100%', 'min-width':'0px', 'margin-left':'auto', 'margin-right':'auto'});
+    }
+    if (dimensions.height != null) {
+      properties.height = photo ? `${dimensions.height}px` : 'auto';
+      properties['min-height'] = photo ? '0px' : `${dimensions.height}px`;
+      properties['max-height'] = 'none';
+      if (photo) properties['aspect-ratio'] = 'auto';
+    }
+    for (const [key, property] of [['paddingTop','padding-top'], ['paddingBottom','padding-bottom']]) {
+      const value = dimensions[key] ?? (dimensions.height != null ? 0 : null);
+      if (value == null) continue;
+      properties[property] = `${value}px`;
+      if (photo) properties[`--layout-photo-${property}`] = `${value}px`;
+    }
+    if (Object.keys(properties).length) properties['box-sizing'] = 'border-box';
+    add(selector, properties);
+    if (photo && dimensions.width != null) {
+      const fraction = dimensions.width / 100;
+      const path = target.path.replaceAll('.', '-');
+      add(`.responsive-layout.photo-layout-${path},.responsive-hero.photo-layout-${path}`, {
+        '--manual-image-track':`${fraction}fr`, '--manual-copy-track':`${2 - fraction}fr`
+      });
+    }
+    const clearTop = dimensions.height != null || dimensions.paddingTop != null;
+    const clearBottom = dimensions.height != null || dimensions.paddingBottom != null;
+    const innerPadding = {};
+    if (clearTop) innerPadding['padding-top'] = '0px';
+    if (clearBottom) innerPadding['padding-bottom'] = '0px';
+    if (id === 'section-home-hero') add(`${selector}>.hero-content,${selector}>.hero-bottom`, innerPadding);
+    if (id === 'section-home-camp') {
+      if (clearTop) add(`${selector}>.section-heading`, {'padding-top':'0px'});
+      add(`${selector}>.camp-row,${selector} .camp-copy`, innerPadding);
+    }
+  }
+  // The two camp photos can share a side column. Use its widest frame to size
+  // the column, then express each individual width relative to that column.
+  const campFields = ['camps.0.image','camps.0.secondaryImage'];
+  const manualCamp = campFields.some(path => boundedLayout(content, `photo-${path.replaceAll('.', '-')}`).width != null);
+  if (manualCamp) {
+    const columns = {left:[], right:[]};
+    for (const path of campFields) {
+      const image = getImageSettings(content, path);
+      if (image.hidden) continue;
+      const position = image.position === 'default' ? (path === 'camps.0.image' ? 'right' : 'below') : image.position;
+      if (!columns[position]) continue;
+      const dimensions = boundedLayout(content, `photo-${path.replaceAll('.', '-')}`);
+      const width = dimensions.width ?? ({small:55,normal:75,large:100})[image.size] ?? 100;
+      columns[position].push({path, width});
+    }
+    const properties = {};
+    const both = columns.left.length && columns.right.length;
+    for (const position of ['left','right']) {
+      const column = columns[position];
+      if (!column.length) continue;
+      const width = Math.max(...column.map(item => item.width));
+      properties[`--manual-camp-${position}-track`] = `${width / 100 * (both ? .8 : 1)}fr`;
+      if (!both) properties['--manual-camp-copy-track'] = `${2 - width / 100}fr`;
+      for (const image of column) add(`.cms-layout-photo-${image.path.replaceAll('.', '-')}`, {
+        '--layout-camp-effective-width':`${image.width / width * 100}%`, '--layout-image-width':`${image.width}%`
+      });
+    }
+    add('.cms-page-home .responsive-camp-middle', properties);
+  }
+  return rules;
 }
 
 export function renderTheme(input) {
@@ -438,5 +551,6 @@ export function renderTheme(input) {
       if (properties.length) css += `.cms-page-${page} .cms-block-${block.id}{${properties.join(';')}}`;
     }
   }
+  for (const {selector, properties} of renderLayoutRules(content)) css += `${selector}{${Object.entries(properties).map(([key,value]) => `${key}:${value}!important`).join(';')}}`;
   return css;
 }

@@ -1,0 +1,10 @@
+/* Dimension handles are available only inside the protected editing canvas. */
+html[data-cms-editing=true] [data-layout-selected]{outline:2px solid #08733e!important;outline-offset:2px}
+.cms-resize-overlay{position:fixed;inset:0;z-index:2147483000;pointer-events:none;overflow:hidden}
+.cms-resize-handle{display:block;position:absolute;appearance:none;border:1px solid #08733e;background:#fff;border-radius:3px;padding:0;min-width:0;min-height:0;touch-action:none;color:#08733e;pointer-events:auto}
+.cms-resize-x{width:10px;height:28px;cursor:ew-resize}
+.cms-resize-y{height:10px;width:28px;cursor:ns-resize}
+.cms-resize-xy{width:15px;height:15px;cursor:nwse-resize;background:#08733e;border:2px solid #fff}
+.cms-resize-handle:focus-visible{outline:3px solid #756300;outline-offset:3px}
+html[data-cms-resizing],html[data-cms-resizing] *{user-select:none!important;transition:none!important}
+@media(pointer:coarse){.cms-resize-x{width:18px;height:36px}.cms-resize-y{height:18px;width:36px}.cms-resize-xy{width:23px;height:23px}}

@@ -399,6 +399,55 @@ test('Photo placement removal is draft-only until published and restores through
   for (const slot of IMAGE_FIELDS) assert.equal(getPath(current.content, slot.hiddenPath), false, 'Legacy history defaults to visible placements.');
 });
 
+test('All six fixed photo sizes persist independently through draft, publication and current or legacy history', async () => {
+  const h = harness();
+  let current = await state(h);
+  const legacy = clone(current.content);
+  for (const slot of IMAGE_FIELDS) {
+    const pieces = slot.sizePath.split('.'); delete getPath(legacy, pieces.slice(0, -1).join('.'))[pieces.at(-1)];
+  }
+  const initialVersion = '00000000000000000000000000000000';
+  h.db.sqlite.prepare('UPDATE cms_versions SET content_json = ? WHERE id = ?').run(JSON.stringify(legacy), initialVersion);
+  const item = await upload(h);
+  const sizes = ['small', 'normal', 'large', 'auto', 'small', 'large'];
+  for (const [index, slot] of IMAGE_FIELDS.entries()) {
+    setPath(current.content, slot.path, item.url); setPath(current.content, slot.altPath, `Nuotrauka ${index + 1}`);
+    setPath(current.content, slot.sizePath, sizes[index]);
+  }
+  let response = await h.request('/admin/api/draft', {method: 'POST', body: {content: current.content, revision: current.revision}});
+  assert.equal(response.status, 200);
+  current = await response.json();
+  for (const [index, slot] of IMAGE_FIELDS.entries()) {
+    assert.equal(getImageSettings(current.content, slot).size, sizes[index]);
+    assert.equal(getImageSettings(current.content, slot, 'mobile').size, sizes[index]);
+  }
+  let stored = await new CmsStore(h.db, clone(DEFAULT_CONTENT)).state();
+  for (const slot of IMAGE_FIELDS) assert.equal(getPath(stored.published, slot.sizePath), 'auto', 'Saved sizes stay private until explicitly published.');
+  assert.equal((await h.request('/admin/api/publish', {method: 'POST', body: {revision: current.revision}})).status, 200);
+  stored = await new CmsStore(h.db, clone(DEFAULT_CONTENT)).state();
+  for (const [index, slot] of IMAGE_FIELDS.entries()) assert.equal(getPath(stored.published, slot.sizePath), sizes[index]);
+  const sizeVersion = (await (await h.request('/admin/api/history')).json()).versions[0];
+  current.content.site.heroImageSize = 'large';
+  response = await h.request('/admin/api/draft', {method: 'POST', body: {content: current.content, revision: current.revision}});
+  assert.equal(response.status, 200);
+  current = await response.json();
+  assert.equal(current.content.site.heroImageSize, 'large');
+  for (const [index, slot] of IMAGE_FIELDS.entries()) if (index) assert.equal(getPath(current.content, slot.sizePath), sizes[index]);
+  response = await h.request('/admin/api/restore', {method: 'POST', body: {versionId: sizeVersion.id, revision: current.revision}});
+  assert.equal(response.status, 200);
+  current = await response.json();
+  for (const [index, slot] of IMAGE_FIELDS.entries()) assert.equal(getPath(current.content, slot.sizePath), sizes[index]);
+  response = await h.request('/admin/api/restore', {method: 'POST', body: {versionId: initialVersion, revision: current.revision}});
+  assert.equal(response.status, 200);
+  current = await response.json();
+  for (const slot of IMAGE_FIELDS) assert.equal(getImageSettings(current.content, slot).size, 'auto');
+  stored = await new CmsStore(h.db, clone(DEFAULT_CONTENT)).state();
+  for (const [index, slot] of IMAGE_FIELDS.entries()) assert.equal(getPath(stored.published, slot.sizePath), sizes[index], 'Restored legacy sizes are draft-only.');
+  assert.equal((await h.request('/admin/api/publish', {method: 'POST', body: {revision: current.revision}})).status, 200);
+  stored = await new CmsStore(h.db, clone(DEFAULT_CONTENT)).state();
+  for (const slot of IMAGE_FIELDS) assert.equal(getPath(stored.published, slot.sizePath), 'auto');
+});
+
 test('Removing a newly uploaded photo placement saves without alt text, while showing it again requires a description', async () => {
   const h = harness();
   const item = await upload(h);
@@ -434,7 +483,7 @@ test('Shared media, text, design, extra blocks and removable parts persist throu
   const h = harness();
   let current = await state(h);
   const legacy = clone(current.content);
-  for (const key of ['design', 'pageBlocks', 'partOrder', 'hiddenParts']) delete legacy[key];
+  for (const key of ['design', 'pageBlocks', 'partOrder', 'hiddenParts', 'blockLayouts']) delete legacy[key];
   for (const slot of IMAGE_FIELDS) {
     const pieces = slot.positionPath.split('.'); delete getPath(legacy, pieces.slice(0, -1).join('.'))[pieces.at(-1)];
   }
@@ -457,11 +506,19 @@ test('Shared media, text, design, extra blocks and removable parts persist throu
     {id: 'e'.repeat(32), type: 'button', zone: 'home.afterHero', text: 'Dalyvauti', url: 'https://forms.gle/example', source: null, alt: '', ratio: 'auto', size: 'normal', align: 'left', background: null, color: null},
     {id: 'f'.repeat(32), type: 'image', zone: 'home.beforeFooter', text: '', url: null, source: custom.url, alt: 'Papildoma bendra nuotrauka', ratio: '2:3', size: 'small', align: 'center', background: '#aabbcc', color: null}
   ];
+  current.content.blockLayouts = {
+    'section-home-hero': {width: 100, height: 650, paddingTop: 30, paddingBottom: 40},
+    'photo-site-heroImage': {width: 50, height: 420, paddingTop: null, paddingBottom: null},
+    'part-home-hero-title': {width: 80, height: null, paddingTop: 0, paddingBottom: 20},
+    [`block-${'f'.repeat(32)}`]: {width: 60, height: 400, paddingTop: 10, paddingBottom: 10}
+  };
   const expected = clone(current.content);
   let response = await h.request('/admin/api/draft', {method: 'POST', body: {content: current.content, revision: current.revision}});
   assert.equal(response.status, 200);
   current = await response.json();
   assert.deepEqual(current.content, expected);
+  let storedLayoutState = await new CmsStore(h.db, clone(DEFAULT_CONTENT)).state();
+  assert.deepEqual(storedLayoutState.published.blockLayouts, {}, 'Saved layout dimensions remain private.');
   assert.equal(getDeviceContent(current.content).site.heroAccent, 'Bendra antraštė');
   assert.deepEqual(getDeviceContent(current.content, 'mobile'), getDeviceContent(current.content, 'desktop'));
   assert.equal(getImageSettings(current.content, 'site.heroImage').source, main.url);
@@ -473,6 +530,8 @@ test('Shared media, text, design, extra blocks and removable parts persist throu
   assert.equal((await h.request(`/admin/api/media/${hidden.id}`, {method: 'DELETE'})).status, 409, 'Hidden references protect restoration media.');
   assert.equal((await h.request('/admin/api/draft', {method: 'POST', body: {content: expected, revision: current.revision - 1}})).status, 409);
   assert.equal((await h.request('/admin/api/publish', {method: 'POST', body: {revision: current.revision}})).status, 200);
+  storedLayoutState = await new CmsStore(h.db, clone(DEFAULT_CONTENT)).state();
+  assert.deepEqual(storedLayoutState.published.blockLayouts, expected.blockLayouts);
   assert.equal((await h.request(main.url)).status, 200);
   assert.equal((await h.request(hidden.url)).status, 200);
   assert.equal((await h.request(custom.url)).status, 200);
@@ -483,6 +542,7 @@ test('Shared media, text, design, extra blocks and removable parts persist throu
   assert.deepEqual(current.content.hiddenParts, []); assert.deepEqual(current.content.partOrder, []);
   assert.equal(current.content.design, null);
   assert.deepEqual(current.content.pageBlocks.home, []);
+  assert.deepEqual(current.content.blockLayouts, {});
   for (const slot of IMAGE_FIELDS) assert.equal(getPath(current.content, slot.positionPath), 'default');
   assert.equal((await h.request(hidden.url)).status, 200, 'History restoration creates a private draft until explicitly published.');
   assert.equal((await h.request('/admin/api/publish', {method: 'POST', body: {revision: current.revision}})).status, 200);
@@ -503,9 +563,12 @@ test('Server rejects unsafe shared settings, abandoned profiles and nonexistent 
   for (const alter of [
     content => { content.site.heroImageMobile = {source: null}; },
     content => { content.site.heroImagePosition = 'fixed'; },
+    content => { content.site.heroImageSize = 'wide'; },
     content => { content.deviceContent = {mobile: {'site.facebook': 'javascript:alert(1)'}}; },
     content => { content.hiddenParts = ['admin.login']; },
     content => { content.partOrder = ['body.css']; },
+    content => { content.blockLayouts = {body: {width: 100, height: null, paddingTop: null, paddingBottom: null}}; },
+    content => { content.blockLayouts = {'section-footer': {width: 19, height: null, paddingTop: null, paddingBottom: null}}; },
     content => { content.design = {...THEME_DEFAULTS, background: 'url(javascript:alert(1))'}; },
     content => { content.pageBlocks.home = [{id: 'e'.repeat(32), type: 'image', zone: 'home.afterHero', text: '', url: null, source: `/media/${'f'.repeat(32)}.png`, alt: 'Neįkelta nuotrauka', ratio: 'auto', size: 'normal', align: 'left', background: null, color: null}]; }
   ]) {

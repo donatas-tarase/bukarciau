@@ -19,17 +19,17 @@ export const DEFAULT_CONTENT = {
       'Neabejojame, kad kiekvienai iš mūsų kartais reikia atokvėpio, poilsio nuo kasdienybės, pabūti su savimi ar kitų moterų draugijoje.',
       'Norime sukurti jaukią erdvę tikriems pokalbiams, nuoširdžiam juokui ir naujoms pažintims. Tikimės, kad čia kiekviena jausis išgirsta, pamatyta ir priimta.'
     ],
-    heroImage: null, heroImageAlt: '', heroImageRatio: 'auto', heroImageHidden: false, heroImagePosition: 'default',
-    statementImage: null, statementImageAlt: '', statementImageRatio: 'auto', statementImageHidden: false, statementImagePosition: 'default',
-    togetherImage: null, togetherImageAlt: '', togetherImageRatio: 'auto', togetherImageHidden: false, togetherImagePosition: 'default', draft: true
+    heroImage: null, heroImageAlt: '', heroImageRatio: 'auto', heroImageHidden: false, heroImagePosition: 'default', heroImageSize: 'auto',
+    statementImage: null, statementImageAlt: '', statementImageRatio: 'auto', statementImageHidden: false, statementImagePosition: 'default', statementImageSize: 'auto',
+    togetherImage: null, togetherImageAlt: '', togetherImageRatio: 'auto', togetherImageHidden: false, togetherImagePosition: 'default', togetherImageSize: 'auto', draft: true
   },
   camps: [{
     slug: 'stovykla-01', title: 'Moterų savaitgalio stovykla',
     summary: 'Gruodžio 5 d. susitinkame pabūti kartu. Kviečia Miglė ir Miglė.',
     date: 'Gruodžio 5 d.', location: null, price: null,
-    image: null, imageAlt: '', imageRatio: 'auto', imageHidden: false, imagePosition: 'default',
-    secondaryImage: null, secondaryImageAlt: '', secondaryImageRatio: 'auto', secondaryImageHidden: false, secondaryImagePosition: 'default',
-    detailImage: null, detailImageAlt: '', detailImageRatio: 'auto', detailImageHidden: false, detailImagePosition: 'default',
+    image: null, imageAlt: '', imageRatio: 'auto', imageHidden: false, imagePosition: 'default', imageSize: 'auto',
+    secondaryImage: null, secondaryImageAlt: '', secondaryImageRatio: 'auto', secondaryImageHidden: false, secondaryImagePosition: 'default', secondaryImageSize: 'auto',
+    detailImage: null, detailImageAlt: '', detailImageRatio: 'auto', detailImageHidden: false, detailImagePosition: 'default', detailImageSize: 'auto',
     description: [
       'Kviečiame į moterų bendrystės stovyklą: atokvėpiui nuo kasdienybės, tikriems pokalbiams ir naujoms pažintims.',
       'Norime susitikti jaukiai - be kaukių ir bandymų kažkam kažką įrodyti. Pabūti su savimi ir kitų moterų draugijoje.'
@@ -61,7 +61,8 @@ export const DEFAULT_CONTENT = {
     notFound: {title: 'Puslapis nerastas', description}
   },
   hiddenParts: [], partOrder: [], design: null,
-  pageBlocks: {home: [], about: [], contact: [], camp: []}
+  pageBlocks: {home: [], about: [], contact: [], camp: []},
+  blockLayouts: {}
 };
 
 const field = (path, label, group, type = 'text', options = {}) => ({path, label, group, type, required: true, maxLength: 250, ...options});
@@ -139,6 +140,11 @@ export const IMAGE_POSITIONS = [
   {value: 'below', label: 'Po tekstu'}
 ];
 const imagePositionDescriptor = {type: 'enum', required: true, values: IMAGE_POSITIONS.map(option => option.value)};
+export const IMAGE_SIZES = [
+  {value: 'auto', label: 'Pagal dizainą'}, {value: 'small', label: 'Mažas'},
+  {value: 'normal', label: 'Įprastas'}, {value: 'large', label: 'Didelis'}
+];
+const imageSizeDescriptor = {type: 'enum', required: true, values: IMAGE_SIZES.map(option => option.value)};
 
 export const IMAGE_FIELDS = [
   {path: 'site.heroImage', altPath: 'site.heroImageAlt', ratioPath: 'site.heroImageRatio', hiddenPath: 'site.heroImageHidden', label: 'Pirmo ekrano nuotrauka', group: home, help: 'Plati nuotrauka. Kol neįkelta, lieka dabartinis žalias fonas.'},
@@ -147,7 +153,7 @@ export const IMAGE_FIELDS = [
   {path: 'camps.0.image', altPath: 'camps.0.imageAlt', ratioPath: 'camps.0.imageRatio', hiddenPath: 'camps.0.imageHidden', label: 'Pagrindinė stovyklos nuotrauka', group: camp},
   {path: 'camps.0.secondaryImage', altPath: 'camps.0.secondaryImageAlt', ratioPath: 'camps.0.secondaryImageRatio', hiddenPath: 'camps.0.secondaryImageHidden', label: 'Mažoji stovyklos nuotrauka', group: camp},
   {path: 'camps.0.detailImage', altPath: 'camps.0.detailImageAlt', ratioPath: 'camps.0.detailImageRatio', hiddenPath: 'camps.0.detailImageHidden', label: 'Plati nuotrauka stovyklos puslapyje', group: camp}
-].map(image => ({...image, positionPath: `${image.path}Position`, positions: IMAGE_POSITIONS}));
+].map(image => ({...image, positionPath: `${image.path}Position`, sizePath: `${image.path}Size`, positions: IMAGE_POSITIONS}));
 
 const parts = (prefix, group, entries) => Object.entries(entries).map(([key, [label, paths]]) => ({id: `${prefix}.${key}`, label, group, paths}));
 const rows = (prefix, group, label, count, paths) => Array.from({length: count}, (_, index) => ({id: `${prefix}.${index}`, label: `${label} ${index + 1}`, group, paths: paths(index)}));
@@ -253,6 +259,52 @@ const blockFields = {
   align: {type: 'enum', required: true, values: BLOCK_ALIGNMENTS.map(option => option.value)},
   background: {type: 'color', nullable: true}, color: {type: 'color', nullable: true}
 };
+export const LAYOUT_DIMENSION_DEFAULTS = {width: null, height: null, paddingTop: null, paddingBottom: null};
+export const LAYOUT_FIELDS = [
+  {key: 'width', label: 'Plotis', min: 20, max: 100, unit: '%'},
+  {key: 'height', label: 'Aukštis', min: 40, max: 2000, unit: 'px'},
+  {key: 'paddingTop', label: 'Tarpas viršuje', min: 0, max: 240, unit: 'px'},
+  {key: 'paddingBottom', label: 'Tarpas apačioje', min: 0, max: 240, unit: 'px'}
+];
+export const SECTION_LAYOUT_TARGETS = [
+  {id: 'section-home-hero', label: 'Pirmas ekranas', page: 'home'},
+  {id: 'section-home-intro', label: 'Prisistatymo skiltis', page: 'home'},
+  {id: 'section-home-camp', label: 'Stovyklos skiltis', page: 'home'},
+  {id: 'section-home-registration', label: 'Registracijos skiltis', page: 'home'},
+  {id: 'section-about-heading', label: 'Prisistatymo puslapio antraštė', page: 'about'},
+  {id: 'section-about-story', label: 'Istorija ir nuotrauka', page: 'about'},
+  {id: 'section-about-invitation', label: 'Kvietimas į stovyklą', page: 'about'},
+  {id: 'section-contact-content', label: 'Kontaktų skiltis', page: 'contact'},
+  {id: 'section-camp-heading', label: 'Stovyklos puslapio antraštė', page: 'camp'},
+  {id: 'section-camp-content', label: 'Stovyklos turinys ir nuotrauka', page: 'camp'},
+  {id: 'section-camp-description', label: 'Stovyklos aprašymas', page: 'camp'},
+  {id: 'section-camp-program', label: 'Stovyklos programa', page: 'camp'},
+  {id: 'section-camp-faq', label: 'Klausimai ir atsakymai', page: 'camp'},
+  {id: 'section-camp-registration', label: 'Registracijos skiltis', page: 'camp'},
+  {id: 'section-footer', label: 'Svetainės poraštė', page: 'shared'}
+];
+const photoPages = {'site.heroImage': 'home', 'site.statementImage': 'home', 'site.togetherImage': 'about', 'camps.0.image': 'home', 'camps.0.secondaryImage': 'home', 'camps.0.detailImage': 'camp'};
+const partPage = id => id.startsWith('common.') || id.startsWith('registration.') ? 'shared' : id.startsWith('detail.') ? 'camp' : id.split('.')[0];
+
+export function getLayoutTargets(content, page = null) {
+  const targets = [
+    ...SECTION_LAYOUT_TARGETS.map(target => ({...target, type: 'section', kind: 'section'})),
+    ...IMAGE_FIELDS.map(slot => ({id: `photo-${slot.path.replaceAll('.', '-')}`, label: slot.label, type: 'photo', kind: 'photo', page: photoPages[slot.path], path: slot.path})),
+    ...CONTENT_PARTS.map(part => ({id: `part-${part.id.replaceAll('.', '-')}`, label: part.label, type: 'part', kind: 'part', page: partPage(part.id), partId: part.id}))
+  ];
+  for (const key of ['home', 'about', 'contact', 'camp']) {
+    const blocks = content?.pageBlocks?.[key];
+    if (!Array.isArray(blocks)) continue;
+    for (const block of blocks) {
+      if (typeof block?.id !== 'string' || !/^[a-f0-9]{32}$/.test(block.id)) continue;
+      targets.push({id: `block-${block.id}`, label: BLOCK_TYPES.find(type => type.value === block.type)?.label || 'Papildomas blokas', type: 'block', kind: 'block', page: key, blockId: block.id});
+    }
+  }
+  return page == null ? targets : targets.filter(target => target.page === page || (target.page === 'shared' && (!target.partId?.startsWith('registration.') || ['home', 'camp'].includes(page))));
+}
+export function getLayoutTarget(content, id) {
+  return typeof id === 'string' ? getLayoutTargets(content).find(target => target.id === id) || null : null;
+}
 
 export class ValidationError extends Error {
   constructor(issues) { super('Patikrinkite pažymėtus turinio laukus.'); this.name = 'ValidationError'; this.issues = issues; }
@@ -282,10 +334,12 @@ for (const image of IMAGE_FIELDS) {
   addField(image.ratioPath, imageRatioDescriptor);
   addField(image.hiddenPath, {type: 'boolean', required: true});
   addField(image.positionPath, imagePositionDescriptor);
+  addField(image.sizePath, imageSizeDescriptor);
 }
 for (const path of ['hiddenParts', 'partOrder']) addField(path, {type: 'partIds'});
 addField('design', {type: 'theme', nullable: true});
 for (const page of ['home', 'about', 'contact', 'camp']) addField(`pageBlocks.${page}`, {type: 'blocks', page});
+addField('blockLayouts', {type: 'layoutMap'});
 addField('site.url', {type: 'fixed', value: 'https://bukarciau.lt'});
 addField('camps.0.slug', {type: 'fixed', value: 'stovykla-01'});
 
@@ -306,7 +360,8 @@ export function getImageSettings(content, slotOrPath, device = 'desktop') {
     alt: getPath(content, slot.altPath) ?? '',
     ratio: getPath(content, slot.ratioPath) ?? 'auto',
     hidden: getPath(content, slot.hiddenPath) ?? false,
-    position: getPath(content, slot.positionPath) ?? 'default'
+    position: getPath(content, slot.positionPath) ?? 'default',
+    size: getPath(content, slot.sizePath) ?? 'auto'
   };
 }
 export function getDeviceContent(input, device = 'desktop') {
@@ -385,6 +440,19 @@ export function normalizeContent(input = {}) {
 
 function inspectKeys(value, node, path, issues, depth = 0) {
   if (depth > 15) { issues.push({path, message: 'Per gili turinio struktūra.'}); return; }
+  if (node.field?.type === 'layoutMap') {
+    if (value === undefined) return;
+    if (!plain(value)) { issues.push({path, message: 'Netinkama blokų matmenų struktūra.'}); return; }
+    const keys = new Set(LAYOUT_FIELDS.map(field => field.key));
+    for (const [id, dimensions] of Object.entries(value)) {
+      const itemPath = `${path}.${id}`;
+      if (forbidden.has(id)) issues.push({path: itemPath, message: 'Šio bloko matmenų keisti negalima.'});
+      if (!plain(dimensions)) { issues.push({path: itemPath, message: 'Netinkami bloko matmenys.'}); continue; }
+      for (const key of Object.keys(dimensions)) if (forbidden.has(key) || !keys.has(key)) issues.push({path: `${itemPath}.${key}`, message: 'Šis bloko matmuo neleidžiamas.'});
+      for (const field of LAYOUT_FIELDS) if (typeof dimensions[field.key] === 'number' && !Number.isFinite(dimensions[field.key])) issues.push({path: `${itemPath}.${field.key}`, message: 'Įrašykite baigtinį sveikąjį skaičių.'});
+    }
+    return;
+  }
   if (node.field?.type === 'theme') {
     if (value == null) return;
     if (!plain(value)) { issues.push({path, message: 'Netinkami dizaino nustatymai.'}); return; }
@@ -431,6 +499,20 @@ function validate(value, descriptor, path, issues) {
   const issue = message => issues.push({path, message});
   if (descriptor.type === 'fixed') { if (value !== descriptor.value) issue('Šio sisteminio lauko keisti negalima.'); return; }
   if (value === null && descriptor.nullable) return;
+  if (descriptor.type === 'integer') {
+    if (!Number.isInteger(value) || value < descriptor.min || value > descriptor.max) issue(`Įrašykite sveikąjį skaičių nuo ${descriptor.min} iki ${descriptor.max}.`);
+    return;
+  }
+  if (descriptor.type === 'layoutMap') {
+    if (!plain(value)) { issue('Netinkama blokų matmenų struktūra.'); return; }
+    if (Object.keys(value).length > 400) issue('Galima nustatyti ne daugiau kaip 400 blokų matmenis.');
+    for (const [id, dimensions] of Object.entries(value)) {
+      const itemPath = `${path}.${id}`;
+      if (!plain(dimensions)) { issues.push({path: itemPath, message: 'Netinkami bloko matmenys.'}); continue; }
+      for (const field of LAYOUT_FIELDS) validate(dimensions[field.key], {type: 'integer', nullable: true, min: field.min, max: field.max}, `${itemPath}.${field.key}`, issues);
+    }
+    return;
+  }
   if (descriptor.type === 'number') {
     if (typeof value !== 'number' || !Number.isFinite(value) || value < descriptor.min || value > descriptor.max) issue(`Įrašykite skaičių nuo ${descriptor.min} iki ${descriptor.max}.`);
     return;
@@ -513,11 +595,17 @@ export function parseContent(input) {
     validate(getPath(normalized, image.ratioPath), imageRatioDescriptor, image.ratioPath, issues);
     validate(getPath(normalized, image.hiddenPath), {type: 'boolean'}, image.hiddenPath, issues);
     validate(getPath(normalized, image.positionPath), imagePositionDescriptor, image.positionPath, issues);
+    validate(getPath(normalized, image.sizePath), imageSizeDescriptor, image.sizePath, issues);
   }
   validate(normalized.hiddenParts, {type: 'partIds'}, 'hiddenParts', issues);
   validate(normalized.partOrder, {type: 'partIds'}, 'partOrder', issues);
   validate(normalized.design, {type: 'theme', nullable: true}, 'design', issues);
   for (const page of ['home', 'about', 'contact', 'camp']) validate(normalized.pageBlocks?.[page], {type: 'blocks', page}, `pageBlocks.${page}`, issues);
+  validate(normalized.blockLayouts, {type: 'layoutMap'}, 'blockLayouts', issues);
+  if (plain(normalized.blockLayouts)) {
+    const targetIds = new Set(getLayoutTargets(normalized).map(target => target.id));
+    for (const id of Object.keys(normalized.blockLayouts)) if (!targetIds.has(id)) issues.push({path: `blockLayouts.${id}`, message: 'Šio bloko matmenų keisti negalima.'});
+  }
   const detail = getImageSettings(normalized, 'camps.0.detailImage');
   for (const image of IMAGE_FIELDS) {
     const settings = getImageSettings(normalized, image);

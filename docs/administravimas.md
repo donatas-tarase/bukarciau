@@ -14,10 +14,20 @@ Baigę darbą pasirinkite „Atsijungti“. Įrankis pašalina svetainės prisij
 
 1. Pasirinkite „Redaguoti puslapyje“ ir viršuje nurodykite norimą puslapį.
 2. Režime „Redaguoti“ paspauskite tekstą ir rašykite jo vietoje. Pakeitimas iškart matomas redaktoriuje. `Esc` atšaukia šio teksto redagavimą, kol jis dar aktyvus.
-3. Paspauskite bet kurį nuotraukos bloką, net jei jis dar tuščias. Atsidaro viso bloko nustatymai: proporcijos, nuotraukos pasirinkimas ir bloko pašalinimas. Jei nuotrauka jau pasirinkta, galite keisti ir jos aprašymą.
+3. Paspauskite bet kurį nuotraukos bloką, net jei jis dar tuščias. Atsidaro viso bloko nustatymai: dydis, proporcijos, vieta, nuotraukos pasirinkimas ir bloko pašalinimas. Jei nuotrauka jau pasirinkta, galite keisti ir jos aprašymą.
 4. Patikrinkite vaizdą pasirinkę „Kompiuteris“ ir „Telefonas“. Tai tik peržiūros dydžiai: tekstai, nuotraukos ir dizaino nustatymai yra bendri abiem vaizdams. Telefone išdėstymas prisitaiko automatiškai. Režimas „Peržiūrėti“ leidžia peržiūrėti puslapį be redagavimo pasirinkimų.
 
 Nuorodų adresus, SEO, registracijos anketą ir sąrašus keiskite atitinkamuose kairiojo meniu turinio skyriuose. Taip pat galima naudoti juos visiems tekstams redaguoti įprastuose laukeliuose. Nuotraukų vietą, naujus blokus ir dizaino nustatymus galima keisti pačiame redaktoriuje.
+
+Kompiuteryje blokų įrankiai ir nustatymai yra dešinėje nuo puslapio peržiūros. Skydelis slenka atskirai, todėl pasirinkto bloko nustatymai neuždengia puslapio. Siauresniame ekrane įrankiai persikelia po peržiūra ir juos galima sutraukti. Kairįjį meniu galima sutraukti iki piktogramų mygtuku šalia logotipo; tas pats mygtukas jį vėl išskleidžia.
+
+## Blokų matmenys
+
+Dešinėje, skiltyje „Bloko matmenys“, galima keisti esamų puslapio skilčių, nuotraukų, tekstų, nuorodų ir pridėtų blokų plotį, aukštį bei tarpus. Paspauskite bloką puslapyje arba pasirinkite jį sąraše. Plotis nurodomas procentais, aukštis ir tarpai - pikseliais. Tuščias laukas palieka automatinį matmenį.
+
+Pažymėtą bloką galima mažinti ir didinti velkant jo dešinį kraštą, apatinį kraštą arba apatinį dešinį kampą. Tekstą turintis blokas nebus mažesnis už jo turinį, todėl tekstas nenukerpamas. Nurodžius skilties aukštį sumažinami jos automatiniai viršutiniai ir apatiniai tarpai; juos galima patikslinti atskiruose laukuose. Nuotraukai nurodytas aukštis turi pirmenybę prieš proporcijas. Pasirinkus proporcijas aukštis vėl tampa automatinis, o pasirinkus dydžio variantą grąžinami abu automatiniai matmenys.
+
+„Grąžinti matmenis pagal dizainą“ pašalina individualius matmenis. Tekstai, nuotraukos ir spalvos išlieka. Patikrinkite ir telefono peržiūrą, tada išsaugokite juodraštį ir paskelbkite pakeitimus.
 
 ## Blokų perkėlimas ir pridėjimas
 
@@ -34,6 +44,8 @@ Paspaudę tekstą pasirinkite „Pašalinti šią dalį“, kad pašalintumėte 
 ## Spalvos ir stilius
 
 Skyriuje „Dizainas“ galite keisti bendras fono, teksto, akcentų ir mygtukų spalvas, šriftą bei mygtukų kampų apvalumą. Naujiems blokams taip pat galima parinkti jų spalvas ir lygiavimą. Pakeitimai iškart matomi redaktoriaus peržiūroje; viešoje svetainėje jie atsiranda tik paskelbus. Spalvos ir šriftai telefone lieka tokie patys kaip kompiuteryje.
+
+Spalvą pasirinkite paspaudę spalvos langelį arba įrašykite HEX kodą šalia jo, pavyzdžiui, `#006e40`. Abu valdikliai rodo tą pačią spalvą. Papildomo bloko spalvą galima išvalyti, kad jis vėl naudotų bendras svetainės spalvas.
 
 ## Išsaugoti ir paskelbti
 
@@ -56,6 +68,8 @@ Nuotraukas galite įkelti redaguodami pasirinktą vietą arba skyriuje „Nuotra
 Pasirinkę nuotrauką pridėkite trumpą alternatyvų aprašymą, pavyzdžiui, kas ir kur joje matoma. Šis aprašymas skirtas ekrano skaitytuvams ir nerodomas kaip antraštė ant vaizdo. Išsaugokite juodraštį ir paskelbkite pakeitimą.
 
 Nustatymas „Bloko proporcijos“ keičia viso nuotraukos bloko formą ir aukštį pagal jo plotį: 1:1, 2:3, 3:2, 4:3, 9:16 arba 16:9. Jis veikia ir tuščiame bloke. Pasirinkimas „Pagal dizainą“ grąžina pradinę to bloko formą. Ta pati bibliotekos nuotrauka skirtingose puslapio vietose gali turėti skirtingas proporcijas. Nuotrauka užpildo visą bloką be ištempimo; dalis jos kraštų gali būti apkirpta. Originalus failas bibliotekoje nesikeičia.
+
+„Dydis“ leidžia pasirinkti „Mažas“, „Įprastas“, „Didelis“ arba grąžinti „Pagal dizainą“. Keičiasi visas nuotraukos blokas, o pasirinktos proporcijos išlieka. Šalia esantis tekstas prisitaiko prie likusios vietos. Pasirinkus dydį pirmo ekrano foninė nuotrauka tampa atskiru bloku šalia teksto; telefone ji rodoma po juo. Dydžius galima keisti ir tuštiems blokams, ir skyriuje „Nuotraukos“.
 
 Proporcijas taip pat galite keisti skyriuje „Nuotraukos“. Redaktoriaus peržiūra atsinaujina iškart. Kaip ir tekstus, šį pakeitimą pirmiausia išsaugokite juodraštyje ir tik tada paskelbkite. Patikrinkite vaizdą ir kompiuterio, ir telefono peržiūroje.
 

@@ -80,6 +80,24 @@ test('Private theme and device preview routes stay authenticated and validate th
   } finally { h.close(); }
 });
 
+test('Manual block dimensions stay private until their saved draft is published', async () => {
+  const h = harness();
+  try {
+    const state = await (await h.request('/admin/api/state')).json();
+    state.content.blockLayouts['section-home-hero'] = {width: 83, height: 347, paddingTop: 9, paddingBottom: 13};
+    const save = await h.request('/admin/api/draft', {method: 'POST', body: {content: state.content, revision: state.revision}});
+    assert.equal(save.status, 200);
+    const draft = await save.json();
+    assert.doesNotMatch(await (await h.request('/theme.css?draft=1')).text(), /347px/);
+    const privateCss = await h.request('/admin/theme.css');
+    assert.match(privateCss.headers.get('Cache-Control'), /private.*no-store/);
+    assert.match(await privateCss.text(), /347px/);
+    assert.equal((await h.request('/admin/api/publish', {method: 'POST', body: {revision: draft.revision}})).status, 200);
+    assert.match(await (await h.request('/theme.css')).text(), /347px/);
+    assert.match(await (await h.request('/')).text(), /href="\/theme\.css/);
+  } finally { h.close(); }
+});
+
 test('Public theme requests have a static fallback when database bindings are unavailable', async () => {
   const initialContent = structuredClone(DEFAULT_CONTENT);
   const handler = createHandler({initialContent, assets: {}, renderTheme});

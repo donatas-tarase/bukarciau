@@ -14,13 +14,13 @@
   <a class="skip-link" href="#editor-title">Pereiti prie turinio</a>
   <div class="admin-shell">
     <aside class="sidebar" aria-label="Svetainės valdymas">
-      <a class="admin-brand" href="/admin/"><img src="/assets/logo.svg" alt="Būk arčiau" width="64" height="50"><span>Svetainės<br><strong>valdymas</strong></span></a>
+      <div class="sidebar-brand-row"><a class="admin-brand" href="/admin/"><img src="/assets/logo.svg" alt="Būk arčiau" width="64" height="50"><span>Svetainės<br><strong>valdymas</strong></span></a><button class="nav-collapse" id="nav-collapse" type="button" aria-label="Sutraukti meniu" title="Sutraukti meniu" aria-expanded="true" aria-controls="section-nav"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="m14 6-6 6 6 6"/></svg></button></div>
       <div class="sidebar-heading">Turinys</div>
       <nav id="section-nav" aria-label="Turinio skyriai"><span class="nav-loading">Įkeliama...</span></nav>
       <div class="sidebar-bottom">
-        <a class="site-link" href="/" target="_blank" rel="noopener noreferrer">Atverti svetainę <span aria-hidden="true">↗</span></a>
+        <a class="site-link" href="/" target="_blank" rel="noopener noreferrer" aria-label="Atverti svetainę" title="Atverti svetainę"><span class="site-link-label">Atverti svetainę</span><span aria-hidden="true">↗</span></a>
         <div class="identity"><span class="avatar" aria-hidden="true">A</span><div><span class="identity-label">Administratorius</span><span id="identity-email">Tikrinama prieiga...</span></div></div>
-        <a class="logout-link" href="/admin/logout">Atsijungti</a>
+        <a class="logout-link" href="/admin/logout" aria-label="Atsijungti" title="Atsijungti"><span>Atsijungti</span><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M9 4H4v16h5m4-12 4 4-4 4m-5-4h13"/></svg></a>
       </div>
     </aside>
     <div class="workspace">
@@ -40,12 +40,10 @@
               <div class="segmented canvas-modes" role="group" aria-label="Puslapio režimas"><button type="button" data-canvas-mode="edit" aria-pressed="true">Redaguoti</button><button type="button" data-canvas-mode="view" aria-pressed="false">Peržiūrėti</button></div>
             </div>
             <div class="canvas-context"><p id="canvas-instruction">Paspausk tekstą ir rašyk. Paspausk nuotraukos bloką, kad keistum jo dydį arba nuotrauką.</p><span id="canvas-draft-status">Išsaugotas juodraštis</span></div>
-            <div id="canvas-palette" class="canvas-palette"></div>
-            <div id="canvas-part-tools" class="canvas-part-tools" hidden></div>
-            <div id="canvas-extra-inspector" class="canvas-extra-inspector" hidden></div>
-            <div id="canvas-image-inspector" class="canvas-image-inspector" hidden></div>
-            <div class="canvas-stage" id="canvas-stage"><div class="canvas-loading" id="canvas-loading" role="status" aria-live="polite" hidden><div><span class="spinner" aria-hidden="true"></span><p id="canvas-loading-message">Įkeliamas puslapis...</p><button class="button button-outline" type="button" data-reload-canvas hidden>Įkelti dar kartą</button></div></div><iframe id="preview-frame" title="Redaguojamas svetainės puslapis" sandbox="allow-same-origin allow-scripts allow-popups" referrerpolicy="same-origin"></iframe></div>
-            <p id="preview-note" class="canvas-help">Pakeitimai matomi iškart. Svetainės lankytojai juos matys tik paskelbus.</p>
+            <div class="canvas-workbench">
+              <div class="canvas-preview-column"><div class="canvas-stage" id="canvas-stage"><div class="canvas-loading" id="canvas-loading" role="status" aria-live="polite" hidden><div><span class="spinner" aria-hidden="true"></span><p id="canvas-loading-message">Įkeliamas puslapis...</p><button class="button button-outline" type="button" data-reload-canvas hidden>Įkelti dar kartą</button></div></div><iframe id="preview-frame" title="Redaguojamas svetainės puslapis" sandbox="allow-same-origin allow-scripts allow-popups" referrerpolicy="same-origin"></iframe></div><p id="preview-note" class="canvas-help">Pakeitimai matomi iškart. Svetainės lankytojai juos matys tik paskelbus.</p></div>
+              <aside class="canvas-workbench-sidebar" id="canvas-workbench-sidebar" aria-label="Puslapio redagavimo įrankiai"><div class="workbench-heading"><strong>Įrankiai ir nustatymai</strong><button class="icon-button" id="workbench-toggle" type="button" aria-label="Sutraukti redagavimo įrankius" aria-expanded="true" aria-controls="workbench-panels"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="m6 9 6 6 6-6"/></svg></button></div><div id="workbench-panels"><div id="canvas-palette" class="canvas-palette"></div><section id="canvas-layout-inspector" hidden aria-label="Pasirinkto bloko matmenys"></section><div id="canvas-part-tools" class="canvas-part-tools" hidden></div><div id="canvas-image-inspector" class="canvas-image-inspector" hidden></div><div id="canvas-extra-inspector" class="canvas-extra-inspector" hidden></div></div></aside>
+            </div>
           </section>
           <form id="editor-form" novalidate hidden><div id="editor-fields"></div></form>
           <section id="media-section" hidden aria-label="Nuotraukų valdymas"></section>

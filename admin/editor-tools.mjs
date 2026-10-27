@@ -30,11 +30,34 @@ export function createEditorTools(api) {
   const changed = message => { refresh(); if (message) api.announce(message); };
   const field = (label,key,value,{type='text',help='',nullable=false,min,max}={}) => `<label class="tools-field"><span>${escape(label)}</span>${type === 'textarea' ? `<textarea class="input" rows="4" data-block-field="${key}">${escape(value)}</textarea>` : `<input class="input" type="${type}" data-block-field="${key}" value="${escape(value)}"${min == null ? '' : ` min="${min}"`}${max == null ? '' : ` max="${max}"`}${nullable ? ' data-nullable="true"' : ''}>`}${help ? `<small>${escape(help)}</small>` : ''}</label>`;
   const select = (label,key,value,values) => `<label class="tools-field"><span>${escape(label)}</span><select class="input" data-block-field="${key}">${options(values,value)}</select></label>`;
+  function blockColorField(label,key,block) {
+    const value = block[key];
+    const fallback = key === 'background' ? api.content().design && block.type !== 'spacer' ? theme().surface : theme().background : block.type === 'button' ? theme().buttonText : theme().text;
+    const id = `block-${block.id}-${key}`;
+    const invalid = value != null && !colors.test(value);
+    return `<div class="tools-field" data-block-color-field="${key}"><label for="${id}">${escape(label)}</label><div class="color-control"><input type="color" data-block-color-picker="${key}" value="${colors.test(value || '') ? value : fallback}" aria-label="${escape(label)}: pasirinkti spalvą"><input class="input" id="${id}" type="text" data-block-field="${key}" value="${escape(value || '')}" maxlength="7" placeholder="Pagal dizainą" aria-label="${escape(label)}: HEX kodas"${invalid ? ' aria-invalid="true"' : ''} spellcheck="false"><button class="color-reset" type="button" data-clear-block-color="${key}" aria-label="${escape(label)}: grąžinti pagal dizainą"${value == null ? ' disabled' : ''}>↺</button></div><small>Pasirink spalvą arba įrašyk HEX kodą, pvz. #ffffff. Tuščias laukas išlaiko svetainės dizainą.</small></div>`;
+  }
+  function syncBlockColor(key,value,source) {
+    const panel = document.querySelector(`[data-block-color-field="${CSS.escape(key)}"]`);
+    if (!panel) return;
+    const hex = panel.querySelector('[data-block-field]');
+    const valid = value == null || colors.test(value);
+    if (hex !== source && hex.value !== (value || '')) hex.value = value || '';
+    if (valid) { hex.removeAttribute('aria-invalid'); panel.querySelectorAll('.field-error').forEach(element => element.remove()); }
+    else hex.setAttribute('aria-invalid','true');
+    if (value && colors.test(value)) panel.querySelector('[type="color"]').value = value;
+    if (value == null) {
+      const block = selected();
+      panel.querySelector('[type="color"]').value = key === 'background' ? api.content().design && block?.type !== 'spacer' ? theme().surface : theme().background : block?.type === 'button' ? theme().buttonText : theme().text;
+    }
+    panel.querySelector('[data-clear-block-color]').disabled = value == null;
+  }
 
   function addBlock(type,zone,beforeId = null) {
     if (api.busy() || !BLOCK_TYPES.some(option => option.value === type) || !zones().some(option => option.id === zone)) return;
     if (blocks().length >= 40) return api.notice('Šiame puslapyje jau yra 40 papildomų blokų. Pašalink nereikalingą bloką prieš pridėdamas naują.','warning');
     api.finish();
+    api.revealTools();
     const id = crypto.randomUUID().replaceAll('-','');
     const block = {id,type,zone,text:'',url:null,source:null,alt:'',ratio:'auto',size:'normal',align:'left',background:null,color:null};
     api.mutate(() => { const list = blocks(); const before = list.findIndex(item => item.id === beforeId); list.splice(before < 0 ? list.length : before,0,block); });
@@ -53,6 +76,7 @@ export function createEditorTools(api) {
     const part = element?.closest('[data-cms-part]');
     selectedPart = part && CONTENT_PARTS.some(item => item.id === part.dataset.cmsPart) ? part.dataset.cmsPart : null;
     selectedBlock = null;
+    if (selectedPart) api.revealTools();
     renderSelection(); renderBlockInspector();
   }
   function renderSelection() {
@@ -95,6 +119,7 @@ export function createEditorTools(api) {
   function selectBlock(id) {
     if (!blocks().some(block => block.id === id)) return;
     api.clearPhoto();
+    api.revealTools();
     api.finish(); selectedBlock = id; selectedPart = null;
     renderSelection(); renderBlockInspector();
     $('#canvas-extra-inspector')?.scrollIntoView({block:'nearest'});
@@ -105,14 +130,15 @@ export function createEditorTools(api) {
     panel.hidden = !block || api.mode() !== 'edit';
     if (panel.hidden) return;
     const type = BLOCK_TYPES.find(item => item.value === block.type)?.label || 'Blokas';
-    panel.innerHTML = `<div class="canvas-photo-heading"><div><strong>${escape(type)}</strong><small class="inspector-device">Bendras svetainės turinys</small></div><button class="icon-button" type="button" data-close-block aria-label="Baigti bloko redagavimą">×</button></div><div class="block-settings-grid">${block.type === 'spacer' ? '' : block.type === 'image' ? `<div class="block-image-choice">${block.source ? `<img src="/admin/api/media/${escape(block.source.split('/').at(-1))}" alt="" width="140" height="100">` : '<span>Nuotrauka dar nepasirinkta</span>'}<button type="button" class="button button-outline" data-choose-block-image>${block.source ? 'Pakeisti nuotrauką' : 'Pasirinkti nuotrauką'}</button></div>${field('Nuotraukos aprašymas','alt',block.alt,{help:'Trumpai aprašyk, kas matoma nuotraukoje.'})}${select('Proporcijos','ratio',block.ratio,IMAGE_ASPECT_RATIOS)}` : field(block.type === 'text' ? 'Tekstas' : 'Nuorodos užrašas','text',block.text,{type:block.type === 'text' ? 'textarea' : 'text'})}${['button','link'].includes(block.type) ? field('Nuoroda','url',block.url || '',{type:'url',nullable:true,help:'Pilnas adresas su https://. Mygtukas bus rodomas užpildžius nuorodą.'}) : ''}${select('Vieta puslapyje','zone',block.zone,zones())}${select('Dydis','size',block.size,BLOCK_SIZES)}${select('Lygiavimas','align',block.align,BLOCK_ALIGNMENTS)}${field('Fono spalva (nebūtina)','background',block.background || '',{nullable:true,help:'Pvz. #ffffff. Tuščias laukas išlaiko puslapio foną.'})}${field('Teksto spalva (nebūtina)','color',block.color || '',{nullable:true,help:'Pvz. #173e2c.'})}</div><div class="canvas-photo-actions"><button class="button button-outline" type="button" data-move-block="up">↑ Aukštyn</button><button class="button button-outline" type="button" data-move-block="down">↓ Žemyn</button><button type="button" class="slot-remove" data-delete-block>Pašalinti bloką</button></div>`;
+    panel.innerHTML = `<div class="canvas-photo-heading"><div><strong>${escape(type)}</strong><small class="inspector-device">Bendras svetainės turinys</small></div><button class="icon-button" type="button" data-close-block aria-label="Baigti bloko redagavimą">×</button></div><div class="block-settings-grid">${block.type === 'spacer' ? '' : block.type === 'image' ? `<div class="block-image-choice">${block.source ? `<img src="/admin/api/media/${escape(block.source.split('/').at(-1))}" alt="" width="140" height="100">` : '<span>Nuotrauka dar nepasirinkta</span>'}<button type="button" class="button button-outline" data-choose-block-image>${block.source ? 'Pakeisti nuotrauką' : 'Pasirinkti nuotrauką'}</button></div>${field('Nuotraukos aprašymas','alt',block.alt,{help:'Trumpai aprašyk, kas matoma nuotraukoje.'})}${select('Proporcijos','ratio',block.ratio,IMAGE_ASPECT_RATIOS)}` : field(block.type === 'text' ? 'Tekstas' : 'Nuorodos užrašas','text',block.text,{type:block.type === 'text' ? 'textarea' : 'text'})}${['button','link'].includes(block.type) ? field('Nuoroda','url',block.url || '',{type:'url',nullable:true,help:'Pilnas adresas su https://. Mygtukas bus rodomas užpildžius nuorodą.'}) : ''}${select('Vieta puslapyje','zone',block.zone,zones())}${select('Dydis','size',block.size,BLOCK_SIZES)}${select('Lygiavimas','align',block.align,BLOCK_ALIGNMENTS)}${blockColorField('Fono spalva (nebūtina)','background',block)}${blockColorField('Teksto spalva (nebūtina)','color',block)}</div><div class="canvas-photo-actions"><button class="button button-outline" type="button" data-move-block="up">↑ Aukštyn</button><button class="button button-outline" type="button" data-move-block="down">↓ Žemyn</button><button type="button" class="slot-remove" data-delete-block>Pašalinti bloką</button></div>`;
   }
-  function changeBlock(key,value) {
+  function changeBlock(key,value,source = null) {
     const block = selected();
     if (!block || api.busy()) return;
     if (!['text','url','alt','ratio','size','align','background','color','zone'].includes(key)) return;
     if (['url','background','color'].includes(key)) value = value.trim() || null;
     api.mutate(() => { block[key] = value; });
+    if (['background','color'].includes(key)) syncBlockColor(key,value,source);
     clearTimeout(blockTimer);
     blockTimer = setTimeout(() => api.render(),180);
   }
@@ -139,7 +165,8 @@ export function createEditorTools(api) {
     if (descriptor.type === 'select' && !descriptor.options.some(option => option.value === value)) return;
     api.mutate(content => { if (!content.design) content.design = clone(THEME_DEFAULTS); content.design[key] = value; });
     applyStyles(api.doc());
-    const pair = document.querySelector(`[data-theme-hex="${CSS.escape(key)}"]`); if (pair) pair.value = value;
+    const pair = document.querySelector(`[data-theme-hex="${CSS.escape(key)}"]`); if (pair && pair.value !== String(value)) pair.value = value;
+    if (pair) { pair.removeAttribute('aria-invalid'); pair.closest('.tools-field')?.querySelectorAll('.field-error').forEach(element => element.remove()); }
     const color = document.querySelector(`[data-theme-key="${CSS.escape(key)}"][type="color"]`); if (color) color.value = value;
   }
   function renderDesign() {
@@ -384,7 +411,7 @@ export function createEditorTools(api) {
     if (!input) return false;
     input.setAttribute('aria-invalid','true');
     const error = document.createElement('small'); error.className = 'field-error'; error.textContent = message || 'Patikrink šį lauką.';
-    input.closest('label')?.append(error);
+    input.closest('.tools-field')?.append(error);
     input.focus(); return true;
   }
   bindPointer(document);
@@ -400,16 +427,18 @@ export function createEditorTools(api) {
     if (target.dataset.restorePhoto) { api.setImage(target.dataset.restorePhoto,'hidden',false); renderSection('Pašalintos dalys'); }
     if (target.hasAttribute('data-close-block')) { selectedBlock = null; renderBlockInspector(); }
     if (target.hasAttribute('data-choose-block-image')) { const block = selected(); if (block) api.chooseImage({kind:'block',blockId:block.id,page:api.page(),device:api.device(),label:'Papildomo bloko nuotrauka'}); }
-    if (target.hasAttribute('data-delete-block')) { const block = selected(); if (block) { api.mutate(() => blocks().splice(blocks().indexOf(block),1)); selectedBlock = null; changed('Papildomas blokas pašalintas.'); } }
+    if (target.hasAttribute('data-delete-block')) { const block = selected(); if (block) { api.mutate(content => { blocks().splice(blocks().indexOf(block),1); delete content.blockLayouts?.[`block-${block.id}`]; }); selectedBlock = null; changed('Papildomas blokas pašalintas.'); } }
     if (target.dataset.moveBlock) { const block = selected(); const list = blocks().filter(item => item.zone === block?.zone); const index = list.indexOf(block); const next = list[index+(target.dataset.moveBlock === 'up' ? -1 : 1)]; if (block && next) { if (target.dataset.moveBlock === 'up') moveBlock(block.id,block.zone,next.id); else { const following = list[index+2]; moveBlock(block.id,block.zone,following?.id || null); } } }
     if (target.hasAttribute('data-reset-theme')) { api.mutate(content => { content.design = null; }); renderSection('Dizainas'); api.render(); api.announce('Pradinis svetainės dizainas grąžintas.'); }
+    if (target.dataset.clearBlockColor) { changeBlock(target.dataset.clearBlockColor,''); api.announce('Bloko spalva grąžinta pagal svetainės dizainą.'); }
   });
   document.addEventListener('input',event => {
     const input = event.target;
     if (!api.content()) return;
-    if (input.dataset.blockField) changeBlock(input.dataset.blockField,input.value);
+    if (input.dataset.blockField) changeBlock(input.dataset.blockField,input.value,input);
+    if (input.dataset.blockColorPicker) changeBlock(input.dataset.blockColorPicker,input.value,input);
     if (input.dataset.themeKey) updateTheme(input.dataset.themeKey,input.value);
     if (input.dataset.themeHex) { const valid = colors.test(input.value); input.setAttribute('aria-invalid',String(!valid)); if (valid) updateTheme(input.dataset.themeHex,input.value); }
   });
-  return {renderPalette,renderSection,selectPart,bindCanvas,handleCanvasClick,blockImage,applyStyles,focusIssue,clearSelection() { selectedPart = null; selectedBlock = null; renderSelection(); renderBlockInspector(); },isMediaUsed(src) { return Object.values(api.content().pageBlocks).some(list => list.some(block => block.source === src)); }};
+  return {renderPalette,renderSection,selectPart,bindCanvas,handleCanvasClick,blockImage,applyStyles,focusIssue,cancelPending() { clearTimeout(blockTimer); },clearSelection() { selectedPart = null; selectedBlock = null; renderSelection(); renderBlockInspector(); },isMediaUsed(src) { return Object.values(api.content().pageBlocks).some(list => list.some(block => block.source === src)); }};
 }
