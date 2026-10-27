@@ -4,6 +4,10 @@ const e = value => String(value ?? '').replace(/[&<>"']/g, char => ({'&': '&amp;
 const arrow = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true"><path d="M5 12h14m-6-6 6 6-6 6"/></svg>';
 const newWindow = '<span class="sr-only"> (atsidaro naujame lange)</span>';
 const mediaPattern = /^\/media\/([a-f0-9]{32}\.(?:jpg|png|webp))$/;
+const imageRatioClasses = new Map([
+  ['1:1', 'image-ratio-1-1'], ['2:3', 'image-ratio-2-3'], ['3:2', 'image-ratio-3-2'],
+  ['4:3', 'image-ratio-4-3'], ['9:16', 'image-ratio-9-16'], ['16:9', 'image-ratio-16-9']
+]);
 
 function routeFor(pathname) {
   const path = String(pathname || '/').split(/[?#]/, 1)[0];
@@ -46,11 +50,16 @@ export function renderPage(input, pathname, {assets = {}, preview = false} = {})
     const match = typeof source === 'string' && mediaPattern.exec(source);
     return match ? `${preview ? '/admin/api/media/' : '/media/'}${match[1]}` : null;
   };
+  const imageRatioClass = field => {
+    const slot = IMAGE_FIELDS.find(image => image.path === field);
+    const cls = slot && imageRatioClasses.get(getPath(content, slot.ratioPath));
+    return cls ? ` ${cls}` : '';
+  };
   const photo = (source, alt, cls = '', field) => {
     const src = imageSource(source);
     return src
-      ? `<div class="photo ${cls}"${imageAttributes(field)}><img src="${e(src)}" alt="${e(alt)}" loading="lazy" decoding="async"></div>`
-      : `<div class="photo ${cls}"${preview ? '' : ' aria-hidden="true"'}${imageAttributes(field)}></div>`;
+      ? `<div class="photo ${cls}${imageRatioClass(field)}"${imageAttributes(field)}><img src="${e(src)}" alt="${e(alt)}" loading="lazy" decoding="async"></div>`
+      : `<div class="photo ${cls}${imageRatioClass(field)}"${preview ? '' : ' aria-hidden="true"'}${imageAttributes(field)}></div>`;
   };
   const registrationUrl = (() => {
     if (!camp.registrationUrl) return null;
@@ -89,10 +98,13 @@ export function renderPage(input, pathname, {assets = {}, preview = false} = {})
     current = 'camp'; metadata = seo.home;
     const hero = imageSource(site.heroImage);
     const statement = imageSource(site.statementImage);
+    const heroRatioClass = imageRatioClass('site.heroImage');
+    const heroImage = hero ? `<img class="hero-image" src="${e(hero)}" alt="${e(site.heroImageAlt)}" decoding="async" fetchpriority="high">` : '';
+    const heroMedia = heroRatioClass ? `<div class="hero-media${heroRatioClass}"${imageAttributes('site.heroImage')}>${heroImage}</div>` : heroImage;
     body = `
-<section class="hero${hero ? ' has-image' : ''}"${imageAttributes('site.heroImage')}>${hero ? `<img class="hero-image" src="${e(hero)}" alt="${e(site.heroImageAlt)}" decoding="async" fetchpriority="high">` : ''}<div class="hero-content"><span class="eyebrow">${text('copy.home.heroEyebrow')}</span><h1>${text('site.heroAccent')}</h1><p class="hero-subtitle">${text('site.heroTitle')} ${text('camps.0.date')}</p>${cta({local: true})}</div><div class="hero-bottom"><span>${values(' <i>·</i> ')}</span><a href="#susipazinkime" aria-label="Toliau - susipažinkime">↓</a></div></section>
+<section class="hero${hero ? ' has-image' : ''}${heroRatioClass ? ' hero-ratio-layout' : ''}"${heroRatioClass ? '' : imageAttributes('site.heroImage')}>${heroMedia}<div class="hero-content"><span class="eyebrow">${text('copy.home.heroEyebrow')}</span><h1>${text('site.heroAccent')}</h1><p class="hero-subtitle">${text('site.heroTitle')} ${text('camps.0.date')}</p>${cta({local: true})}</div><div class="hero-bottom"><span>${values(' <i>·</i> ')}</span><a href="#susipazinkime" aria-label="Toliau - susipažinkime">↓</a></div></section>
 <section class="intro wrap section" id="susipazinkime"><div><span class="eyebrow">${text('copy.home.introEyebrow')}</span><h2>${text('copy.home.introTitle')}</h2><a class="text-link" href="/apie-mus/">${text('copy.actions.about')} ${arrow}</a></div><div class="intro-copy">${paragraphs(site.aboutText, 'site.aboutText')}</div></section>
-<div class="statement"${statement || preview ? '' : ' aria-hidden="true"'}${imageAttributes('site.statementImage')}>${statement ? `<img class="hero-image" src="${e(statement)}" alt="${e(site.statementImageAlt)}" loading="lazy" decoding="async">` : ''}</div>
+<div class="statement${imageRatioClass('site.statementImage')}"${statement || preview ? '' : ' aria-hidden="true"'}${imageAttributes('site.statementImage')}>${statement ? `<img class="hero-image" src="${e(statement)}" alt="${e(site.statementImageAlt)}" loading="lazy" decoding="async">` : ''}</div>
 <section id="stovykla" class="camps"><span id="stovyklos" class="legacy-anchor" aria-hidden="true"></span><div class="section-heading wrap"><div><span class="eyebrow">${text('copy.home.campEyebrow')}</span><h2>${text('copy.home.campTitle')}</h2></div></div><article class="camp-row"><div class="camp-inner wrap"><div class="camp-copy"><span class="eyebrow">${text('camps.0.date')}</span><h3>${text('camps.0.title')}</h3><div class="camp-meta"><span>${practical}</span></div><p>${text('camps.0.description.0', 'textarea')}</p><a class="button" href="/stovyklos/stovykla-01/">${text('copy.actions.camp')} ${arrow}</a></div><div class="camp-visual"${camp.image || camp.secondaryImage || preview ? '' : ' aria-hidden="true"'}>${photo(camp.image, camp.imageAlt, '', 'camps.0.image')}${photo(camp.secondaryImage, camp.secondaryImageAlt, 'photo-small', 'camps.0.secondaryImage')}</div></div></article></section>
 ${registration()}`;
   } else if (path === '/apie-mus/') {

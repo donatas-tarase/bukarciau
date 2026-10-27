@@ -15,3 +15,25 @@
 @media(max-width:1100px){.canvas-toolbar{justify-content:flex-start;gap:11px}.canvas-page-label{margin-right:auto}.canvas-modes{margin-left:auto}.canvas-context{align-items:flex-start}.canvas-context p{max-width:460px}.editor-main.visual-editor{padding-left:24px;padding-right:24px}.canvas-toolbar .segmented button{padding:7px 9px;font-size:9px}.canvas-page-label select{min-width:155px;font-size:10px}.canvas-context>span{font-size:7px}.canvas-stage{height:calc(100dvh - 365px);min-height:460px}}
 @media(max-width:680px){.editor-main.visual-editor{padding:12px 12px 152px}.visual-editor>.editor-heading{margin:0 6px 18px}.visual-editor>.editor-heading h1{font-size:24px}.visual-editor>.editor-heading p:last-child{font-size:10px}.canvas-toolbar{padding:12px;gap:10px}.canvas-page-label{flex:1;width:100%;font-size:9px;justify-content:space-between}.canvas-page-label select{flex:1;max-width:230px;font-size:10px;min-width:0}.canvas-devices,.canvas-modes{margin:0;flex:1;display:flex}.canvas-toolbar .segmented button{flex:1;padding:8px 7px;font-size:9px}.canvas-context{padding:10px 12px;gap:10px;flex-direction:column}.canvas-context p{font-size:9px}.canvas-context>span{font-size:7px}.canvas-stage{height:calc(100dvh - 300px);min-height:480px;padding:16px}.canvas-help{font-size:8px;padding:9px 12px}.canvas-image-inspector{padding:14px}.canvas-photo-heading strong{font-size:11px}.canvas-photo-actions{gap:12px}.canvas-photo-actions .slot-remove{font-size:9px}.visual-canvas{border-radius:9px}}
 .canvas-stage{position:relative}.canvas-loading{position:absolute;inset:0;z-index:2;display:grid;place-items:center;padding:25px;background:#e9eee5ed;backdrop-filter:blur(2px);text-align:center}.canvas-loading>div{display:flex;flex-direction:column;align-items:center;gap:13px;max-width:310px}.canvas-loading p{font-size:11px;line-height:1.8;color:#61755a;margin:0}.canvas-loading .button{font-size:10px;min-height:36px}.canvas-stage.is-loading iframe{pointer-events:none}
+
+/* One independently selected aspect ratio per photo placement. */
+.image-ratio-field{border:0;padding:0;min-inline-size:0}
+.image-ratio-options{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:7px}
+.image-ratio-option{position:relative;display:block;cursor:pointer;min-width:0}
+.image-ratio-input{position:absolute;inset:0;width:100%;height:100%;opacity:0;cursor:pointer;margin:0}
+.image-ratio-content{display:flex;align-items:center;justify-content:center;gap:8px;border:1px solid #d5dfd1;border-radius:6px;min-height:42px;padding:7px 8px;background:white;font-size:11px;color:#566a50}
+.image-ratio-option:hover .image-ratio-content{border-color:#8caa91}
+.image-ratio-input:checked+.image-ratio-content{background:#e7f2df;border-color:var(--green);color:var(--green);font-weight:600;box-shadow:inset 0 0 0 1px var(--green)}
+.image-ratio-input:focus-visible+.image-ratio-content{outline:3px solid #71ae82;outline-offset:3px}
+.image-ratio-auto{grid-column:1/-1}
+.image-ratio-icon{display:block;width:19px;height:19px;border:1.5px solid currentColor;border-radius:2px;flex-shrink:0;background:#c9d9c033}
+.ratio-icon-auto{width:24px;height:16px;border-style:dashed}
+.ratio-icon-2-3{width:14px;height:21px}.ratio-icon-3-2{width:24px;height:16px}
+.ratio-icon-4-3{width:24px;height:18px}.ratio-icon-9-16{width:12px;height:22px}.ratio-icon-16-9{width:26px;height:15px}
+.canvas-photo-fields{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:25px;max-width:1000px}
+.canvas-image-inspector .image-ratio-field{margin:0}
+.slot-preview[data-preview-ratio="1-1"]{aspect-ratio:1/1}.slot-preview[data-preview-ratio="2-3"]{aspect-ratio:2/3}
+.slot-preview[data-preview-ratio="3-2"]{aspect-ratio:3/2}.slot-preview[data-preview-ratio="4-3"]{aspect-ratio:4/3}
+.slot-preview[data-preview-ratio="9-16"]{aspect-ratio:9/16}.slot-preview[data-preview-ratio="16-9"]{aspect-ratio:16/9}
+.slot-preview img{position:absolute;inset:0}
+@media(max-width:900px){.canvas-photo-fields{grid-template-columns:minmax(0,1fr);gap:16px}.canvas-photo-fields .image-ratio-field{max-width:520px}}

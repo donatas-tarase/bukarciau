@@ -2,7 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import {readFile} from 'node:fs/promises';
 import {createHash} from 'node:crypto';
-import {CONTENT_FIELDS, IMAGE_FIELDS, parseContent, normalizeContent, getPath, setPath, getImageReferences, ValidationError} from '../shared/content.mjs';
+import {CONTENT_FIELDS, IMAGE_FIELDS, IMAGE_ASPECT_RATIOS, parseContent, normalizeContent, getPath, setPath, getImageReferences, ValidationError} from '../shared/content.mjs';
 import {renderPage, renderRobots, renderSitemap} from '../shared/render.mjs';
 
 const original = parseContent(JSON.parse(await readFile(new URL('../content.json', import.meta.url), 'utf8')));
@@ -136,6 +136,82 @@ test('all photo slots stay blank until supplied and require safe media reference
   const duplicate = copy();
   for (const slot of IMAGE_FIELDS) { setPath(duplicate, slot.path, image); setPath(duplicate, slot.altPath, 'Nuotrauka'); }
   assert.deepEqual(getImageReferences(parseContent(duplicate)), [{id: image.split('/').at(-1), src: image}]);
+});
+
+const imageContainer = (html, slot) => [...html.matchAll(/<(?:div|section)\b[^>]*>/g)].map(match => match[0]).find(tag => tag.includes(`data-cms-image="${slot.path}"`));
+const deleteField = (content, path) => {
+  const parts = path.split('.');
+  delete getPath(content, parts.slice(0, -1).join('.'))[parts.at(-1)];
+};
+
+test('all six photo placements support only the approved ratios and retain legacy auto layouts', () => {
+  assert.deepEqual(IMAGE_ASPECT_RATIOS.map(option => option.value), ['auto', '1:1', '2:3', '3:2', '4:3', '9:16', '16:9']);
+  assert.equal(new Set(IMAGE_FIELDS.map(slot => slot.ratioPath)).size, 6);
+  const uploaded = copy();
+  for (const slot of IMAGE_FIELDS) {
+    assert.equal(getPath(uploaded, slot.ratioPath), 'auto');
+    setPath(uploaded, slot.path, image);
+    setPath(uploaded, slot.altPath, 'Nuotrauka');
+  }
+  const legacy = structuredClone(uploaded);
+  for (const slot of IMAGE_FIELDS) deleteField(legacy, slot.ratioPath);
+  const migrated = parseContent(legacy);
+  for (const slot of IMAGE_FIELDS) assert.equal(getPath(migrated, slot.ratioPath), 'auto');
+  for (const route of routes) assert.equal(renderPage(legacy, route).html, renderPage(uploaded, route).html, route);
+  assert.doesNotMatch(publicHtml(migrated), /image-ratio-|hero-media|hero-ratio-layout|style=/);
+});
+
+test('every photo and ratio combination renders a fixed safe class on the actual image frame', async t => {
+  for (const slot of IMAGE_FIELDS) {
+    for (const option of IMAGE_ASPECT_RATIOS) {
+      await t.test(`${slot.path}: ${option.value}`, () => {
+        const content = copy();
+        setPath(content, slot.path, image);
+        setPath(content, slot.altPath, 'Nuotrauka');
+        setPath(content, slot.ratioPath, option.value);
+        const parsed = parseContent(content);
+        assert.equal(getPath(parsed, slot.ratioPath), option.value);
+        const html = routes.map(route => renderPage(parsed, route, {preview: true}).html).join('\n');
+        const container = imageContainer(html, slot);
+        assert.ok(container, 'The frame remains selectable in the editor.');
+        if (option.value === 'auto') assert.doesNotMatch(container, /image-ratio-/);
+        else assert.ok(container.includes(`image-ratio-${option.value.replace(':', '-')}`));
+        if (slot.path === 'site.heroImage' && option.value !== 'auto') assert.match(container, /class="hero-media /);
+        assert.match(html, /src="\/admin\/api\/media\/0123456789abcdef0123456789abcdef\.jpg"/);
+        assert.doesNotMatch(html, /\sstyle=/);
+      });
+    }
+  }
+});
+
+test('photo ratios remain independent when one uploaded image is reused and the detail image falls back', () => {
+  const content = copy();
+  const selected = IMAGE_ASPECT_RATIOS.slice(1);
+  for (const [index, slot] of IMAGE_FIELDS.entries()) {
+    setPath(content, slot.path, image);
+    setPath(content, slot.altPath, 'Nuotrauka');
+    setPath(content, slot.ratioPath, selected[index].value);
+  }
+  const html = routes.map(route => renderPage(parseContent(content), route, {preview: true}).html).join('\n');
+  for (const [index, slot] of IMAGE_FIELDS.entries()) assert.ok(imageContainer(html, slot).includes(`image-ratio-${selected[index].value.replace(':', '-')}`), slot.path);
+  content.camps[0].detailImage = null;
+  const fallback = renderPage(parseContent(content), '/stovyklos/stovykla-01/', {preview: true}).html;
+  const detail = IMAGE_FIELDS.find(slot => slot.path === 'camps.0.detailImage');
+  assert.ok(imageContainer(fallback, detail).includes('image-ratio-16-9'), 'Detail placement keeps its own ratio while reusing the main photo.');
+  assert.match(fallback, /src="\/admin\/api\/media\/0123456789abcdef0123456789abcdef\.jpg"/);
+});
+
+test('unapproved photo ratios are rejected by the content boundary and cannot inject renderer attributes', () => {
+  for (const slot of IMAGE_FIELDS) {
+    for (const value of [null, 1, {}, [], '', 'original', '1/1', '1:2', 'calc(1 + 1)', 'var(--ratio)', '__proto__', '1:1" style="display:none', '16:9"><script>alert(1)</script>']) {
+      const content = copy();
+      setPath(content, slot.path, image);
+      setPath(content, slot.altPath, 'Nuotrauka');
+      setPath(content, slot.ratioPath, value);
+      assert.throws(() => parseContent(content), error => error instanceof ValidationError && error.issues.some(issue => issue.path === slot.ratioPath), `${slot.ratioPath}: ${String(value)}`);
+      assert.doesNotMatch(publicHtml(content), /style="display:none|<script>alert\(1\)<\/script>/);
+    }
+  }
 });
 
 test('draft preview uses authenticated image URLs and never changes public indexing settings', () => {

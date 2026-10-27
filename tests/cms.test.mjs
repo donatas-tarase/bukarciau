@@ -7,7 +7,7 @@ import { createHandler } from '../server/app.mjs';
 import { createAccessVerifier } from '../server/auth.mjs';
 import { CmsStore } from '../server/store.mjs';
 import { inspectImage, readBodyLimited } from '../server/media.mjs';
-import { DEFAULT_CONTENT, parseContent, getImageReferences } from '../shared/content.mjs';
+import { DEFAULT_CONTENT, IMAGE_FIELDS, IMAGE_ASPECT_RATIOS, getPath, setPath, parseContent, getImageReferences } from '../shared/content.mjs';
 import { renderPage, renderRobots, renderSitemap } from '../shared/render.mjs';
 
 const schema = await readFile(new URL('../db/schema.sql', import.meta.url), 'utf8');
@@ -311,6 +311,50 @@ test('Media stays private until published; referenced photos cannot be deleted; 
   assert.equal(response.status, 200);
   assert.equal((await h.request(item.url)).status, 404);
   assert.equal((await h.request(item.previewUrl)).status, 200);
+});
+
+test('Photo ratios persist independently through draft, publish and history restore, including legacy versions', async () => {
+  const h = harness();
+  let current = await state(h);
+  const legacy = clone(current.content);
+  for (const slot of IMAGE_FIELDS) {
+    const parts = slot.ratioPath.split('.');
+    delete getPath(legacy, parts.slice(0, -1).join('.'))[parts.at(-1)];
+  }
+  const initialVersion = '00000000000000000000000000000000';
+  h.db.sqlite.prepare('UPDATE cms_versions SET content_json = ? WHERE id = ?').run(JSON.stringify(legacy), initialVersion);
+  const item = await upload(h);
+  const selected = IMAGE_ASPECT_RATIOS.slice(1);
+  for (const [index, slot] of IMAGE_FIELDS.entries()) {
+    setPath(current.content, slot.path, item.url);
+    setPath(current.content, slot.altPath, `Nuotrauka ${index + 1}`);
+    setPath(current.content, slot.ratioPath, selected[index].value);
+  }
+  let response = await h.request('/admin/api/draft', { method: 'POST', body: { content: current.content, revision: current.revision } });
+  assert.equal(response.status, 200);
+  current = await response.json();
+  for (const [index, slot] of IMAGE_FIELDS.entries()) assert.equal(getPath(current.content, slot.ratioPath), selected[index].value);
+  assert.doesNotMatch(await (await h.request('/')).text(), /image-ratio-/);
+  response = await h.request('/admin/api/publish', { method: 'POST', body: { revision: current.revision } });
+  assert.equal(response.status, 200);
+  const ratioVersion = (await (await h.request('/admin/api/history')).json()).versions[0];
+  const pages = await Promise.all(['/', '/apie-mus/', '/stovyklos/stovykla-01/'].map(async path => (await h.request(path)).text()));
+  for (const option of selected) assert.ok(pages.some(html => html.includes(`image-ratio-${option.value.replace(':', '-')}`)), option.value);
+  current = await state(h);
+  current.content.site.heroImageRatio = '16:9';
+  current = await (await h.request('/admin/api/draft', { method: 'POST', body: { content: current.content, revision: current.revision } })).json();
+  assert.equal(current.content.site.heroImageRatio, '16:9');
+  for (const [index, slot] of IMAGE_FIELDS.entries()) if (index) assert.equal(getPath(current.content, slot.ratioPath), selected[index].value);
+  assert.match(await (await h.request('/')).text(), /class="hero-media image-ratio-1-1"/);
+  current = await (await h.request('/admin/api/restore', { method: 'POST', body: { versionId: ratioVersion.id, revision: current.revision } })).json();
+  for (const [index, slot] of IMAGE_FIELDS.entries()) assert.equal(getPath(current.content, slot.ratioPath), selected[index].value);
+  response = await h.request('/admin/api/restore', { method: 'POST', body: { versionId: initialVersion, revision: current.revision } });
+  assert.equal(response.status, 200);
+  current = await response.json();
+  for (const slot of IMAGE_FIELDS) assert.equal(getPath(current.content, slot.ratioPath), 'auto');
+  assert.match(await (await h.request('/')).text(), /class="hero-media image-ratio-1-1"/, 'Restoring legacy history creates a draft until explicitly published.');
+  assert.equal((await h.request('/admin/api/publish', { method: 'POST', body: { revision: current.revision } })).status, 200);
+  assert.doesNotMatch(await (await h.request('/')).text(), /image-ratio-|src="\/media\//);
 });
 
 test('Unknown media, SVG disguised as JPEG, oversized bodies and external previews are rejected', async () => {
