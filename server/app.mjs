@@ -76,7 +76,7 @@ function conflict() {
 }
 
 export function createHandler(runtime) {
-  const { initialContent, assets, renderPage, renderRobots, renderSitemap, parseContent, getImageReferences } = runtime;
+  const { initialContent, assets, renderPage, renderRobots, renderSitemap, renderTheme = () => '', parseContent, getImageReferences } = runtime;
 
   function parse(input) {
     try { return parseContent(input); }
@@ -171,6 +171,12 @@ export function createHandler(runtime) {
       }
       return new Response(null, { status: 303, headers });
     }
+    if (url.pathname === '/admin/theme.css') {
+      if (request.method !== 'GET' && request.method !== 'HEAD') throw new HttpError(405, 'METHOD_NOT_ALLOWED', 'Šis veiksmas neleidžiamas.');
+      if (!env.CMS_DB) throw unavailable();
+      const state = await new CmsStore(env.CMS_DB, initialContent).state();
+      return new Response(request.method === 'HEAD' ? null : renderTheme(parse(state.content)), { headers: { 'Content-Type': 'text/css; charset=utf-8' } });
+    }
     if (url.pathname === '/admin/preview') {
       if (request.method !== 'GET' && request.method !== 'HEAD') throw new HttpError(405, 'METHOD_NOT_ALLOWED', 'Šis veiksmas neleidžiamas.');
       if (!env.CMS_DB) throw unavailable();
@@ -180,7 +186,9 @@ export function createHandler(runtime) {
       if (!/^\/(?!\/)[^?#]*$/.test(path) || path.startsWith('/admin')) throw new HttpError(422, 'PREVIEW_PATH_INVALID', 'Pasirinkite svetainės puslapį peržiūrai.');
       const content = parse(state.content);
       // The shared renderer rewrites draft photographs to protected media URLs.
-      const rendered = renderPage(content, path, { assets, preview: true });
+      const previewDevice = url.searchParams.get('device') || 'desktop';
+      if (!['desktop', 'mobile'].includes(previewDevice)) throw new HttpError(422, 'PREVIEW_DEVICE_INVALID', 'Pasirinkite kompiuterio arba telefono peržiūrą.');
+      const rendered = renderPage(content, path, { assets: {...assets, theme: '/admin/theme.css'}, preview: true, previewDevice });
       if (!rendered) throw new HttpError(404, 'PAGE_NOT_FOUND', 'Šio puslapio nėra.');
       return secure(new Response(request.method === 'HEAD' ? null : rendered.html, { headers: { 'Content-Type': 'text/html; charset=utf-8' } }), { admin: true, preview: true, html: true });
     }
@@ -304,6 +312,18 @@ export function createHandler(runtime) {
       }
       if (request.method !== 'GET' && request.method !== 'HEAD') {
         return secure(new Response('Šis veiksmas neleidžiamas.', { status: 405, headers: { Allow: 'GET, HEAD' } }));
+      }
+      if (url.pathname === '/theme.css') {
+        let content = initialContent;
+        let revision = 'static';
+        if (env.CMS_DB) {
+          try {
+            const state = await new CmsStore(env.CMS_DB, initialContent).state();
+            content = parse(state.published);
+            revision = state.publishedRevision;
+          } catch { /* Keep the static theme available during a database outage. */ }
+        }
+        return secure(new Response(request.method === 'HEAD' ? null : renderTheme(content), { headers: { 'Content-Type': 'text/css; charset=utf-8', 'Cache-Control': 'public, max-age=0, must-revalidate', 'ETag': `"theme-${revision}"` } }));
       }
       if (url.pathname.startsWith('/media/')) {
         if (!env.CMS_DB) return secure(new Response('Nerasta', { status: 404, headers: { 'Cache-Control': 'no-store' } }));

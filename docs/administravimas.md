@@ -15,9 +15,25 @@ Baigę darbą pasirinkite „Atsijungti“. Įrankis pašalina svetainės prisij
 1. Pasirinkite „Redaguoti puslapyje“ ir viršuje nurodykite norimą puslapį.
 2. Režime „Redaguoti“ paspauskite tekstą ir rašykite jo vietoje. Pakeitimas iškart matomas redaktoriuje. `Esc` atšaukia šio teksto redagavimą, kol jis dar aktyvus.
 3. Paspauskite bet kurį nuotraukos bloką, net jei jis dar tuščias. Atsidaro viso bloko nustatymai: proporcijos, nuotraukos pasirinkimas ir bloko pašalinimas. Jei nuotrauka jau pasirinkta, galite keisti ir jos aprašymą.
-4. Patikrinkite vaizdą pasirinkę „Kompiuteris“ ir „Telefonas“. Režimas „Peržiūrėti“ leidžia peržiūrėti puslapį be redagavimo pasirinkimų.
+4. Patikrinkite vaizdą pasirinkę „Kompiuteris“ ir „Telefonas“. Tai tik peržiūros dydžiai: tekstai, nuotraukos ir dizaino nustatymai yra bendri abiem vaizdams. Telefone išdėstymas prisitaiko automatiškai. Režimas „Peržiūrėti“ leidžia peržiūrėti puslapį be redagavimo pasirinkimų.
 
-Nuorodų adresus, SEO, registracijos anketą ir sąrašus keiskite atitinkamuose kairiojo meniu turinio skyriuose. Taip pat galima naudoti juos visiems tekstams redaguoti įprastuose laukeliuose. Blokų vietos, spalvos, šriftai ir bendras maketas lieka nustatyti dizaino kode.
+Nuorodų adresus, SEO, registracijos anketą ir sąrašus keiskite atitinkamuose kairiojo meniu turinio skyriuose. Taip pat galima naudoti juos visiems tekstams redaguoti įprastuose laukeliuose. Nuotraukų vietą, naujus blokus ir dizaino nustatymus galima keisti pačiame redaktoriuje.
+
+## Blokų perkėlimas ir pridėjimas
+
+Režime „Redaguoti“ vilkite nuotrauką į pažymėtą vietą šalia teksto, virš jo arba po juo. Nuotraukos nustatymuose vietą taip pat galima pasirinkti sąraše. Pavyzdžiui, po „Kas mes?“ esančią nuotrauką galima perkelti į kairę šalia prisistatymo. Telefone tokia nuotrauka automatiškai rodoma po tekstu.
+
+Teksto dalių tvarką galima keisti jų grupėje. Naują tekstą, nuotrauką, mygtuką, nuorodą ar tarpą pridėkite iš blokų sąrašo. Vilkite bloką į pažymėtą įterpimo vietą arba pasirinkite vietą jo nustatymuose. Įterptą bloką paspauskite, kad pakeistumėte jo turinį, nuotrauką, nuorodą ar išvaizdą. Mygtukų ir nuorodų adresams naudokite pilną HTTPS nuorodą.
+
+Naujo bloko perkėlimas, turinio keitimas ir ištrynimas pirmiausia keičia tik juodraštį. Blokų vietos išlieka išsaugojus ir paskelbus.
+
+## Teksto ir nuorodų dalių pašalinimas
+
+Paspaudę tekstą pasirinkite „Pašalinti šią dalį“, kad pašalintumėte visą susijusią teksto ar nuorodos dalį. Pavyzdžiui, pašalinus nuorodą nelieka tuščio mygtuko ar vienos rodyklės. Pašalintas esamo puslapio dalis rasite skyriuje „Pašalintos dalys“ ir galėsite grąžinti. Turinys bendras kompiuterio ir telefono vaizdams.
+
+## Spalvos ir stilius
+
+Skyriuje „Dizainas“ galite keisti bendras fono, teksto, akcentų ir mygtukų spalvas, šriftą bei mygtukų kampų apvalumą. Naujiems blokams taip pat galima parinkti jų spalvas ir lygiavimą. Pakeitimai iškart matomi redaktoriaus peržiūroje; viešoje svetainėje jie atsiranda tik paskelbus. Spalvos ir šriftai telefone lieka tokie patys kaip kompiuteryje.
 
 ## Išsaugoti ir paskelbti
 

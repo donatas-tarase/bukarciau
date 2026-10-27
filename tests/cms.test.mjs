@@ -7,7 +7,7 @@ import { createHandler } from '../server/app.mjs';
 import { createAccessVerifier } from '../server/auth.mjs';
 import { CmsStore } from '../server/store.mjs';
 import { inspectImage, readBodyLimited } from '../server/media.mjs';
-import { DEFAULT_CONTENT, IMAGE_FIELDS, IMAGE_ASPECT_RATIOS, getPath, setPath, parseContent, getImageReferences } from '../shared/content.mjs';
+import { DEFAULT_CONTENT, IMAGE_FIELDS, IMAGE_ASPECT_RATIOS, getPath, setPath, parseContent, getImageReferences, getImageSettings, getDeviceContent, THEME_DEFAULTS } from '../shared/content.mjs';
 import { renderPage, renderRobots, renderSitemap } from '../shared/render.mjs';
 
 const schema = await readFile(new URL('../db/schema.sql', import.meta.url), 'utf8');
@@ -428,6 +428,92 @@ test('Removing a newly uploaded photo placement saves without alt text, while sh
   current.content.camps[0].detailImageHidden = true;
   response = await h.request('/admin/api/draft', {method: 'POST', body: {content: current.content, revision: current.revision}});
   assert.equal(response.status, 200);
+});
+
+test('Shared media, text, design, extra blocks and removable parts persist through draft, publish, stale writes and history restore', async () => {
+  const h = harness();
+  let current = await state(h);
+  const legacy = clone(current.content);
+  for (const key of ['design', 'pageBlocks', 'partOrder', 'hiddenParts']) delete legacy[key];
+  for (const slot of IMAGE_FIELDS) {
+    const pieces = slot.positionPath.split('.'); delete getPath(legacy, pieces.slice(0, -1).join('.'))[pieces.at(-1)];
+  }
+  const initialVersion = '00000000000000000000000000000000';
+  h.db.sqlite.prepare('UPDATE cms_versions SET content_json = ? WHERE id = ?').run(JSON.stringify(legacy), initialVersion);
+  const main = await upload(h), hidden = await upload(h), custom = await upload(h);
+  current.content.site.heroImage = main.url;
+  current.content.site.heroImageAlt = 'Bendra nuotrauka visiems ekranams';
+  current.content.site.heroImagePosition = 'right';
+  current.content.site.statementImage = hidden.url;
+  current.content.site.statementImageAlt = '';
+  current.content.site.statementImageHidden = true;
+  current.content.site.heroAccent = 'Bendra antraštė';
+  current.content.site.aboutText = [];
+  current.content.camps[0].program = [{title: 'Rytas', text: 'Pokalbiai'}];
+  current.content.hiddenParts = ['home.hero.subtitle', 'detail.programHeading', 'registration.phone'];
+  current.content.partOrder = ['home.hero.title', 'home.hero.eyebrow'];
+  current.content.design = {...THEME_DEFAULTS, primary: '#123456', fontFamily: 'Georgia', buttonRadius: 4};
+  current.content.pageBlocks.home = [
+    {id: 'e'.repeat(32), type: 'button', zone: 'home.afterHero', text: 'Dalyvauti', url: 'https://forms.gle/example', source: null, alt: '', ratio: 'auto', size: 'normal', align: 'left', background: null, color: null},
+    {id: 'f'.repeat(32), type: 'image', zone: 'home.beforeFooter', text: '', url: null, source: custom.url, alt: 'Papildoma bendra nuotrauka', ratio: '2:3', size: 'small', align: 'center', background: '#aabbcc', color: null}
+  ];
+  const expected = clone(current.content);
+  let response = await h.request('/admin/api/draft', {method: 'POST', body: {content: current.content, revision: current.revision}});
+  assert.equal(response.status, 200);
+  current = await response.json();
+  assert.deepEqual(current.content, expected);
+  assert.equal(getDeviceContent(current.content).site.heroAccent, 'Bendra antraštė');
+  assert.deepEqual(getDeviceContent(current.content, 'mobile'), getDeviceContent(current.content, 'desktop'));
+  assert.equal(getImageSettings(current.content, 'site.heroImage').source, main.url);
+  assert.equal(getImageSettings(current.content, 'site.heroImage', 'mobile').source, main.url);
+  assert.equal((await h.request(main.url)).status, 404);
+  assert.equal((await h.request(hidden.url)).status, 404);
+  assert.equal((await h.request(custom.url)).status, 404);
+  assert.equal((await h.request(`/admin/api/media/${custom.id}`, {method: 'DELETE'})).status, 409, 'Additional image blocks retain their media.');
+  assert.equal((await h.request(`/admin/api/media/${hidden.id}`, {method: 'DELETE'})).status, 409, 'Hidden references protect restoration media.');
+  assert.equal((await h.request('/admin/api/draft', {method: 'POST', body: {content: expected, revision: current.revision - 1}})).status, 409);
+  assert.equal((await h.request('/admin/api/publish', {method: 'POST', body: {revision: current.revision}})).status, 200);
+  assert.equal((await h.request(main.url)).status, 200);
+  assert.equal((await h.request(hidden.url)).status, 200);
+  assert.equal((await h.request(custom.url)).status, 200);
+  const publishedVersion = (await (await h.request('/admin/api/history')).json()).versions[0];
+  response = await h.request('/admin/api/restore', {method: 'POST', body: {versionId: initialVersion, revision: current.revision}});
+  assert.equal(response.status, 200);
+  current = await response.json();
+  assert.deepEqual(current.content.hiddenParts, []); assert.deepEqual(current.content.partOrder, []);
+  assert.equal(current.content.design, null);
+  assert.deepEqual(current.content.pageBlocks.home, []);
+  for (const slot of IMAGE_FIELDS) assert.equal(getPath(current.content, slot.positionPath), 'default');
+  assert.equal((await h.request(hidden.url)).status, 200, 'History restoration creates a private draft until explicitly published.');
+  assert.equal((await h.request('/admin/api/publish', {method: 'POST', body: {revision: current.revision}})).status, 200);
+  assert.equal((await h.request(hidden.url)).status, 404);
+  assert.equal((await h.request(custom.url)).status, 404);
+  assert.equal((await h.request(`/admin/api/media/${hidden.id}`, {method: 'DELETE'})).status, 200);
+  response = await h.request('/admin/api/restore', {method: 'POST', body: {versionId: publishedVersion.id, revision: current.revision}});
+  assert.equal(response.status, 200);
+  current = await response.json();
+  assert.deepEqual(current.content, expected);
+  assert.equal((await h.request(hidden.previewUrl)).status, 200, 'Restoring history recovers soft-deleted retained media.');
+  assert.equal((await h.request(hidden.url)).status, 404);
+});
+
+test('Server rejects unsafe shared settings, abandoned profiles and nonexistent custom media without changing the draft revision', async () => {
+  const h = harness();
+  const initial = await state(h);
+  for (const alter of [
+    content => { content.site.heroImageMobile = {source: null}; },
+    content => { content.site.heroImagePosition = 'fixed'; },
+    content => { content.deviceContent = {mobile: {'site.facebook': 'javascript:alert(1)'}}; },
+    content => { content.hiddenParts = ['admin.login']; },
+    content => { content.partOrder = ['body.css']; },
+    content => { content.design = {...THEME_DEFAULTS, background: 'url(javascript:alert(1))'}; },
+    content => { content.pageBlocks.home = [{id: 'e'.repeat(32), type: 'image', zone: 'home.afterHero', text: '', url: null, source: `/media/${'f'.repeat(32)}.png`, alt: 'Neįkelta nuotrauka', ratio: 'auto', size: 'normal', align: 'left', background: null, color: null}]; }
+  ]) {
+    const content = clone(initial.content); alter(content);
+    const response = await h.request('/admin/api/draft', {method: 'POST', body: {content, revision: initial.revision}});
+    assert.equal(response.status, 422);
+    assert.equal((await state(h)).revision, initial.revision);
+  }
 });
 
 test('Unknown media, SVG disguised as JPEG, oversized bodies and external previews are rejected', async () => {

@@ -26,6 +26,7 @@
     <div class="workspace">
       <header class="workspace-topbar">
         <div class="workspace-label"><span class="status-dot" aria-hidden="true"></span> Būk arčiau <span class="workspace-divider">/</span><span>Turinio valdymas</span></div>
+        <div class="segmented global-device-control" role="group" aria-label="Peržiūros dydis"><button type="button" data-preview-size="desktop" aria-pressed="true">Kompiuteris</button><button type="button" data-preview-size="mobile" aria-pressed="false">Telefonas</button></div>
         <button class="button button-quiet preview-toggle" id="preview-toggle" type="button" aria-controls="canvas-section"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7S2 12 2 12Z"/><circle cx="12" cy="12" r="3"/></svg>Peržiūrėti</button>
       </header>
       <div class="editor-layout">
@@ -36,10 +37,12 @@
           <section id="canvas-section" class="visual-canvas" hidden aria-label="Redaguoti tiesiai puslapyje">
             <div class="canvas-toolbar">
               <label class="canvas-page-label" for="preview-route">Puslapis<select id="preview-route"><option value="/">Pagrindinis puslapis</option><option value="/stovyklos/stovykla-01/">Stovykla</option><option value="/apie-mus/">Apie mus</option><option value="/kontaktai/">Kontaktai</option></select></label>
-              <div class="segmented canvas-devices" role="group" aria-label="Puslapio dydis"><button type="button" data-preview-size="desktop" aria-pressed="true">Kompiuteris</button><button type="button" data-preview-size="mobile" aria-pressed="false">Telefonas</button></div>
               <div class="segmented canvas-modes" role="group" aria-label="Puslapio režimas"><button type="button" data-canvas-mode="edit" aria-pressed="true">Redaguoti</button><button type="button" data-canvas-mode="view" aria-pressed="false">Peržiūrėti</button></div>
             </div>
             <div class="canvas-context"><p id="canvas-instruction">Paspausk tekstą ir rašyk. Paspausk nuotraukos bloką, kad keistum jo dydį arba nuotrauką.</p><span id="canvas-draft-status">Išsaugotas juodraštis</span></div>
+            <div id="canvas-palette" class="canvas-palette"></div>
+            <div id="canvas-part-tools" class="canvas-part-tools" hidden></div>
+            <div id="canvas-extra-inspector" class="canvas-extra-inspector" hidden></div>
             <div id="canvas-image-inspector" class="canvas-image-inspector" hidden></div>
             <div class="canvas-stage" id="canvas-stage"><div class="canvas-loading" id="canvas-loading" role="status" aria-live="polite" hidden><div><span class="spinner" aria-hidden="true"></span><p id="canvas-loading-message">Įkeliamas puslapis...</p><button class="button button-outline" type="button" data-reload-canvas hidden>Įkelti dar kartą</button></div></div><iframe id="preview-frame" title="Redaguojamas svetainės puslapis" sandbox="allow-same-origin allow-scripts allow-popups" referrerpolicy="same-origin"></iframe></div>
             <p id="preview-note" class="canvas-help">Pakeitimai matomi iškart. Svetainės lankytojai juos matys tik paskelbus.</p>
@@ -47,6 +50,7 @@
           <form id="editor-form" novalidate hidden><div id="editor-fields"></div></form>
           <section id="media-section" hidden aria-label="Nuotraukų valdymas"></section>
           <section id="history-section" hidden aria-label="Versijų istorija"></section>
+          <section id="tools-section" hidden aria-label="Papildomi svetainės nustatymai"></section>
           <noscript><div class="notice notice-error">Turinio valdymui reikalingas įjungtas JavaScript.</div></noscript>
         </main>
       </div>

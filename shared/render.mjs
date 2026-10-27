@@ -1,4 +1,5 @@
-import {normalizeContent, getPath, CONTENT_FIELDS, IMAGE_FIELDS} from './content.mjs';
+import {normalizeContent, getPath, CONTENT_FIELDS, IMAGE_FIELDS, getImageSettings} from './content.mjs';
+import * as editorial from './content.mjs';
 
 const e = value => String(value ?? '').replace(/[&<>"']/g, char => ({'&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;'}[char]));
 const arrow = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true"><path d="M5 12h14m-6-6 6 6-6 6"/></svg>';
@@ -15,7 +16,7 @@ function routeFor(pathname) {
   return aliases[path] || null;
 }
 
-export function renderPage(input, pathname, {assets = {}, preview = false} = {}) {
+function renderLegacyPage(input, pathname, {assets = {}, preview = false} = {}) {
   const path = routeFor(pathname);
   if (!path) return null;
   const content = normalizeContent(input);
@@ -152,4 +153,290 @@ export function renderSitemap(input) {
   const {site} = normalizeContent(input);
   if (site.draft) return null;
   return `<?xml version="1.0" encoding="UTF-8"?><urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">${['/', '/apie-mus/', '/kontaktai/', '/stovyklos/stovykla-01/'].map(path => `<url><loc>${e(site.url + path)}</loc></url>`).join('')}</urlset>`;
+}
+
+const pageKeys = {'/': 'home', '/apie-mus/': 'about', '/kontaktai/': 'contact', '/stovyklos/stovykla-01/': 'camp'};
+const safeColor = value => typeof value === 'string' && /^#[a-f0-9]{6}$/i.test(value);
+const blockId = value => typeof value === 'string' && /^[a-f0-9]{32}$/.test(value);
+const withClass = (html, value) => html.replace(/^(\s*<[a-z][\w-]*)([^>]*>)/i, (all, tag, rest) => /\bclass="/.test(rest) ? tag + rest.replace(/\bclass="/, `class="${value} `) : `${tag} class="${value}"${rest}`);
+const withAttributes = (html, attributes) => html.replace(/^(\s*<[a-z][\w-]*)(?=[\s>])/i, `$1${attributes}`);
+const safeUrl = value => {
+  try { const url = new URL(value); return url.protocol === 'https:' && !url.username && !url.password ? url.href : null; }
+  catch { return null; }
+};
+
+function hasResponsiveContent(content) {
+  return Boolean(content.hiddenParts?.length || content.partOrder?.length || content.design || Object.values(content.pageBlocks || {}).some(blocks => Array.isArray(blocks) && blocks.length) || IMAGE_FIELDS.some(slot => (getPath(content, slot.positionPath) || 'default') !== 'default') || ['site.values', 'site.aboutText', 'site.story', 'camps.0.description'].some(path => getPath(content, path)?.length === 0));
+}
+
+// Defaults continue through the reviewed renderer. The responsive renderer is opt-in
+// for publication. Preview uses the same content and lets CSS adapt its geometry.
+export function renderPage(input, pathname, options = {}) {
+  const content = normalizeContent(input);
+  if (!hasResponsiveContent(content) && !(options.preview && Object.hasOwn(options, 'previewDevice'))) return renderLegacyPage(content, pathname, options);
+  return renderResponsivePage(content, pathname, options);
+}
+
+function renderResponsivePage(content, pathname, {assets = {}, preview = false, previewDevice = 'desktop'} = {}) {
+  const path = routeFor(pathname);
+  if (!path) return null;
+  const selectedDevice = previewDevice === 'mobile' ? 'mobile' : 'desktop';
+  const pageKey = pageKeys[path];
+  const knownParts = new Set((editorial.CONTENT_PARTS || []).map(part => part.id));
+  const knownZones = new Set((editorial.CONTENT_ZONES || []).filter(zone => zone.page === pageKey).map(zone => zone.id));
+  function profile(device) {
+    const data = content;
+    const {site, camps, copy} = data;
+    const camp = camps[0];
+    const hidden = new Set(data.hiddenParts || []);
+    const order = new Map((data.partOrder || []).map((id, index) => [id, index]));
+    function text(field, lineBreaks = false) {
+      const value = e(getPath(data, field));
+      const rendered = lineBreaks ? value.replace(/\r?\n/g, '<br>') : value;
+      if (!preview) return rendered;
+      const descriptor = CONTENT_FIELDS.find(item => item.path === field || field.startsWith(item.path + '.'));
+      const textarea = descriptor && ['textarea', 'paragraphs', 'repeater'].includes(descriptor.type);
+      return `<span data-cms-field="${e(field)}" data-cms-type="${textarea ? 'textarea' : 'text'}" tabindex="0" aria-label="Redaguoti: ${e(descriptor?.label || 'Tekstas')}">${rendered}</span>`;
+    }
+    function part(id, html) {
+      if (!html || hidden.has(id)) return '';
+      return preview && knownParts.has(id) ? withAttributes(html, ` data-cms-part="${e(id)}"`) : html;
+    }
+    function group(zone, entries, cls = '', tag = 'div') {
+      const sorted = entries.map((entry, index) => ({id:entry[0], html:entry[1], index})).sort((a, b) => (order.get(a.id) ?? Infinity) - (order.get(b.id) ?? Infinity) || a.index - b.index);
+      const html = sorted.map(entry => part(entry.id, entry.html)).join('');
+      if (!html) return '';
+      return `<${tag}${cls ? ` class="${cls}"` : ''}${preview ? ` data-cms-sort-zone="${e(zone)}"` : ''}>${html}</${tag}>`;
+    }
+    const registrationUrl = safeUrl(camp.registrationUrl);
+    const cta = ({labelPath, cls = 'button button-solid', local = false} = {}) => registrationUrl
+      ? `<a class="${cls}" href="${e(registrationUrl)}" data-registration-link target="_blank" rel="noopener noreferrer">${text(labelPath || 'copy.actions.register')} ${arrow}${newWindow}</a>`
+      : `<a class="${cls}" href="${local ? '' : '/'}#registracija" data-registration-intent>${text(labelPath || 'copy.actions.participate')} ${arrow}</a>`;
+    const values = separator => site.values.map((value, index) => text(`site.values.${index}`)).join(separator);
+    function settings(field) {
+      const value = getImageSettings(data, field);
+      if (field === 'camps.0.detailImage' && !value.source) {
+        const main = getImageSettings(data, 'camps.0.image');
+        return {...value, source:main.source, alt:main.alt};
+      }
+      return value;
+    }
+    function source(value) {
+      const match = typeof value === 'string' && mediaPattern.exec(value);
+      return match ? `${preview ? '/admin/api/media/' : '/media/'}${match[1]}` : null;
+    }
+    function photo(field, cls = 'photo') {
+      const image = settings(field);
+      if (image.hidden) return '';
+      const src = source(image.source);
+      const ratio = imageRatioClasses.get(image.ratio);
+      const label = IMAGE_FIELDS.find(slot => slot.path === field)?.label || 'Nuotrauka';
+      return `<div class="${cls}${ratio ? ` ${ratio}` : ''}"${preview ? ` data-cms-image="${e(field)}" data-cms-label="${e(label)}" tabindex="0" aria-label="Keisti nuotrauką: ${e(label)}"` : src ? '' : ' aria-hidden="true"'}>${src ? `<img src="${e(src)}" alt="${e(image.alt)}" loading="${field === 'site.heroImage' ? 'eager' : 'lazy'}" decoding="async"${field === 'site.heroImage' ? ' fetchpriority="high"' : ''}>` : ''}</div>`;
+    }
+    function imageTargets(field) {
+      if (!preview || settings(field).hidden) return '';
+      const label = IMAGE_FIELDS.find(slot => slot.path === field)?.label || 'Nuotrauka';
+      return `<div class="cms-image-drop-targets" data-cms-image-zones="${e(field)}">${['above', 'left', 'default', 'right', 'below'].map(position => `<span data-cms-image-drop="${e(field)}" data-cms-position="${position}" aria-label="${e(label)}: ${e(({above:'virš teksto', left:'kairėje', default:'pagal dizainą', right:'dešinėje', below:'po tekstu'})[position])}"></span>`).join('')}</div>`;
+    }
+    function layout(field, html, cls = '', fallback = 'below') {
+      const image = settings(field), media = photo(field);
+      const position = image.position === 'default' ? fallback : image.position;
+      const hasCopy = Boolean(html.replace(/<[^>]*>/g, '').trim());
+      return `<div class="responsive-layout ${cls} r-position-${e(position)}${media ? '' : ' without-media'}${hasCopy ? '' : ' without-copy'}">${media ? `<div class="responsive-layout-media">${media}</div>` : ''}${hasCopy ? `<div class="responsive-layout-copy">${html}</div>` : ''}${imageTargets(field)}</div>`;
+    }
+    function zone(id) {
+      if (!knownZones.has(id)) return '';
+      const blocks = (data.pageBlocks?.[pageKey] || []).filter(block => block.zone === id);
+      const rendered = blocks.map(block => {
+        if (!blockId(block.id) || !['text', 'image', 'button', 'link', 'spacer'].includes(block.type)) return '';
+        const size = ['small', 'normal', 'large'].includes(block.size) ? block.size : 'normal';
+        const align = ['left', 'center', 'right'].includes(block.align) ? block.align : 'left';
+        const cls = `cms-custom-block cms-block-${block.id} cms-block-${block.type} cms-size-${size} cms-align-${align}`;
+        const attrs = preview ? ` data-cms-block="${block.id}" data-cms-block-zone="${e(id)}"` : '';
+        let inner = '';
+        if (block.type === 'text') inner = block.text ? `<p>${e(block.text).replace(/\r?\n/g, '<br>')}</p>` : preview ? '<p class="cms-incomplete-block">Įrašyk tekstą</p>' : '';
+        if (block.type === 'image') {
+          const src = source(block.source), ratio = imageRatioClasses.get(block.ratio);
+          inner = src ? `<div class="photo${ratio ? ` ${ratio}` : ''}"><img src="${e(src)}" alt="${e(block.alt)}" loading="lazy" decoding="async"></div>` : preview ? '<div class="photo cms-block-placeholder" aria-hidden="true"></div>' : '';
+        }
+        if (['button', 'link'].includes(block.type)) {
+          const url = safeUrl(block.url);
+          inner = block.text && url ? `<a class="${block.type === 'button' ? 'button button-solid' : 'text-link'}" href="${e(url)}" target="_blank" rel="noopener noreferrer">${e(block.text)} ${arrow}${newWindow}</a>` : preview ? '<span class="cms-incomplete-block">Įrašyk nuorodos tekstą ir HTTPS adresą</span>' : '';
+        }
+        if (block.type === 'spacer') inner = '<span aria-hidden="true"></span>';
+        return inner ? `<div class="${cls}"${attrs}>${inner}</div>` : '';
+      }).join('');
+      return rendered || preview ? `<div class="cms-content-zone wrap"${preview ? ` data-cms-drop-zone="${e(id)}" aria-label="${e(editorial.CONTENT_ZONES.find(zone => zone.id === id)?.label || id)}"` : ''}>${rendered}</div>` : '';
+    }
+    return {device, data, site, camp, copy, hidden, order, text, part, group, cta, values, registrationUrl, settings, photo, layout, imageTargets, zone};
+  }
+  const active = profile('desktop');
+  const variant = render => render(active);
+  const zone = id => active.zone(id);
+  function heading(id, field, cls = '') {
+    return active.part(id, `<h1${cls ? ` class="${cls}"` : ''}>${active.text(field, true)}</h1>`);
+  }
+  const sharedPart = (id, render) => active.part(id, render(active));
+  function header() {
+    const links = variant(c => c.group('header.links', [
+      ['common.nav.camp', `<a href="/#stovykla"${pageKey === 'home' || pageKey === 'camp' ? ' aria-current="page"' : ''}>${c.text('copy.header.camp')}</a>`],
+      ['common.nav.about', `<a href="/apie-mus/"${pageKey === 'about' ? ' aria-current="page"' : ''}>${c.text('copy.header.about')}</a>`],
+      ['common.nav.contact', `<a href="/kontaktai/"${pageKey === 'contact' ? ' aria-current="page"' : ''}>${c.text('copy.header.contact')}</a>`],
+      ['common.nav.write', `<a class="nav-contact" href="mailto:${e(c.site.email)}">${c.text('copy.header.write')} ${arrow}</a>`]
+    ], 'responsive-nav-links'));
+    return `<a class="skip-link" href="#turinys">Pereiti prie turinio</a><header class="site-header"><div class="header-inner"><a class="brand" href="/" aria-label="${e(content.site.name)} - pradžia"><img src="/assets/logo.svg" width="104" height="80" alt="Arčiau"></a><button class="menu-toggle" aria-controls="navigation" aria-expanded="false" aria-label="Atidaryti meniu"><span></span><span></span></button><nav id="navigation" aria-label="Pagrindinis meniu">${links}</nav></div></header>`;
+  }
+  function footer(c) {
+    return `<footer class="site-footer"><div class="footer-main wrap"><a class="footer-brand" href="/" aria-label="${e(c.site.name)} - pradžia"><img src="/assets/logo.svg" width="150" height="116" alt="Arčiau"></a>${c.group('footer.contact', [
+      ['common.footer.contactHeading', `<span class="eyebrow">${c.text('copy.footer.contact')}</span>`], ['common.footer.email', `<a href="mailto:${e(c.site.email)}">${c.text('site.email')}</a>`], ['common.footer.phone', `<a href="tel:${e(c.site.phone)}">${c.text('site.phoneDisplay')}</a>`]
+    ], 'footer-links')}${c.group('footer.about', [
+      ['common.footer.aboutHeading', `<span class="eyebrow">${c.text('copy.footer.about')}</span>`], ['common.footer.organizers', `<a href="/apie-mus/">${c.text('site.organizers')}</a>`], ['common.footer.facebook', `<a href="${e(safeUrl(c.site.facebook) || 'https://www.facebook.com/')}" target="_blank" rel="noopener noreferrer">${c.text('copy.footer.facebook')} ↗${newWindow}</a>`]
+    ], 'footer-links')}</div>${c.group('footer.bottom', [['common.footer.copyright', `<span>© ${new Date().getUTCFullYear()} ${c.text('site.name')}</span>`], ['common.footer.values', c.site.values.length ? `<span>${c.values(' · ')}</span>` : '']], 'footer-bottom wrap')}</footer>`;
+  }
+  function facts(c) {
+    return c.group('detail.facts', [
+      ['detail.fact.date', `<div><dt>${c.text('copy.camp.date')}</dt><dd>${c.text('camps.0.date')}</dd></div>`],
+      ['detail.fact.location', `<div><dt>${c.text('copy.camp.location')}</dt><dd>${c.text(c.camp.location ? 'camps.0.location' : 'copy.camp.locationPending')}</dd></div>`],
+      ['detail.fact.price', `<div><dt>${c.text('copy.camp.price')}</dt><dd>${c.text(c.camp.price ? 'camps.0.price' : 'copy.camp.pricePending')}</dd></div>`]
+    ], 'event-facts', 'dl');
+  }
+  function registration(c) {
+    const intro = c.group('registration.intro', [['registration.eyebrow', `<span class="eyebrow">${c.text('camps.0.date')} · ${c.text('site.organizers')}</span>`], ['registration.title', `<h2>${c.text('copy.registration.title')}</h2>`], ['registration.intro', `<p>${c.text('copy.registration.intro')}</p>`]], 'registration-copy');
+    const mail = `mailto:${c.site.email}?subject=${encodeURIComponent(c.copy.registration.emailSubject + ' · ' + c.camp.date)}`;
+    const entries = c.registrationUrl ? [
+      ['registration.status', `<span class="status-label">${c.text('copy.registration.openLabel')}</span>`], ['registration.text', `<p>${c.text('copy.registration.openText')}</p>`], ['registration.cta', c.cta({labelPath:'copy.registration.openButton'})], ['registration.note', `<small>${c.text('copy.registration.openNote')}</small>`]
+    ] : [
+      ['registration.status', `<span class="status-label"><span class="status-dot" aria-hidden="true"></span>${c.text('copy.registration.pendingLabel')}</span>`], ['registration.text', `<p>${c.text('copy.registration.pendingText')}</p>`], ['registration.cta', `<a class="button button-solid" href="${e(mail)}">${c.text('copy.registration.pendingButton')} ${arrow}</a>`], ['registration.phone', `<a class="registration-phone" href="tel:${e(c.site.phone)}">${c.text('site.phoneDisplay')}</a>`]
+    ];
+    const status = withAttributes(c.group('registration.status', entries, 'registration-status'), ` data-registration-status="${c.registrationUrl ? 'open' : 'pending'}"`);
+    return intro || status ? `<div class="registration-inner wrap${!intro || !status ? ' responsive-single-column' : ''}">${intro}${status}</div>` : '';
+  }
+  const registrationSection = () => {
+    const inner = variant(registration);
+    return inner ? `<section id="registracija" class="registration-section">${inner}</section>` : '<div id="registracija"></div>';
+  };
+  function hero() {
+    const c = active, image = c.settings('site.heroImage');
+    const classes = `hero-position-${image.position}${image.hidden ? ' hero-hidden' : ''}${image.ratio !== 'auto' ? ' hero-custom-ratio' : ''}${image.source && !image.hidden ? ' hero-has-photo' : ''}`;
+    const media = c.photo('site.heroImage', 'hero-media responsive-hero-media');
+    const copy = c.group('home.hero', [
+      ['home.hero.eyebrow', `<span class="eyebrow">${c.text('copy.home.heroEyebrow')}</span>`],
+      ['home.hero.title', `<h1>${c.text('site.heroAccent')}</h1>`],
+      ['home.hero.subtitle', `<p class="hero-subtitle">${c.text('site.heroTitle')} ${c.text('camps.0.date')}</p>`],
+      ['home.hero.cta', c.cta({local:true})]
+    ], 'hero-content');
+    const bottom = c.group('home.heroBottom', [
+      ['home.hero.values', c.site.values.length ? `<span class="responsive-hero-values">${c.values(' <i>·</i> ')}</span>` : ''],
+      ['home.hero.next', '<a class="responsive-hero-next" href="#susipazinkime" aria-label="Toliau - susipažinkime">↓</a>']
+    ], 'hero-bottom responsive-hero-bottom');
+    return `<section class="hero responsive-hero ${classes}">${media}${copy}${bottom}${c.imageTargets('site.heroImage')}</section>`;
+  }
+  function homeIntro(c) {
+    const heading = c.group('home.introHeading', [['home.intro.eyebrow', `<span class="eyebrow">${c.text('copy.home.introEyebrow')}</span>`], ['home.intro.title', `<h2>${c.text('copy.home.introTitle')}</h2>`], ['home.intro.link', `<a class="text-link" href="/apie-mus/">${c.text('copy.actions.about')} ${arrow}</a>`]], 'intro-heading');
+    const paragraphs = c.group('home.introParagraphs', c.site.aboutText.map((value, index) => [`home.intro.paragraph.${index}`, `<p>${c.text(`site.aboutText.${index}`)}</p>`]), 'intro-copy');
+    if (c.settings('site.statementImage').position === 'default') {
+      const copy = heading || paragraphs ? `<div class="intro wrap section${!heading || !paragraphs ? ' responsive-single-column' : ''}">${heading}${paragraphs}</div>` : '';
+      return `<div class="responsive-intro-profile responsive-intro-default">${copy}${c.photo('site.statementImage', 'statement responsive-statement')}${c.imageTargets('site.statementImage')}</div>`;
+    }
+    return `<div class="responsive-intro-profile wrap section">${c.layout('site.statementImage', `<div class="intro${!heading || !paragraphs ? ' responsive-single-column' : ''}">${heading}${paragraphs}</div>`, 'responsive-intro-layout', 'below')}</div>`;
+  }
+  function campCard(c) {
+    const practical = !c.camp.location && !c.camp.price ? c.text('copy.camp.practicalPending') : `${c.text(c.camp.location ? 'camps.0.location' : 'copy.camp.locationPending')}. ${c.camp.price ? c.text('copy.camp.price') + ': ' + c.text('camps.0.price') : c.text('copy.camp.pricePendingSentence')}.`;
+    const copy = c.group('home.campCopy', [['home.camp.date', `<span class="eyebrow">${c.text('camps.0.date')}</span>`], ['home.camp.title', `<h3>${c.text('camps.0.title')}</h3>`], ['home.camp.meta', `<div class="camp-meta"><span>${practical}</span></div>`], ['home.camp.description', c.camp.description.length ? `<p>${c.text('camps.0.description.0')}</p>` : ''], ['home.camp.link', `<a class="button" href="/stovyklos/stovykla-01/">${c.text('copy.actions.camp')} ${arrow}</a>`]], 'camp-copy');
+    const main = c.settings('camps.0.image'), secondary = c.settings('camps.0.secondaryImage');
+    const photos = [['camps.0.image', main], ['camps.0.secondaryImage', secondary]].filter(([, image]) => !image.hidden);
+    let layout;
+    if (main.position === 'default' && secondary.position === 'default') {
+      const media = photos.length ? `<div class="camp-visual${photos.length === 1 ? ' is-standalone' : ''}">${c.photo('camps.0.image')}${c.photo('camps.0.secondaryImage', main.hidden ? 'photo photo-standalone' : 'photo photo-small')}</div>` : '';
+      layout = `<div class="responsive-layout responsive-camp-default r-position-${'right'}${media ? '' : ' without-media'}">${media ? `<div class="responsive-layout-media">${media}</div>` : ''}<div class="responsive-layout-copy">${copy}</div></div>`;
+    } else {
+      const positions = {above:[], below:[], left:[], right:[]};
+      for (const [field, image] of photos) positions[image.position === 'default' ? ('right') : image.position].push(c.photo(field));
+      const column = position => positions[position].length ? `<div class="responsive-camp-${position}">${positions[position].join('')}</div>` : '';
+      layout = `${column('above')}<div class="responsive-camp-middle${positions.left.length ? ' has-left' : ''}${positions.right.length ? ' has-right' : ''}">${column('left')}<div class="responsive-layout-copy">${copy}</div>${column('right')}</div>${column('below')}`;
+    }
+    return `<article class="camp-row"><div class="responsive-camp-profile wrap">${layout}${c.imageTargets('camps.0.image')}${c.imageTargets('camps.0.secondaryImage')}</div></article>`;
+  }
+  function aboutStory(c) {
+    const copy = c.group('about.story', [...c.site.story.map((value, index) => [`about.paragraph.${index}`, `<p>${c.text(`site.story.${index}`)}</p>`]), ['about.link', `<a class="text-link" href="/#stovykla">${c.text('copy.actions.camp')} ${arrow}</a>`]], 'story-copy');
+    return `<div class="responsive-about-profile wrap">${c.layout('site.togetherImage', copy, 'responsive-about-layout', 'left')}</div>`;
+  }
+  function aboutInvitation(c) {
+    return c.group('about.invitation', [['about.invitationDate', `<span class="eyebrow">${c.text('camps.0.date')}</span>`], ['about.invitationTitle', `<h2>${c.text('copy.about.invitation')}</h2>`], ['about.cta', c.cta()]], 'contact-strip wrap responsive-invitation');
+  }
+  function detailBody(c) {
+    const description = c.group('detail.description', [['detail.aboutEyebrow', `<span class="eyebrow">${c.text('copy.camp.about')}</span>`], ['detail.introTitle', `<h2>${c.text('camps.0.introTitle')}</h2>`], ...c.camp.description.map((value, index) => [`detail.paragraph.${index}`, `<p>${c.text(`camps.0.description.${index}`)}</p>`])], 'detail-description');
+    const program = c.part('detail.programHeading', `<h3 class="program-title">${c.text('copy.camp.program')}</h3>`) + (c.camp.program.length ? c.group('detail.program', c.camp.program.map((value, index) => [`detail.program.${index}`, `<div><h4>${c.text(`camps.0.program.${index}.title`)}</h4><p>${c.text(`camps.0.program.${index}.text`)}</p></div>`]), 'program') : c.part('detail.programPending', `<p>${c.text('copy.camp.programPending')}</p>`));
+    const included = (field, key) => c.camp[field].length ? `<div>${c.part(`detail.${key}Heading`, `<h3>${c.text(`copy.camp.${key}`)}</h3>`)}${c.group(`detail.${key}`, c.camp[field].map((value, index) => [`detail.${key}.${index}`, `<li>${c.text(`camps.0.${field}.${index}`)}</li>`]), '', 'ul')}</div>` : '';
+    const faq = c.part('detail.faqEyebrow', `<span class="eyebrow">${c.text('copy.camp.faqEyebrow')}</span>`) + c.part('detail.faqTitle', `<h2>${c.text('copy.camp.faqTitle')}</h2>`) + c.group('detail.faq', c.camp.faq.map((item, index) => [`detail.faq.${index}`, `<details><summary>${c.text(`camps.0.faq.${index}.question`)}<span aria-hidden="true">+</span></summary><p>${c.text(`camps.0.faq.${index}.${c.registrationUrl && item.answerWhenOpen ? 'answerWhenOpen' : 'answer'}`)}</p></details>`]), 'faq');
+    const body = `<div class="detail-layout"><section>${description}${program}<div class="included-grid">${included('included', 'included')}${included('notIncluded', 'notIncluded')}</div></section><section>${faq}</section></div>`;
+    return `<div class="responsive-detail-profile wrap section">${c.layout('camps.0.detailImage', body, 'responsive-detail-layout', 'above')}</div>`;
+  }
+  let body = '', metadata;
+  if (pageKey === 'home') {
+    metadata = content.seo.home;
+    const campHeading = variant(c => c.group('home.campHeading', [['home.camp.eyebrow', `<span class="eyebrow">${c.text('copy.home.campEyebrow')}</span>`], ['home.camp.heading', `<h2>${c.text('copy.home.campTitle')}</h2>`]], 'section-heading wrap responsive-section-heading'));
+    body = `${hero()}${zone('home.afterHero')}${zone('home.beforeIntro')}<section id="susipazinkime" class="responsive-intro">${variant(homeIntro)}</section>${zone('home.afterIntro')}${zone('home.beforeCamp')}<section id="stovykla" class="camps"><span id="stovyklos" class="legacy-anchor" aria-hidden="true"></span>${campHeading}${variant(campCard)}</section>${zone('home.afterCamp')}${zone('home.beforeRegistration')}${registrationSection()}${zone('home.afterRegistration')}`;
+  } else if (pageKey === 'about') {
+    metadata = content.seo.about;
+    body = `${active.group('about.heading', [['about.eyebrow', `<span class="eyebrow">${active.text('site.name')}</span>`], ['about.title', `<h1>${active.text('site.storyTitle')}</h1>`]], 'page-heading wrap', 'section')}${zone('about.beforeStory')}${aboutStory(active)}${zone('about.afterStory')}${zone('about.beforeInvitation')}${aboutInvitation(active)}${zone('about.afterInvitation')}`;
+  } else if (pageKey === 'contact') {
+    metadata = content.seo.contact;
+    const c = active;
+    const facebook = safeUrl(c.site.facebook);
+    const copy = c.group('contact.copy', [
+      ['contact.eyebrow', `<span class="eyebrow">${c.text('site.name')}</span>`], ['contact.title', `<h1>${c.text('copy.contact.title')}</h1>`],
+      ['contact.intro', `<p class="contact-intro">${c.text('copy.contact.intro')}</p>`],
+      ['contact.email', `<div class="contact-item"><span>${c.text('copy.contact.email')}</span><a href="mailto:${e(c.site.email)}">${c.text('site.email')} ${arrow}</a></div>`],
+      ['contact.phone', `<div class="contact-item"><span>${c.text('copy.contact.phone')}</span><a href="tel:${e(c.site.phone)}">${c.text('site.phoneDisplay')} ${arrow}</a></div>`],
+      ['contact.facebook', `<div class="contact-item"><span>${c.text('copy.contact.social')}</span>${facebook ? `<a href="${e(facebook)}" target="_blank" rel="noopener noreferrer">${c.text('copy.footer.facebook')} ↗${newWindow}</a>` : `<span>${c.text('copy.footer.facebook')}</span>`}</div>`]
+    ], 'contact-copy');
+    body = `${zone('contact.beforeContent')}<section class="contact-page wrap${copy ? '' : ' responsive-single-column'}">${copy}<div class="contact-brand"><img src="/assets/logo-original.jpeg" alt="${e(c.copy.contact.logoAlt)}" width="1181" height="1181"></div></section>${zone('contact.afterContent')}`;
+  } else if (pageKey === 'camp') {
+    metadata = {...content.seo.camp, title:content.seo.camp.title || `${content.camps[0].title} · ${content.camps[0].date}`};
+    const c = active;
+    const top = c.group('detail.heading', [
+      ['detail.back', `<a class="text-link back-link" href="/#stovykla">← ${c.text('copy.actions.back')}</a>`],
+      ['detail.eyebrow', `<span class="eyebrow">${c.text('camps.0.date')} · ${c.text('site.organizers')}</span>`],
+      ['detail.title', `<h1>${c.text('camps.0.title')}</h1>`], ['detail.summary', `<p>${c.text('camps.0.summary')}</p>`],
+      ['detail.cta', `<div class="detail-heading-action">${c.cta({local:true})}</div>`]
+    ], 'detail-heading-copy');
+    body = `<section class="camp-detail-heading wrap">${top}${facts(c)}</section>${zone('camp.beforeDescription')}${detailBody(c)}${zone('camp.afterDescription')}${zone('camp.beforeRegistration')}${registrationSection()}${zone('camp.afterRegistration')}`;
+  } else {
+    metadata = content.seo.notFound;
+    body = active.group('notFound.copy', [['notFound.eyebrow', '<span class="eyebrow">404</span>'], ['notFound.title', `<h1>${active.text('copy.notFound.title', true)}</h1>`], ['notFound.back', `<a class="button button-solid" href="/">${active.text('copy.actions.back')} ${arrow}</a>`]], 'not-found wrap', 'section');
+  }
+  if (pageKey) body += zone(`${pageKey}.beforeFooter`);
+  const title = `${metadata.title} | ${content.site.name}`;
+  const canonical = path === '/404.html' ? '' : `<link rel="canonical" href="${e(content.site.url + path)}">`;
+  const theme = renderTheme(content);
+  const themed = Boolean(content.design);
+  const html = `<!doctype html><html lang="lt"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>${e(title)}</title><meta name="description" content="${e(metadata.description)}">${content.site.draft || preview ? '<meta name="robots" content="noindex, nofollow">' : ''}<meta name="theme-color" content="#bfebac"><meta property="og:type" content="website"><meta property="og:locale" content="lt_LT"><meta property="og:title" content="${e(title)}"><meta property="og:description" content="${e(metadata.description)}">${canonical}<link rel="icon" href="/assets/favicon.svg" type="image/svg+xml"><link rel="stylesheet" href="${e(assets.styles || '/styles.css')}">${theme ? `<link rel="stylesheet" href="${e(assets.theme || '/theme.css')}">` : ''}${preview ? '<link rel="stylesheet" href="/admin/visual.css">' : ''}<script src="${e(assets.script || '/app.js')}" defer></script></head><body class="responsive-site cms-page-${pageKey || 'not-found'}${themed ? ' cms-themed' : ''}"${preview ? ` data-cms-device="${selectedDevice}"` : ''}>${header()}<main id="turinys" tabindex="-1">${body}</main>${variant(footer)}</body></html>`;
+  return {html, title};
+}
+
+export function renderTheme(input) {
+  const content = normalizeContent(input);
+  const defaults = editorial.THEME_DEFAULTS || {background:'#fafbf5', surface:'#ffffff', primary:'#006e40', text:'#173e2c', muted:'#53634e', accent:'#bfebac', buttonBackground:'#006e40', buttonText:'#ffffff', buttonRadius:32, fontFamily:'Montserrat'};
+  const mapping = {background:'--cream', surface:'--paper', primary:'--green', text:'--ink', muted:'--muted', accent:'--sage', buttonBackground:'--button-background', buttonText:'--button-text'};
+  const fonts = {Montserrat:'Montserrat,Arial,sans-serif', Arial:'Arial,sans-serif', Georgia:'Georgia,serif'};
+  const theme = content.design;
+  const declarations = [];
+  if (theme) {
+    for (const [key, variable] of Object.entries(mapping)) declarations.push(`${variable}:${safeColor(theme[key]) ? theme[key] : defaults[key]}`);
+    const radius = typeof theme.buttonRadius === 'number' && Number.isFinite(theme.buttonRadius) && theme.buttonRadius >= 0 && theme.buttonRadius <= 32 ? theme.buttonRadius : defaults.buttonRadius;
+    declarations.push(`--button-radius:${radius}px`, `--font:${fonts[theme.fontFamily] || fonts.Montserrat}`);
+  }
+  let css = declarations.length ? `:root{${declarations.join(';')}}` : '';
+  for (const [page, blocks] of Object.entries(content.pageBlocks || {})) {
+    if (!['home', 'about', 'contact', 'camp'].includes(page)) continue;
+    if (!Array.isArray(blocks)) continue;
+    for (const block of blocks) {
+      if (!blockId(block.id)) continue;
+      const properties = ['background', 'color'].filter(key => safeColor(block[key])).map(key => `${key}:${block[key]}`);
+      if (safeColor(block.color)) properties.push(`--block-color:${block.color}`);
+      if (properties.length) css += `.cms-page-${page} .cms-block-${block.id}{${properties.join(';')}}`;
+    }
+  }
+  return css;
 }

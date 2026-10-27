@@ -1,5 +1,6 @@
-import {CONTENT_FIELDS, IMAGE_FIELDS, IMAGE_ASPECT_RATIOS, getPath, parseContent} from '/admin/schema.mjs';
+import {CONTENT_FIELDS, IMAGE_FIELDS, IMAGE_ASPECT_RATIOS, IMAGE_POSITIONS, getImageSettings, getImageReferences, getPath as rawGetPath, parseContent} from '/admin/schema.mjs';
 import {renderPage} from '/admin/render.mjs';
+import {createEditorTools} from '/admin/editor-tools.mjs';
 
 const $ = selector => document.querySelector(selector);
 const escape = value => String(value ?? '').replace(/[&<>"']/g, character => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[character]));
@@ -17,6 +18,8 @@ const descriptions = {
   'Meniu ir poraštė':'Pasikartojantys svetainės užrašai ir mygtukai.',
   'Paieška ir dalijimasis':'Puslapių antraštės ir aprašymai paieškai bei nuorodų dalijimuisi.',
   'Nuotraukos':'Įkelk nuotraukas ir parink, kurioje svetainės vietoje jas rodyti.',
+  'Dizainas':'Bendros svetainės spalvos, šriftas ir mygtukai.',
+  'Pašalintos dalys':'Grąžink pašalintus tekstus, nuorodas ar nuotraukas.',
   'Versijų istorija':'Ankstesni išsaugoti pakeitimai. Atkurta versija pirmiausia tampa juodraščiu.'
 };
 const iconPaths = [
@@ -53,14 +56,42 @@ let canvasScroll = {x:0,y:0};
 let canvasScrollReset = false;
 let canvasAssets = {styles:'/styles.css',script:'/app.js'};
 
-function setValue(path, value) {
+function rawSet(path, value) {
   const parts = path.split('.');
   if (parts.some(part => ['__proto__','prototype','constructor'].includes(part))) return;
   let target = content;
-  for (let i = 0; i < parts.length - 1; i++) target = target[parts[i]];
+  for (let i = 0; i < parts.length - 1; i++) { if (target[parts[i]] == null) target[parts[i]] = /^\d+$/.test(parts[i+1]) ? [] : {}; target = target[parts[i]]; }
   target[parts.at(-1)] = value;
+}
+function imageFieldFor(path) {
+  const keys = {path:'source',altPath:'alt',ratioPath:'ratio',hiddenPath:'hidden',positionPath:'position'};
+  for (const slot of IMAGE_FIELDS) for (const [property,key] of Object.entries(keys)) if (slot[property] === path) return {slot,key};
+  return null;
+}
+function getPath(object,path) { return rawGetPath(object,path); }
+function setImageSetting(slot,key,value) {
+  const property = {source:'path',alt:'altPath',ratio:'ratioPath',hidden:'hiddenPath',position:'positionPath'}[key];
+  rawSet(slot[property],value);
   updateDirty();
 }
+function setValue(path, value) {
+  const image = imageFieldFor(path);
+  if (image) { setImageSetting(image.slot,image.key,value); return; }
+  rawSet(path,value);
+  updateDirty();
+}
+
+const editorTools = createEditorTools({
+  content:() => content,device:() => canvasDevice,page:() => ({'/':'home','/apie-mus/':'about','/kontaktai/':'contact','/stovyklos/stovykla-01/':'camp'}[$('#preview-route').value] || 'home'),
+  mode:() => canvasMode,busy:() => busy,doc:() => $('#preview-frame').contentDocument,
+  mutate:callback => { callback(content); updateDirty(); },render:() => renderCanvas(),refresh:() => renderSection(),
+  announce,notice,finish:() => { clearTimeout(canvasRenderTimer); finishCanvasEditing(); },chooseImage:target => openMediaPicker(target),
+  setImage:(path,key,value) => { const slot = IMAGE_FIELDS.find(item => item.path === path); if (slot) setImageSetting(slot,key,value); },
+  imageSettings:path => getImageSettings(content,path,canvasDevice),editPhoto:editCanvasPhoto,
+  clearPhoto:() => { canvasPhoto = null; renderCanvasPhotoInspector(); },
+  selectSection,
+  openPage:page => { const route = {home:'/',about:'/apie-mus/',contact:'/kontaktai/',camp:'/stovyklos/stovykla-01/'}[page]; if (route) { $('#preview-route').value = route; section = visualSection; canvasScrollReset = true; renderSection(); } }
+});
 
 function announce(message) { $('#live-status').textContent = message; }
 function dateLabel(value) {
@@ -105,6 +136,7 @@ function handleError(error) {
   const issues = error.issues || error.detail?.issues;
   if (Array.isArray(issues) && issues.length) {
     const path = Array.isArray(issues[0].path) ? issues[0].path.join('.') : String(issues[0].path || '').replace(/^content\./,'');
+    if (editorTools.focusIssue(path,issues[0].message)) { notice(error.message || 'Patikrink pažymėtą lauką.','error',action); return; }
     const descriptor = CONTENT_FIELDS.find(field => path === field.path || path.startsWith(`${field.path}.`));
     const image = IMAGE_FIELDS.find(field => path === field.path || path === field.altPath || path === field.ratioPath || path === field.hiddenPath);
     const nextSection = image ? 'Nuotraukos' : descriptor?.group;
@@ -140,6 +172,7 @@ function updateStatus() {
   $('#editor-form').inert = busy;
   $('#media-section').inert = busy;
   $('#history-section').inert = busy;
+  $('#tools-section').inert = busy;
   $('#canvas-section').inert = busy;
   $('#main').setAttribute('aria-busy',String(busy));
   document.querySelectorAll('[data-section]').forEach(button => { button.disabled = busy; });
@@ -158,7 +191,7 @@ function updateStatus() {
 }
 function applyState(next) {
   state = next;
-  content = clone(next.content);
+  content = parseContent(next.content);
   baseline = JSON.stringify(content);
   dirty = false;
   $('#identity-email').textContent = next.identity?.email || 'Prieiga patvirtinta';
@@ -170,7 +203,7 @@ function applyState(next) {
 }
 
 function renderNavigation() {
-  $('#section-nav').innerHTML = `<button type="button" class="nav-item nav-item-visual" data-section="${visualSection}"${section === visualSection ? ' aria-current="page"' : ''}><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M3 8h18M8 8v13m4-5 5-5 2 2-5 5h-2Z"/></svg><span>${visualSection}</span></button><div class="nav-divider" aria-hidden="true"></div>` + groups.map((group,index) => `<button type="button" class="nav-item" data-section="${escape(group)}"${section === group ? ' aria-current="page"' : ''}>${icon(index)}<span>${escape(group)}</span></button>`).join('') + '<div class="nav-divider" aria-hidden="true"></div>' + ['Nuotraukos','Versijų istorija'].map((name,index) => `<button type="button" class="nav-item" data-section="${name}"${section === name ? ' aria-current="page"' : ''}>${icon(index+7)}<span>${name}</span></button>`).join('');
+  $('#section-nav').innerHTML = `<button type="button" class="nav-item nav-item-visual" data-section="${visualSection}"${section === visualSection ? ' aria-current="page"' : ''}><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M3 8h18M8 8v13m4-5 5-5 2 2-5 5h-2Z"/></svg><span>${visualSection}</span></button><div class="nav-divider" aria-hidden="true"></div>` + groups.map((group,index) => `<button type="button" class="nav-item" data-section="${escape(group)}"${section === group ? ' aria-current="page"' : ''}>${icon(index)}<span>${escape(group)}</span></button>`).join('') + '<div class="nav-divider" aria-hidden="true"></div>' + ['Nuotraukos','Dizainas','Pašalintos dalys','Versijų istorija'].map((name,index) => `<button type="button" class="nav-item" data-section="${name}"${section === name ? ' aria-current="page"' : ''}>${icon(index === 0 ? 7 : index === 3 ? 8 : 5)}<span>${name}</span></button>`).join('');
 }
 function scalarInput(field, path, value) {
   const id = idFor(path);
@@ -203,15 +236,18 @@ function renderSection() {
   renderNavigation();
   $('#editor-title').textContent = section;
   $('#editor-description').textContent = descriptions[section] || 'Keisk svetainės turinį. Dizainas ir puslapių išdėstymas išlieka tokie patys.';
-  $('#section-number').textContent = String([visualSection,...groups,'Nuotraukos','Versijų istorija'].indexOf(section)+1).padStart(2,'0');
+  $('#section-number').textContent = String([visualSection,...groups,'Nuotraukos','Dizainas','Pašalintos dalys','Versijų istorija'].indexOf(section)+1).padStart(2,'0');
+  document.querySelectorAll('[data-preview-size]').forEach(button => button.setAttribute('aria-pressed',String(button.dataset.previewSize === canvasDevice)));
   $('#main').classList.toggle('visual-editor',section === visualSection);
   $('#canvas-section').hidden = section !== visualSection;
-  $('#editor-form').hidden = [visualSection,'Nuotraukos','Versijų istorija'].includes(section);
+  $('#editor-form').hidden = [visualSection,'Nuotraukos','Dizainas','Pašalintos dalys','Versijų istorija'].includes(section);
   $('#media-section').hidden = section !== 'Nuotraukos';
   $('#history-section').hidden = section !== 'Versijų istorija';
+  $('#tools-section').hidden = !['Dizainas','Pašalintos dalys'].includes(section);
   if (section !== 'Nuotraukos') $('#media-section').replaceChildren();
   if (section !== visualSection) { $('#canvas-image-inspector').replaceChildren(); $('#canvas-image-inspector').hidden = true; }
-  if (section === visualSection) { renderCanvas(); renderCanvasPhotoInspector(); return; }
+  if (section === visualSection) { editorTools.renderPalette(); renderCanvas(); renderCanvasPhotoInspector(); return; }
+  if (['Dizainas','Pašalintos dalys'].includes(section)) { editorTools.renderSection(section); return; }
   if (section === 'Nuotraukos') { renderMediaSection(); return; }
   if (section === 'Versijų istorija') { renderHistory(); return; }
   const fields = CONTENT_FIELDS.filter(field => field.group === section);
@@ -223,7 +259,7 @@ function renderSection() {
 }
 function selectSection(next) {
   if (busy) return;
-  if (![visualSection,...groups,'Nuotraukos','Versijų istorija'].includes(next)) return;
+  if (![visualSection,...groups,'Nuotraukos','Dizainas','Pašalintos dalys','Versijų istorija'].includes(next)) return;
   finishCanvasEditing();
   section = next;
   renderSection();
@@ -417,7 +453,9 @@ function bindCanvasHandlers() {
     else { element.removeAttribute('role'); element.removeAttribute('aria-label'); }
   });
   highlightCanvasPhoto();
+  editorTools.bindCanvas(doc);
   doc.addEventListener('click',event => {
+    if (editorTools.handleCanvasClick(event)) return;
     const field = event.target.closest('[data-cms-field]');
     const photo = event.target.closest('[data-cms-image]');
     if (canvasMode === 'edit' && field) {
@@ -447,7 +485,7 @@ function bindCanvasHandlers() {
     if (canvasEditing?.element !== event.target) return;
     const selected = canvasEditing;
     const nextEditable = event.relatedTarget?.closest?.('[data-cms-field],[data-cms-image]');
-    setTimeout(() => { if (canvasEditing === selected && doc.activeElement !== selected.element) finishCanvasEditing(false,!nextEditable); },0);
+    setTimeout(() => { if (canvasEditing === selected && doc.activeElement !== selected.element) finishCanvasEditing(false,!nextEditable && doc.hasFocus()); },0);
   });
   doc.addEventListener('keydown',event => {
     const element = event.target.closest('[data-cms-field],[data-cms-image]');
@@ -470,7 +508,7 @@ function renderCanvas() {
   clearTimeout(canvasRenderTimer);
   if (canvasScrollReset) { canvasScroll = {x:0,y:0}; canvasScrollReset = false; }
   else rememberCanvasScroll();
-  const rendered = renderPage(content,$('#preview-route').value,{assets:canvasAssets,preview:true});
+  const rendered = renderPage(content,$('#preview-route').value,{assets:{...canvasAssets,theme:'/admin/theme.css'},preview:true,previewDevice:canvasDevice});
   if (!rendered) return;
   canvasEditing = null;
   setCanvasLoading('loading');
@@ -497,11 +535,12 @@ function fitCanvas() {
 function imageRatioControls(slot) {
   const value = getPath(content,slot.ratioPath) || 'auto';
   const id = idFor(slot.ratioPath);
-  return `<fieldset class="field image-ratio-field" data-field-path="${escape(slot.ratioPath)}" aria-describedby="${id}-help"><legend class="field-label">Bloko proporcijos</legend><div class="image-ratio-options">${IMAGE_ASPECT_RATIOS.map(option => `<label class="image-ratio-option${option.value === 'auto' ? ' image-ratio-auto' : ''}"><input class="image-ratio-input" type="radio" name="${id}" value="${escape(option.value)}" data-image-ratio="${escape(slot.ratioPath)}"${value === option.value ? ' checked' : ''}><span class="image-ratio-content"><span class="image-ratio-icon ratio-icon-${option.value.replace(':','-')}" aria-hidden="true"></span><span>${escape(option.label)}</span></span></label>`).join('')}</div><p class="field-help" id="${id}-help">Keičia viso bloko aukštį pagal jo plotį. Nuotrauka užpildo bloką be ištempimo.</p></fieldset>`;
+  return `<fieldset class="field image-ratio-field" data-field-path="${escape(slot.ratioPath)}" aria-describedby="${id}-help"><legend class="field-label">Bloko proporcijos</legend><div class="image-ratio-options">${IMAGE_ASPECT_RATIOS.map(option => `<label class="image-ratio-option${option.value === 'auto' ? ' image-ratio-auto' : ''}"><input class="image-ratio-input" type="radio" name="${id}" value="${escape(option.value)}" data-image-ratio="${escape(slot.ratioPath)}"${value === option.value ? ' checked' : ''}><span class="image-ratio-content"><span class="image-ratio-icon ratio-icon-${option.value.replace(':','-')}" aria-hidden="true"></span><span>${escape(option.label)}</span></span></label>`).join('')}</div><p class="field-help" id="${id}-help">Keičia viso bloko aukštį pagal jo plotį. Nuotrauka užpildo bloką be ištempimo.</p></fieldset><label class="tools-field"><span>Nuotraukos vieta</span><select class="input" data-image-position="${escape(slot.path)}">${IMAGE_POSITIONS.map(position => `<option value="${position.value}"${getPath(content,slot.positionPath) === position.value ? ' selected' : ''}>${escape(position.label)}</option>`).join('')}</select><small>Telefone blokai automatiškai išdėstomi vienas po kito.</small></label>`;
 }
 function editCanvasPhoto(path) {
   const slot = IMAGE_FIELDS.find(field => field.path === path);
   if (!slot) return;
+  editorTools.clearSelection();
   canvasPhoto = path;
   renderCanvasPhotoInspector();
   document.querySelector('#canvas-image-inspector input[data-image-ratio]:checked')?.focus({preventScroll:true});
@@ -550,7 +589,7 @@ async function loadCanvasAssets() {
 function publicMediaUrl(item) { return item.url || item.src || `/media/${item.id}`; }
 function previewMediaUrl(item) { return item.previewUrl || `/admin/api/media/${encodeURIComponent((item.url || item.src || item.id).split('/').at(-1))}`; }
 function sourcePreview(src) { const item = media.find(item => publicMediaUrl(item) === src); return item ? previewMediaUrl(item) : `/admin/api/media/${encodeURIComponent(src.split('/').at(-1))}`; }
-function isInDraft(item) { return IMAGE_FIELDS.some(field => getPath(content,field.path) === publicMediaUrl(item)); }
+function isInDraft(item) { return getImageReferences(content).some(reference => reference.src === publicMediaUrl(item)) || editorTools.isMediaUsed(publicMediaUrl(item)); }
 function uploadsAllowed() { return state?.capabilities?.upload !== false && state?.capabilities?.mediaUploads !== false; }
 function uploadMarkup() {
   if (!uploadsAllowed()) return '<div class="help-panel"><strong>Nuotraukų įkėlimas dar neįjungtas.</strong> Tekstus gali redaguoti ir skelbti. Nuotraukas bus galima įkelti, kai bus prijungta svetainės failų saugykla.</div>';
@@ -588,7 +627,7 @@ async function loadMedia() {
   if ($('#media-picker').open) renderMediaPicker();
 }
 async function openMediaPicker(path) {
-  activeSlot = IMAGE_FIELDS.find(field => field.path === path);
+  activeSlot = typeof path === 'object' ? path : IMAGE_FIELDS.find(field => field.path === path);
   if (!activeSlot) return;
   renderMediaPicker();
   $('#media-picker').showModal();
@@ -658,6 +697,12 @@ async function uploadPhoto(file) {
 function selectMedia(id) {
   const item = media.find(item => item.id === id);
   if (!item || !activeSlot) return;
+  if (activeSlot.kind === 'block') {
+    const target = activeSlot;
+    $('#media-picker').close(); activeSlot = null;
+    editorTools.blockImage(target.blockId,publicMediaUrl(item),target.page);
+    return;
+  }
   const changed = getPath(content,activeSlot.path) !== publicMediaUrl(item);
   setValue(activeSlot.path,publicMediaUrl(item));
   setValue(activeSlot.hiddenPath,false);
@@ -710,7 +755,7 @@ document.addEventListener('click',event => {
   if (target.dataset.restoreSlot) setPhotoBlockHidden(target.dataset.restoreSlot,false);
   if (target.hasAttribute('data-close-photo-inspector')) { canvasPhoto = null; renderCanvasPhotoInspector(); }
   if (target.hasAttribute('data-reload-canvas')) renderCanvas();
-  if (target.dataset.previewSize) { finishCanvasEditing(); canvasDevice = target.dataset.previewSize; renderCanvas(); }
+  if (target.dataset.previewSize) { finishCanvasEditing(); canvasDevice = target.dataset.previewSize; renderSection(); }
   if (target.dataset.canvasMode) { finishCanvasEditing(); canvasMode = target.dataset.canvasMode; renderCanvas(); }
 });
 document.addEventListener('input',event => {
@@ -726,6 +771,7 @@ document.addEventListener('input',event => {
 });
 document.addEventListener('change',event => {
   if (event.target.matches('[data-upload-file]')) uploadPhoto(event.target.files[0]);
+  if (event.target.dataset.imagePosition) { const slot = IMAGE_FIELDS.find(field => field.path === event.target.dataset.imagePosition); if (slot && IMAGE_POSITIONS.some(position => position.value === event.target.value)) { setImageSetting(slot,'position',event.target.value); renderCanvas(); announce('Nuotraukos vieta pakeista.'); } }
   const input = event.target.closest('[data-image-ratio]');
   if (!input || !content || busy || !input.checked) return;
   const slot = IMAGE_FIELDS.find(field => field.ratioPath === input.dataset.imageRatio);

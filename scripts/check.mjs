@@ -132,6 +132,9 @@ for (const file of allFiles) {
   } else if (extname(file) === '.css') {
     const css = await readFile(file, 'utf8');
     for (const match of css.matchAll(/url\(\s*["']?([^"')]+)["']?\s*\)/g)) await localReference(match[1].trim(), file);
+  } else if (['.js', '.mjs'].includes(extname(file)) && relative(dist, file).split(sep)[0] === 'admin') {
+    const source = await readFile(file, 'utf8');
+    for (const match of source.matchAll(/\b(?:from|import)\s+["']((?:\.?\.?\/|\/)[^"']+)["']/g)) await localReference(match[1], file);
   }
 }
 
