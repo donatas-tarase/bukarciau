@@ -31,6 +31,10 @@ Pažymėtą bloką galima mažinti ir didinti velkant jo dešinį kraštą, apat
 
 „Grąžinti matmenis pagal dizainą“ pašalina individualius matmenis. Tekstai, nuotraukos ir spalvos išlieka. Patikrinkite ir telefono peržiūrą, tada išsaugokite juodraštį ir paskelbkite pakeitimus.
 
+Kompiuterio maketas išlaiko skaitomus teksto stulpelius ir pakankamą plotį šalia jų esančioms nuotraukoms. Telefono vaizde portretai ir stovyklos iliustracija automatiškai prisitaiko prie turinio pločio ir rodomi natūraliomis proporcijomis. Matmenų tempimo rankenėlės rodomos kompiuterio peržiūroje; telefono mygtukas leidžia patikrinti automatinį pritaikymą.
+
+Stovyklos puslapio adresas yra `/stovyklos/moteru-savaitgalio-stovykla/`. Senos nuorodos į `stovykla-01` ar `stovykla-02` automatiškai nukreipiamos į jį. Organizatorių įrašyti tekstai, nuotraukos ir jų failai dėl šio adreso pakeitimo nekeičiami.
+
 ## Blokų perkėlimas ir pridėjimas
 
 Režime „Redaguoti“ vilkite nuotrauką į pažymėtą vietą šalia teksto, virš jo arba po juo. Nuotraukos nustatymuose vietą taip pat galima pasirinkti sąraše. Pavyzdžiui, po „Kas mes?“ esančią nuotrauką galima perkelti į kairę šalia prisistatymo. Telefone tokia nuotrauka automatiškai rodoma po tekstu.

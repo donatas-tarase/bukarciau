@@ -1,5 +1,6 @@
 import {normalizeContent, getPath, CONTENT_FIELDS, IMAGE_FIELDS, getImageSettings} from './content.mjs';
 import * as editorial from './content.mjs';
+import {CAMP_PATH, PAGE_ROUTES, SITEMAP_PATHS, canonicalPagePath} from './routes.mjs';
 
 const e = value => String(value ?? '').replace(/[&<>"']/g, char => ({'&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;'}[char]));
 const arrow = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true"><path d="M5 12h14m-6-6 6 6-6 6"/></svg>';
@@ -11,11 +12,7 @@ const imageRatioClasses = new Map([
 ]);
 const explicitImageSize = value => ['small', 'normal', 'large'].includes(value) ? value : null;
 
-function routeFor(pathname) {
-  const path = String(pathname || '/').split(/[?#]/, 1)[0];
-  const aliases = {'/': '/', '/index.html': '/', '/apie-mus': '/apie-mus/', '/apie-mus/': '/apie-mus/', '/apie-mus/index.html': '/apie-mus/', '/kontaktai': '/kontaktai/', '/kontaktai/': '/kontaktai/', '/kontaktai/index.html': '/kontaktai/', '/stovyklos/stovykla-01': '/stovyklos/stovykla-01/', '/stovyklos/stovykla-01/': '/stovyklos/stovykla-01/', '/stovyklos/stovykla-01/index.html': '/stovyklos/stovykla-01/', '/404.html': '/404.html'};
-  return aliases[path] || null;
-}
+const routeFor = canonicalPagePath;
 
 function renderLegacyPage(input, pathname, {assets = {}, preview = false} = {}) {
   const path = routeFor(pathname);
@@ -74,14 +71,16 @@ function renderLegacyPage(input, pathname, {assets = {}, preview = false} = {}) 
     try { const url = new URL(camp.registrationUrl); return url.protocol === 'https:' && !url.username && !url.password ? url.href : null; }
     catch { return null; }
   })();
-  const cta = ({labelPath, cls = 'button button-solid', local = false} = {}) => registrationUrl
+  const cta = ({labelPath, cls = 'button button-solid', local = false, context = false} = {}) => context
+    ? `<a class="${cls}" href="${local ? '' : CAMP_PATH}#registracija" data-registration-intent>${text(labelPath || (registrationUrl ? 'copy.actions.register' : 'copy.actions.participate'))} ${arrow}</a>`
+    : registrationUrl
     ? `<a class="${cls}" href="${e(registrationUrl)}" data-registration-link target="_blank" rel="noopener noreferrer">${text(labelPath || 'copy.actions.register')} ${arrow}${newWindow}</a>`
     : `<a class="${cls}" href="${local ? '' : '/'}#registracija" data-registration-intent>${text(labelPath || 'copy.actions.participate')} ${arrow}</a>`;
   const mail = `mailto:${site.email}?subject=${encodeURIComponent(copy.registration.emailSubject + ' · ' + camp.date)}`;
   const values = separator => site.values.map((value, index) => text(`site.values.${index}`)).join(separator);
 
   function header(current) {
-    return `<a class="skip-link" href="#turinys">Pereiti prie turinio</a><header class="site-header"><div class="header-inner"><a class="brand" href="/" aria-label="${e(site.name)} - pradžia"><img src="/assets/logo.svg" width="104" height="80" alt="Arčiau"></a><button class="menu-toggle" aria-controls="navigation" aria-expanded="false" aria-label="Atidaryti meniu"><span></span><span></span></button><nav id="navigation" aria-label="Pagrindinis meniu"><a href="/#stovykla" ${current === 'camp' ? 'aria-current="page"' : ''}>${text('copy.header.camp')}</a><a href="/apie-mus/" ${current === 'about' ? 'aria-current="page"' : ''}>${text('copy.header.about')}</a><a href="/kontaktai/" ${current === 'contact' ? 'aria-current="page"' : ''}>${text('copy.header.contact')}</a><a class="nav-contact" href="mailto:${e(site.email)}">${text('copy.header.write')} ${arrow}</a></nav></div></header>`;
+    return `<a class="skip-link" href="#turinys">Pereiti prie turinio</a><header class="site-header"><div class="header-inner"><a class="brand" href="/" aria-label="${e(site.name)} - pradžia"><img src="/assets/logo.svg" width="104" height="80" alt="Arčiau"></a><button class="menu-toggle" aria-controls="navigation" aria-expanded="false" aria-label="Atidaryti meniu"><span></span><span></span></button><nav id="navigation" aria-label="Pagrindinis meniu"><a href="${CAMP_PATH}" ${current === 'camp' && path === CAMP_PATH ? 'aria-current="page"' : ''}>${text('copy.header.camp')}</a><a href="/apie-mus/" ${current === 'about' ? 'aria-current="page"' : ''}>${text('copy.header.about')}</a><a href="/kontaktai/" ${current === 'contact' ? 'aria-current="page"' : ''}>${text('copy.header.contact')}</a><a class="nav-contact" href="mailto:${e(site.email)}">${text('copy.header.write')} ${arrow}</a></nav></div></header>`;
   }
   function footer() {
     return `<footer class="site-footer"><div class="footer-main wrap"><a class="footer-brand" href="/" aria-label="${e(site.name)} - pradžia"><img src="/assets/logo.svg" width="150" height="116" alt="Arčiau"></a><div class="footer-links"><span class="eyebrow">${text('copy.footer.contact')}</span><a href="mailto:${e(site.email)}">${text('site.email')}</a><a href="tel:${e(site.phone)}">${text('site.phoneDisplay')}</a></div><div class="footer-links"><span class="eyebrow">${text('copy.footer.about')}</span><a href="/apie-mus/">${text('site.organizers')}</a><a href="${e(site.facebook)}" target="_blank" rel="noopener noreferrer">${text('copy.footer.facebook')} ↗${newWindow}</a></div></div><div class="footer-bottom wrap"><span>© ${new Date().getUTCFullYear()} ${text('site.name')}</span><span>${values(' · ')}</span></div></footer>`;
@@ -115,25 +114,25 @@ function renderLegacyPage(input, pathname, {assets = {}, preview = false} = {}) 
     const campPhotosHidden = mainHidden && secondaryHidden;
     const campVisual = campPhotosHidden ? '' : `<div class="camp-visual${mainHidden || secondaryHidden ? ' is-standalone' : ''}"${(!mainHidden && camp.image) || (!secondaryHidden && camp.secondaryImage) || preview ? '' : ' aria-hidden="true"'}>${photo(camp.image, camp.imageAlt, '', 'camps.0.image')}${photo(camp.secondaryImage, camp.secondaryImageAlt, mainHidden ? 'photo-standalone' : 'photo-small', 'camps.0.secondaryImage')}</div>`;
     body = `
-<section class="hero${hero ? ' has-image' : ''}${heroRatioClass ? ' hero-ratio-layout' : ''}"${heroRatioClass ? '' : imageAttributes('site.heroImage')}>${heroMedia}<div class="hero-content"><span class="eyebrow">${text('copy.home.heroEyebrow')}</span><h1>${text('site.heroAccent')}</h1><p class="hero-subtitle">${text('site.heroTitle')} ${text('camps.0.date')}</p>${cta({local: true})}</div><div class="hero-bottom"><span>${values(' <i>·</i> ')}</span></div></section>
+<section class="hero${hero ? ' has-image' : ''}${heroRatioClass ? ' hero-ratio-layout' : ''}"${heroRatioClass ? '' : imageAttributes('site.heroImage')}>${heroMedia}<div class="hero-content"><span class="eyebrow">${text('copy.home.heroEyebrow')}</span><h1>${text('site.heroAccent')}</h1><p class="hero-subtitle">${text('site.heroTitle')} ${text('camps.0.date')}</p>${cta({local: true, context:true})}</div><div class="hero-bottom"><span>${values(' <i>·</i> ')}</span></div></section>
 <section class="intro wrap section" id="susipazinkime"><div><span class="eyebrow">${text('copy.home.introEyebrow')}</span><h2>${text('copy.home.introTitle')}</h2><a class="text-link" href="/apie-mus/">${text('copy.actions.about')} ${arrow}</a></div><div class="intro-copy">${paragraphs(site.aboutText, 'site.aboutText')}</div></section>
 ${statementBlock}
-<section id="stovykla" class="camps"><span id="stovyklos" class="legacy-anchor" aria-hidden="true"></span><div class="section-heading wrap"><div><span class="eyebrow">${text('copy.home.campEyebrow')}</span><h2>${text('copy.home.campTitle')}</h2></div></div><article class="camp-row${campPhotosHidden ? ' without-photos' : ''}"><div class="camp-inner wrap${campPhotosHidden ? ' without-photos' : ''}"><div class="camp-copy"><span class="eyebrow">${text('camps.0.date')}</span><h3>${text('camps.0.title')}</h3><div class="camp-meta"><span>${practical}</span></div><p>${text('camps.0.description.0', 'textarea')}</p><a class="button" href="/stovyklos/stovykla-01/">${text('copy.actions.camp')} ${arrow}</a></div>${campVisual}</div></article></section>
+<section id="stovykla" class="camps"><span id="stovyklos" class="legacy-anchor" aria-hidden="true"></span><div class="section-heading wrap"><div><span class="eyebrow">${text('copy.home.campEyebrow')}</span><h2>${text('copy.home.campTitle')}</h2></div></div><article class="camp-row${campPhotosHidden ? ' without-photos' : ''}"><div class="camp-inner wrap${campPhotosHidden ? ' without-photos' : ''}"><div class="camp-copy"><span class="eyebrow">${text('camps.0.date')}</span><h3>${text('camps.0.title')}</h3><div class="camp-meta"><span>${practical}</span></div><p>${text('camps.0.description.0', 'textarea')}</p><a class="button" href="${CAMP_PATH}">${text('copy.actions.camp')} ${arrow}</a></div>${campVisual}</div></article></section>
 ${registration()}`;
   } else if (path === '/apie-mus/') {
     current = 'about'; metadata = seo.about;
     const togetherHidden = imageHidden('site.togetherImage');
     const aboutPhoto = togetherHidden ? '' : `<div>${photo(site.togetherImage, site.togetherImageAlt, '', 'site.togetherImage')}</div>`;
-    body = `<section class="page-heading wrap"><span class="eyebrow">${text('site.name')}</span><h1>${text('site.storyTitle')}</h1></section><section class="about-story wrap${togetherHidden ? ' without-photo' : ''}">${aboutPhoto}<div class="story-copy">${paragraphs(site.story, 'site.story')}<a class="text-link" href="/#stovykla">${text('copy.actions.camp')} ${arrow}</a></div></section><section class="contact-strip wrap"><div><span class="eyebrow">${text('camps.0.date')}</span><h2>${text('copy.about.invitation')}</h2></div>${cta()}</section>`;
+    body = `<section class="page-heading wrap"><span class="eyebrow">${text('site.name')}</span><h1>${text('site.storyTitle')}</h1></section><section class="about-story wrap${togetherHidden ? ' without-photo' : ''}">${aboutPhoto}<div class="story-copy">${paragraphs(site.story, 'site.story')}<a class="text-link" href="${CAMP_PATH}">${text('copy.actions.camp')} ${arrow}</a></div></section><section class="contact-strip wrap"><div><span class="eyebrow">${text('camps.0.date')}</span><h2>${text('copy.about.invitation')}</h2></div>${cta({context:true})}</section>`;
   } else if (path === '/kontaktai/') {
     current = 'contact'; metadata = seo.contact;
     body = `<section class="contact-page wrap"><div><span class="eyebrow">${text('site.name')}</span><h1>${text('copy.contact.title')}</h1><p class="contact-intro">${text('copy.contact.intro')}</p><div class="contact-item"><span>${text('copy.contact.email')}</span><a href="mailto:${e(site.email)}">${text('site.email')} ${arrow}</a></div><div class="contact-item"><span>${text('copy.contact.phone')}</span><a href="tel:${e(site.phone)}">${text('site.phoneDisplay')} ${arrow}</a></div><div class="contact-item"><span>${text('copy.contact.social')}</span><a href="${e(site.facebook)}" target="_blank" rel="noopener noreferrer">${text('copy.footer.facebook')} ↗${newWindow}</a></div></div><div class="contact-brand"><img src="/assets/logo-original.jpeg" alt="${e(copy.contact.logoAlt)}" width="1181" height="1181"></div></section>`;
-  } else if (path === '/stovyklos/stovykla-01/') {
+  } else if (path === CAMP_PATH) {
     current = 'camp'; metadata = {...seo.camp, title: seo.camp.title || `${camp.title} · ${camp.date}`};
     const included = camp.included.length || camp.notIncluded.length ? `<div class="included-grid">${camp.included.length ? `<div><h3>${text('copy.camp.included')}</h3><ul>${camp.included.map((item, index) => `<li>${text(`camps.0.included.${index}`)}</li>`).join('')}</ul></div>` : ''}${camp.notIncluded.length ? `<div><h3>${text('copy.camp.notIncluded')}</h3><ul>${camp.notIncluded.map((item, index) => `<li>${text(`camps.0.notIncluded.${index}`)}</li>`).join('')}</ul></div>` : ''}</div>` : '';
     const coverHidden = imageHidden('camps.0.detailImage');
     const detailCover = coverHidden ? '' : `<div class="detail-cover wrap">${photo(camp.detailImage || camp.image, camp.detailImage ? camp.detailImageAlt : camp.imageAlt, '', 'camps.0.detailImage')}</div>`;
-    body = `<section class="camp-detail-heading wrap"><a class="text-link back-link" href="/#stovykla">← ${text('copy.actions.back')}</a><span class="eyebrow">${text('camps.0.date')} · ${text('site.organizers')}</span><h1>${text('camps.0.title')}</h1><p>${text('camps.0.summary')}</p>${facts()}<div class="detail-heading-action">${cta({local: true})}</div></section>${detailCover}<div class="detail-layout wrap section${coverHidden ? ' without-cover' : ''}"><section><span class="eyebrow">${text('copy.camp.about')}</span><h2>${text('camps.0.introTitle')}</h2>${paragraphs(camp.description, 'camps.0.description')}<h3 class="program-title">${text('copy.camp.program')}</h3>${camp.program.length ? `<div class="program">${camp.program.map((item, index) => `<div><h4>${text(`camps.0.program.${index}.title`)}</h4><p>${text(`camps.0.program.${index}.text`)}</p></div>`).join('')}</div>` : `<p>${text('copy.camp.programPending')}</p>`}${included}</section><section><span class="eyebrow">${text('copy.camp.faqEyebrow')}</span><h2>${text('copy.camp.faqTitle')}</h2>${faq()}</section></div>${registration()}`;
+    body = `<section class="camp-detail-heading wrap"><a class="text-link back-link" href="/#stovykla">← ${text('copy.actions.back')}</a><span class="eyebrow">${text('camps.0.date')} · ${text('site.organizers')}</span><h1>${text('camps.0.title')}</h1><p>${text('camps.0.summary')}</p>${facts()}<div class="detail-heading-action">${cta({local: true, context:true})}</div></section>${detailCover}<div class="detail-layout wrap section${coverHidden ? ' without-cover' : ''}"><section><span class="eyebrow">${text('copy.camp.about')}</span><h2>${text('camps.0.introTitle')}</h2>${paragraphs(camp.description, 'camps.0.description')}<h3 class="program-title">${text('copy.camp.program')}</h3>${camp.program.length ? `<div class="program">${camp.program.map((item, index) => `<div><h4>${text(`camps.0.program.${index}.title`)}</h4><p>${text(`camps.0.program.${index}.text`)}</p></div>`).join('')}</div>` : `<p>${text('copy.camp.programPending')}</p>`}${included}</section><section><span class="eyebrow">${text('copy.camp.faqEyebrow')}</span><h2>${text('copy.camp.faqTitle')}</h2>${faq()}</section></div>${registration()}`;
   } else {
     metadata = seo.notFound;
     body = `<section class="not-found wrap"><span class="eyebrow">404</span><h1>${text('copy.notFound.title', 'textarea', true)}</h1><a class="button button-solid" href="/">${text('copy.actions.back')} ${arrow}</a></section>`;
@@ -141,7 +140,7 @@ ${registration()}`;
 
   const title = `${metadata.title} | ${site.name}`;
   const canonical = path === '/404.html' ? '' : `<link rel="canonical" href="${e(site.url + path)}">`;
-  const html = `<!doctype html><html lang="lt"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>${e(title)}</title><meta name="description" content="${e(metadata.description)}">${site.draft || preview ? '<meta name="robots" content="noindex, nofollow">' : ''}<meta name="theme-color" content="#bfebac"><meta property="og:type" content="website"><meta property="og:locale" content="lt_LT"><meta property="og:title" content="${e(title)}"><meta property="og:description" content="${e(metadata.description)}">${canonical}<link rel="icon" href="/assets/favicon.svg" type="image/svg+xml"><link rel="stylesheet" href="${e(assets.styles || '/styles.css')}">${preview ? '<link rel="stylesheet" href="/admin/visual.css">' : ''}<script src="${e(assets.script || '/app.js')}" defer></script></head><body>${header(current)}<main id="turinys" tabindex="-1">${body}</main>${footer()}</body></html>`;
+  const html = `<!doctype html><html lang="lt"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>${e(title)}</title><meta name="description" content="${e(metadata.description)}">${site.draft || preview ? '<meta name="robots" content="noindex, nofollow">' : ''}<meta name="theme-color" content="#bfebac"><meta property="og:type" content="website"><meta property="og:locale" content="lt_LT"><meta property="og:title" content="${e(title)}"><meta property="og:description" content="${e(metadata.description)}">${canonical}<link rel="icon" href="/assets/favicon.svg" type="image/svg+xml"><link rel="stylesheet" href="${e(assets.styles || '/styles.css')}">${preview ? '<link rel="stylesheet" href="/admin/visual.css">' : ''}<script src="${e(assets.script || '/app.js')}" defer></script></head><body class="site-polished">${header(current)}<main id="turinys" tabindex="-1">${body}</main>${footer()}</body></html>`;
   return {html, title};
 }
 
@@ -153,10 +152,10 @@ export function renderRobots(input) {
 export function renderSitemap(input) {
   const {site} = normalizeContent(input);
   if (site.draft) return null;
-  return `<?xml version="1.0" encoding="UTF-8"?><urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">${['/', '/apie-mus/', '/kontaktai/', '/stovyklos/stovykla-01/'].map(path => `<url><loc>${e(site.url + path)}</loc></url>`).join('')}</urlset>`;
+  return `<?xml version="1.0" encoding="UTF-8"?><urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">${SITEMAP_PATHS.map(path => `<url><loc>${e(site.url + path)}</loc></url>`).join('')}</urlset>`;
 }
 
-const pageKeys = {'/': 'home', '/apie-mus/': 'about', '/kontaktai/': 'contact', '/stovyklos/stovykla-01/': 'camp'};
+const pageKeys = Object.fromEntries(Object.entries(PAGE_ROUTES).map(([key,path]) => [path,key]));
 const safeColor = value => typeof value === 'string' && /^#[a-f0-9]{6}$/i.test(value);
 const blockId = value => typeof value === 'string' && /^[a-f0-9]{32}$/.test(value);
 const layoutBounds = {width:[20,100], height:[40,2000], paddingTop:[0,240], paddingBottom:[0,240]};
@@ -170,6 +169,21 @@ const safeUrl = value => {
   try { const url = new URL(value); return url.protocol === 'https:' && !url.username && !url.password ? url.href : null; }
   catch { return null; }
 };
+const googleFormsUrl = value => {
+  const safe = safeUrl(value);
+  if (!safe) return null;
+  const url = new URL(safe);
+  return url.hostname === 'forms.gle' || url.hostname === 'forms.google.com' || (url.hostname === 'docs.google.com' && url.pathname.startsWith('/forms/')) ? safe : null;
+};
+function registrationActionFor(content, page) {
+  const pages = [...new Set([page, 'home', 'camp'])];
+  for (const sourcePage of pages) {
+    const block = (content.pageBlocks?.[sourcePage] || []).find(block => ['button','link'].includes(block.type) && block.text && ['registrationStatus','registrationIntro'].some(zone => block.zone === `${sourcePage}.${zone}`) && googleFormsUrl(block.url));
+    if (block) return {url:googleFormsUrl(block.url), block, sourcePage};
+  }
+  const override = googleFormsUrl(content.linkOverrides?.['registration.cta']);
+  return override ? {url:override} : null;
+}
 
 function hasResponsiveContent(content) {
   return Boolean(content.hiddenParts?.length || content.partOrder?.length || content.design || Object.keys(content.blockLayouts || {}).length || Object.keys(content.linkOverrides || {}).length || Object.values(content.pageBlocks || {}).some(blocks => Array.isArray(blocks) && blocks.length) || IMAGE_FIELDS.some(slot => (getPath(content, slot.positionPath) || 'default') !== 'default' || (slot.sizePath && explicitImageSize(getPath(content, slot.sizePath)))) || ['site.values', 'site.aboutText', 'site.story', 'camps.0.description'].some(path => getPath(content, path)?.length === 0));
@@ -195,7 +209,7 @@ function renderResponsivePage(content, pathname, {assets = {}, preview = false, 
   const knownLayouts = new Map((editorial.getLayoutTargets?.(content) || []).map(target => [target.id, target]));
   const photoLayoutId = field => `photo-${field.replaceAll('.', '-')}`;
   const photoDimensions = field => boundedLayout(content, photoLayoutId(field));
-  const hasPhotoDimensions = field => ['width', 'height'].some(key => typeof photoDimensions(field)[key] === 'number');
+  const hasPhotoDimensions = field => !getImageSettings(content,field).hidden && ['width', 'height'].some(key => typeof photoDimensions(field)[key] === 'number');
   function markLayout(id, html) {
     if (!html) return '';
     const target = knownLayouts.get(id);
@@ -210,6 +224,7 @@ function renderResponsivePage(content, pathname, {assets = {}, preview = false, 
     const data = content;
     const {site, camps, copy} = data;
     const camp = camps[0];
+    const registrationAction = registrationActionFor(data, pageKey);
     const hidden = new Set(data.hiddenParts || []);
     const order = new Map((data.partOrder || []).map((id, index) => [id, index]));
     function text(field, lineBreaks = false) {
@@ -244,6 +259,7 @@ function renderResponsivePage(content, pathname, {assets = {}, preview = false, 
       const sorted = entries.map((entry, index) => ({id:entry[0], html:entry[1], index})).sort((a, b) => (order.get(a.id) ?? Infinity) - (order.get(b.id) ?? Infinity) || a.index - b.index);
       const target = zoneMetadata.find(target => target.inside && target.sortZone === zone);
       const blocks = target ? (data.pageBlocks?.[pageKey] || []).filter(block => block.zone === target.id) : [];
+      if (target?.sortZone === 'registration.status' && registrationAction?.block && registrationAction.sourcePage !== pageKey) blocks.push({...registrationAction.block, beforePart:'registration.cta', sharedRegistration:true});
       const seen = new Set(sorted.map(entry => entry.id));
       const before = id => blocks.filter(block => block.beforePart === id).map(block => renderBlock(block, target.id)).join('');
       const html = sorted.map(entry => before(entry.id) + part(entry.id, entry.html)).join('') + blocks.filter(block => block.beforePart == null || !seen.has(block.beforePart)).map(block => renderBlock(block,target.id)).join('');
@@ -252,7 +268,9 @@ function renderResponsivePage(content, pathname, {assets = {}, preview = false, 
       return `<${tag}${classes ? ` class="${classes}"` : ''}${preview ? ` data-cms-sort-zone="${e(zone)}"${target ? ` data-cms-drop-zone="${e(target.id)}"` : ''}` : ''}>${html}</${tag}>`;
     }
     const registrationUrl = safeUrl(camp.registrationUrl);
-    const cta = ({labelPath, cls = 'button button-solid', local = false} = {}) => registrationUrl
+    const cta = ({labelPath, cls = 'button button-solid', local = false, context = false} = {}) => context
+      ? `<a class="${cls}" href="${local ? '' : CAMP_PATH}#registracija" data-registration-intent>${text(labelPath || (registrationUrl ? 'copy.actions.register' : 'copy.actions.participate'))} ${arrow}</a>`
+      : registrationUrl
       ? `<a class="${cls}" href="${e(registrationUrl)}" data-registration-link target="_blank" rel="noopener noreferrer">${text(labelPath || 'copy.actions.register')} ${arrow}${newWindow}</a>`
       : `<a class="${cls}" href="${local ? '' : '/'}#registracija" data-registration-intent>${text(labelPath || 'copy.actions.participate')} ${arrow}</a>`;
     const values = separator => site.values.map((value, index) => text(`site.values.${index}`)).join(separator);
@@ -293,8 +311,10 @@ function renderResponsivePage(content, pathname, {assets = {}, preview = false, 
         if (!blockId(block.id) || !['text', 'image', 'button', 'link', 'spacer'].includes(block.type)) return '';
         const size = ['small', 'normal', 'large'].includes(block.size) ? block.size : 'normal';
         const align = ['left', 'center', 'right'].includes(block.align) ? block.align : 'left';
-        const cls = `cms-custom-block cms-block-${block.id} cms-block-${block.type} cms-size-${size} cms-align-${align}`;
-        const attrs = preview ? ` data-cms-block="${block.id}" data-cms-block-zone="${e(id)}"` : '';
+        const primaryRegistration = registrationAction?.block?.id === block.id && googleFormsUrl(block.url);
+        const registrationLink = googleFormsUrl(block.url) && /\.(?:registrationStatus|registrationIntro|beforeRegistration|afterRegistration)$/.test(id);
+        const cls = `cms-custom-block cms-block-${block.id} cms-block-${block.type} cms-size-${size} cms-align-${align}${primaryRegistration ? ' cms-registration-action' : registrationLink ? ' cms-registration-secondary' : ''}`;
+        const attrs = preview && !block.sharedRegistration ? ` data-cms-block="${block.id}" data-cms-block-zone="${e(id)}"` : '';
         let inner = '';
         if (block.type === 'text') inner = block.text ? `<p>${e(block.text).replace(/\r?\n/g, '<br>')}</p>` : preview ? '<p class="cms-incomplete-block">Įrašyk tekstą</p>' : '';
         if (block.type === 'image') {
@@ -304,10 +324,12 @@ function renderResponsivePage(content, pathname, {assets = {}, preview = false, 
         if (['button', 'link'].includes(block.type)) {
           const url = typeof editorial.safeLinkUrl === 'function' ? editorial.safeLinkUrl(block.url) : safeUrl(block.url);
           const external = /^https:/i.test(url || '');
-          inner = block.text && url ? `<a class="${block.type === 'button' ? 'button button-solid' : 'text-link'}" href="${e(url)}"${external ? ' target="_blank" rel="noopener noreferrer"' : ''}>${e(block.text)} ${arrow}${external ? newWindow : ''}</a>` : preview ? '<span class="cms-incomplete-block">Įrašyk nuorodos tekstą ir adresą</span>' : '';
+          const linkClass = primaryRegistration ? 'button button-solid registration-primary-link' : registrationLink ? 'text-link registration-secondary-link' : block.type === 'button' ? 'button button-solid' : 'text-link';
+          inner = block.text && url ? `<a class="${linkClass}" href="${e(url)}"${external ? ' target="_blank" rel="noopener noreferrer"' : ''}>${e(block.text)} ${arrow}${external ? newWindow : ''}</a>` : preview ? '<span class="cms-incomplete-block">Įrašyk nuorodos tekstą ir adresą</span>' : '';
         }
         if (block.type === 'spacer') inner = '<span aria-hidden="true"></span>';
-        return inner ? markLayout(`block-${block.id}`, `<div class="${cls}"${attrs}>${inner}</div>`) : '';
+        const rendered = `<div class="${cls}"${attrs}>${inner}</div>`;
+        return inner ? block.sharedRegistration ? rendered : markLayout(`block-${block.id}`, rendered) : '';
     }
     function zone(id) {
       if (!knownZones.has(id) || zoneMetadata.find(zone => zone.id === id)?.inside) return '';
@@ -315,7 +337,7 @@ function renderResponsivePage(content, pathname, {assets = {}, preview = false, 
       const rendered = blocks.map(block => renderBlock(block, id)).join('');
       return rendered || preview ? `<div class="cms-content-zone wrap"${preview ? ` data-cms-drop-zone="${e(id)}" aria-label="${e(editorial.CONTENT_ZONES.find(zone => zone.id === id)?.label || id)}"` : ''}>${rendered}</div>` : '';
     }
-    return {device, data, site, camp, copy, hidden, order, text, part, group, cta, values, registrationUrl, settings, photo, layout, imageTargets, zone};
+    return {device, data, site, camp, copy, hidden, order, text, part, group, cta, values, registrationUrl, registrationAction, settings, photo, layout, imageTargets, zone};
   }
   const active = profile('desktop');
   const variant = render => render(active);
@@ -326,7 +348,7 @@ function renderResponsivePage(content, pathname, {assets = {}, preview = false, 
   const sharedPart = (id, render) => active.part(id, render(active));
   function header() {
     const links = variant(c => c.group('header.links', [
-      ['common.nav.camp', `<a href="/#stovykla"${pageKey === 'home' || pageKey === 'camp' ? ' aria-current="page"' : ''}>${c.text('copy.header.camp')}</a>`],
+      ['common.nav.camp', `<a href="${CAMP_PATH}"${pageKey === 'camp' ? ' aria-current="page"' : ''}>${c.text('copy.header.camp')}</a>`],
       ['common.nav.about', `<a href="/apie-mus/"${pageKey === 'about' ? ' aria-current="page"' : ''}>${c.text('copy.header.about')}</a>`],
       ['common.nav.contact', `<a href="/kontaktai/"${pageKey === 'contact' ? ' aria-current="page"' : ''}>${c.text('copy.header.contact')}</a>`],
       ['common.nav.write', `<a class="nav-contact" href="mailto:${e(c.site.email)}">${c.text('copy.header.write')} ${arrow}</a>`]
@@ -351,12 +373,14 @@ function renderResponsivePage(content, pathname, {assets = {}, preview = false, 
   function registration(c) {
     const intro = c.group('registration.intro', [['registration.eyebrow', `<span class="eyebrow">${c.text('camps.0.date')} · ${c.text('site.organizers')}</span>`], ['registration.title', `<h2>${c.text('copy.registration.title')}</h2>`], ['registration.intro', `<p>${c.text('copy.registration.intro')}</p>`]], 'registration-copy');
     const mail = `mailto:${c.site.email}?subject=${encodeURIComponent(c.copy.registration.emailSubject + ' · ' + c.camp.date)}`;
+    const authoredAction = Boolean(c.registrationAction?.block);
+    const registrationOpen = Boolean(c.registrationUrl || c.registrationAction?.url);
     const entries = c.registrationUrl ? [
-      ['registration.status', `<span class="status-label">${c.text('copy.registration.openLabel')}</span>`], ['registration.text', `<p>${c.text('copy.registration.openText')}</p>`], ['registration.cta', c.cta({labelPath:'copy.registration.openButton'})], ['registration.note', `<small>${c.text('copy.registration.openNote')}</small>`]
+      ['registration.status', `<span class="status-label">${c.text('copy.registration.openLabel')}</span>`], ['registration.text', `<p>${c.text('copy.registration.openText')}</p>`], ['registration.cta', authoredAction ? '' : c.cta({labelPath:'copy.registration.openButton',cls:'button button-solid registration-primary-link'})], ['registration.note', `<small>${c.text('copy.registration.openNote')}</small>`]
     ] : [
-      ['registration.status', `<span class="status-label"><span class="status-dot" aria-hidden="true"></span>${c.text('copy.registration.pendingLabel')}</span>`], ['registration.text', `<p>${c.text('copy.registration.pendingText')}</p>`], ['registration.cta', `<a class="button button-solid" href="${e(mail)}">${c.text('copy.registration.pendingButton')} ${arrow}</a>`], ['registration.phone', `<a class="registration-phone" href="tel:${e(c.site.phone)}">${c.text('site.phoneDisplay')}</a>`]
+      ['registration.status', `<span class="status-label"><span class="status-dot" aria-hidden="true"></span>${c.text('copy.registration.pendingLabel')}</span>`], ['registration.text', `<p>${c.text('copy.registration.pendingText')}</p>`], ['registration.cta', `<a class="${authoredAction ? 'text-link registration-support-link' : 'button button-solid'}" href="${e(mail)}">${c.text('copy.registration.pendingButton')} ${arrow}</a>`], ['registration.phone', `<a class="registration-phone${authoredAction ? ' registration-support-link' : ''}" href="tel:${e(c.site.phone)}">${c.text('site.phoneDisplay')}</a>`]
     ];
-    const status = withAttributes(c.group('registration.status', entries, 'registration-status'), ` data-registration-status="${c.registrationUrl ? 'open' : 'pending'}"`);
+    const status = withAttributes(c.group('registration.status', entries, `registration-status${authoredAction ? ' has-registration-action' : ''}`), ` data-registration-status="${registrationOpen ? 'open' : 'pending'}"`);
     return intro || status ? `<div class="registration-inner wrap${!intro || !status ? ' responsive-single-column' : ''}">${intro}${status}</div>` : '';
   }
   const registrationSection = (id = pageKey === 'home' ? 'section-home-registration' : 'section-camp-registration') => {
@@ -373,7 +397,7 @@ function renderResponsivePage(content, pathname, {assets = {}, preview = false, 
       ['home.hero.eyebrow', `<span class="eyebrow">${c.text('copy.home.heroEyebrow')}</span>`],
       ['home.hero.title', `<h1>${c.text('site.heroAccent')}</h1>`],
       ['home.hero.subtitle', `<p class="hero-subtitle">${c.text('site.heroTitle')} ${c.text('camps.0.date')}</p>`],
-      ['home.hero.cta', c.cta({local:true})]
+      ['home.hero.cta', c.cta({local:true,context:true})]
     ], 'hero-content');
     const bottom = c.group('home.heroBottom', [
       ['home.hero.values', c.site.values.length ? `<span class="responsive-hero-values">${c.values(' <i>·</i> ')}</span>` : '']
@@ -391,7 +415,7 @@ function renderResponsivePage(content, pathname, {assets = {}, preview = false, 
   }
   function campCard(c) {
     const practical = !c.camp.location && !c.camp.price ? c.text('copy.camp.practicalPending') : `${c.text(c.camp.location ? 'camps.0.location' : 'copy.camp.locationPending')}. ${c.camp.price ? c.text('copy.camp.price') + ': ' + c.text('camps.0.price') : c.text('copy.camp.pricePendingSentence')}.`;
-    const copy = c.group('home.campCopy', [['home.camp.date', `<span class="eyebrow">${c.text('camps.0.date')}</span>`], ['home.camp.title', `<h3>${c.text('camps.0.title')}</h3>`], ['home.camp.meta', `<div class="camp-meta"><span>${practical}</span></div>`], ['home.camp.description', c.camp.description.length ? `<p>${c.text('camps.0.description.0')}</p>` : ''], ['home.camp.link', `<a class="button" href="/stovyklos/stovykla-01/">${c.text('copy.actions.camp')} ${arrow}</a>`]], 'camp-copy');
+    const copy = c.group('home.campCopy', [['home.camp.date', `<span class="eyebrow">${c.text('camps.0.date')}</span>`], ['home.camp.title', `<h3>${c.text('camps.0.title')}</h3>`], ['home.camp.meta', `<div class="camp-meta"><span>${practical}</span></div>`], ['home.camp.description', c.camp.description.length ? `<p>${c.text('camps.0.description.0')}</p>` : ''], ['home.camp.link', `<a class="button" href="${CAMP_PATH}">${c.text('copy.actions.camp')} ${arrow}</a>`]], 'camp-copy');
     const main = c.settings('camps.0.image'), secondary = c.settings('camps.0.secondaryImage');
     const photos = [['camps.0.image', main], ['camps.0.secondaryImage', secondary]].filter(([, image]) => !image.hidden);
     let layout;
@@ -407,17 +431,17 @@ function renderResponsivePage(content, pathname, {assets = {}, preview = false, 
       const sizes = ['small', 'normal', 'large'];
       const columnSize = position => sizes[Math.max(...positions[position].map(({image}) => sizes.indexOf(explicitImageSize(image.size) || 'large')))];
       const column = position => positions[position].length ? `<div class="responsive-camp-${position}${['left','right'].includes(position) ? ` r-camp-column-${columnSize(position)}` : ''}">${positions[position].map(({field}) => c.photo(field)).join('')}</div>` : '';
-      const manualWidth = ['camps.0.image','camps.0.secondaryImage'].some(field => photoDimensions(field).width != null);
+      const manualWidth = ['camps.0.image','camps.0.secondaryImage'].some(field => !c.settings(field).hidden && photoDimensions(field).width != null);
       layout = `${column('above')}<div class="responsive-camp-middle${manualWidth ? ' cms-camp-manual-width' : ''}${positions.left.length ? ` has-left r-left-size-${columnSize('left')}` : ''}${positions.right.length ? ` has-right r-right-size-${columnSize('right')}` : ''}">${column('left')}<div class="responsive-layout-copy">${copy}</div>${column('right')}</div>${column('below')}`;
     }
     return `<article class="camp-row"><div class="responsive-camp-profile wrap">${layout}${c.imageTargets('camps.0.image')}${c.imageTargets('camps.0.secondaryImage')}</div></article>`;
   }
   function aboutStory(c) {
-    const copy = c.group('about.story', [...c.site.story.map((value, index) => [`about.paragraph.${index}`, `<p>${c.text(`site.story.${index}`)}</p>`]), ['about.link', `<a class="text-link" href="/#stovykla">${c.text('copy.actions.camp')} ${arrow}</a>`]], 'story-copy');
+    const copy = c.group('about.story', [...c.site.story.map((value, index) => [`about.paragraph.${index}`, `<p>${c.text(`site.story.${index}`)}</p>`]), ['about.link', `<a class="text-link" href="${CAMP_PATH}">${c.text('copy.actions.camp')} ${arrow}</a>`]], 'story-copy');
     return markLayout('section-about-story', `<div class="responsive-about-profile wrap">${c.layout('site.togetherImage', copy, 'responsive-about-layout', 'left')}</div>`);
   }
   function aboutInvitation(c) {
-    return markLayout('section-about-invitation', c.group('about.invitation', [['about.invitationDate', `<span class="eyebrow">${c.text('camps.0.date')}</span>`], ['about.invitationTitle', `<h2>${c.text('copy.about.invitation')}</h2>`], ['about.cta', c.cta()]], 'contact-strip wrap responsive-invitation'));
+    return markLayout('section-about-invitation', c.group('about.invitation', [['about.invitationDate', `<span class="eyebrow">${c.text('camps.0.date')}</span>`], ['about.invitationTitle', `<h2>${c.text('copy.about.invitation')}</h2>`], ['about.cta', c.cta({context:true})]], 'contact-strip wrap responsive-invitation'));
   }
   function detailBody(c) {
     const description = c.group('detail.description', [['detail.aboutEyebrow', `<span class="eyebrow">${c.text('copy.camp.about')}</span>`], ['detail.introTitle', `<h2>${c.text('camps.0.introTitle')}</h2>`], ...c.camp.description.map((value, index) => [`detail.paragraph.${index}`, `<p>${c.text(`camps.0.description.${index}`)}</p>`])], 'detail-description');
@@ -461,7 +485,7 @@ function renderResponsivePage(content, pathname, {assets = {}, preview = false, 
       ['detail.back', `<a class="text-link back-link" href="/#stovykla">← ${c.text('copy.actions.back')}</a>`],
       ['detail.eyebrow', `<span class="eyebrow">${c.text('camps.0.date')} · ${c.text('site.organizers')}</span>`],
       ['detail.title', `<h1>${c.text('camps.0.title')}</h1>`], ['detail.summary', `<p>${c.text('camps.0.summary')}</p>`],
-      ['detail.cta', `<div class="detail-heading-action">${c.cta({local:true})}</div>`]
+      ['detail.cta', `<div class="detail-heading-action">${c.cta({local:true,context:true})}</div>`]
     ], 'detail-heading-copy');
     body = `${markLayout('section-camp-heading', `<section class="camp-detail-heading wrap">${top}${facts(c)}</section>`)}${zone('camp.beforeDescription')}${detailBody(c)}${zone('camp.afterDescription')}${zone('camp.beforeRegistration')}${registrationSection()}${zone('camp.afterRegistration')}`;
   } else {
@@ -473,7 +497,7 @@ function renderResponsivePage(content, pathname, {assets = {}, preview = false, 
   const canonical = path === '/404.html' ? '' : `<link rel="canonical" href="${e(content.site.url + path)}">`;
   const theme = renderTheme(content);
   const themed = Boolean(content.design);
-  const html = `<!doctype html><html lang="lt"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>${e(title)}</title><meta name="description" content="${e(metadata.description)}">${content.site.draft || preview ? '<meta name="robots" content="noindex, nofollow">' : ''}<meta name="theme-color" content="#bfebac"><meta property="og:type" content="website"><meta property="og:locale" content="lt_LT"><meta property="og:title" content="${e(title)}"><meta property="og:description" content="${e(metadata.description)}">${canonical}<link rel="icon" href="/assets/favicon.svg" type="image/svg+xml"><link rel="stylesheet" href="${e(assets.styles || '/styles.css')}">${theme ? `<link rel="stylesheet" href="${e(assets.theme || '/theme.css')}">` : ''}${preview ? '<link rel="stylesheet" href="/admin/visual.css">' : ''}<script src="${e(assets.script || '/app.js')}" defer></script></head><body class="responsive-site cms-page-${pageKey || 'not-found'}${themed ? ' cms-themed' : ''}"${preview ? ` data-cms-device="${selectedDevice}"` : ''}>${header()}<main id="turinys" tabindex="-1">${body}</main>${variant(footer)}</body></html>`;
+  const html = `<!doctype html><html lang="lt"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>${e(title)}</title><meta name="description" content="${e(metadata.description)}">${content.site.draft || preview ? '<meta name="robots" content="noindex, nofollow">' : ''}<meta name="theme-color" content="#bfebac"><meta property="og:type" content="website"><meta property="og:locale" content="lt_LT"><meta property="og:title" content="${e(title)}"><meta property="og:description" content="${e(metadata.description)}">${canonical}<link rel="icon" href="/assets/favicon.svg" type="image/svg+xml"><link rel="stylesheet" href="${e(assets.styles || '/styles.css')}">${theme ? `<link rel="stylesheet" href="${e(assets.theme || '/theme.css')}">` : ''}${preview ? '<link rel="stylesheet" href="/admin/visual.css">' : ''}<script src="${e(assets.script || '/app.js')}" defer></script></head><body class="site-polished responsive-site cms-page-${pageKey || 'not-found'}${themed ? ' cms-themed' : ''}"${preview ? ` data-cms-device="${selectedDevice}"` : ''}>${header()}<main id="turinys" tabindex="-1">${body}</main>${variant(footer)}</body></html>`;
   return {html, title};
 }
 
@@ -491,14 +515,14 @@ export function renderLayoutRules(input) {
     const photo = target.type === 'photo';
     if (dimensions.width != null) {
       if (photo) properties['--layout-image-width'] = `${dimensions.width}%`;
-      else properties.width = `${dimensions.width}%`;
+      else properties.width = `var(--responsive-block-width, ${dimensions.width}%)`;
       Object.assign(properties, {'max-width':'100%', 'min-width':'0px', 'margin-left':'auto', 'margin-right':'auto'});
     }
     if (dimensions.height != null) {
-      properties.height = photo ? `${dimensions.height}px` : 'auto';
-      properties['min-height'] = photo ? '0px' : `${dimensions.height}px`;
+      properties.height = photo ? `var(--responsive-photo-height, ${dimensions.height}px)` : 'auto';
+      properties['min-height'] = photo ? '0px' : `var(--responsive-block-min-height, ${dimensions.height}px)`;
       properties['max-height'] = 'none';
-      if (photo) properties['aspect-ratio'] = 'auto';
+      if (photo) properties['aspect-ratio'] = 'var(--responsive-photo-ratio,auto)';
     }
     for (const [key, property] of [['paddingTop','padding-top'], ['paddingBottom','padding-bottom']]) {
       const value = dimensions[key] ?? (dimensions.height != null ? 0 : null);
@@ -529,7 +553,7 @@ export function renderLayoutRules(input) {
   // The two camp photos can share a side column. Use its widest frame to size
   // the column, then express each individual width relative to that column.
   const campFields = ['camps.0.image','camps.0.secondaryImage'];
-  const manualCamp = campFields.some(path => boundedLayout(content, `photo-${path.replaceAll('.', '-')}`).width != null);
+  const manualCamp = campFields.some(path => !getImageSettings(content,path).hidden && boundedLayout(content, `photo-${path.replaceAll('.', '-')}`).width != null);
   if (manualCamp) {
     const columns = {left:[], right:[]};
     for (const path of campFields) {

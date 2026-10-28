@@ -104,4 +104,4 @@ Svetainė: [bukarciau.lt](https://bukarciau.lt), Pages adresas: [bukarciau.pages
 
 Nekeiskite veikiančių MX, SPF, DKIM ir kitų pašto įrašų. `info@bukarciau.lt` naudoja Cloudflare Email Routing; CMS sąranka su tuo nesusijusi. Palikite esamus `route1/2/3.mx.cloudflare.net` MX ir SPF `v=spf1 include:_spf.mx.cloudflare.net ~all`. [Email Routing domenų dokumentacija](https://developers.cloudflare.com/email-service/configuration/domains/).
 
-Senas `/stovyklos/stovykla-02` ir `/stovyklos/stovykla-02/` adresas per `_redirects` nukreipiamas į `/#stovykla` kodu `301`. Publikuojant išlaikykite šią taisyklę.
+Kanoninis stovyklos adresas yra `/stovyklos/moteru-savaitgalio-stovykla/`. Seni `stovykla-01` ir `stovykla-02` adresai, įskaitant jų variantus be baigiamojo `/` ir su `/index.html`, tiesiogiai nukreipiami į naują puslapį kodu `301`. Užklausos parametrai ir inkarai išlieka. Taisyklės sutelktos `shared/routes.mjs`, o `_redirects` išlaiko statinio talpinimo atitikmenį. Seni išsaugoti stovyklos identifikatoriai bei vidinės nuorodos normalizuojami atmintyje; skaitymas duomenų bazės nekeičia.

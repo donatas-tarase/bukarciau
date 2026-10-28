@@ -5,6 +5,7 @@ import {tmpdir} from 'node:os';
 import {createHash} from 'node:crypto';
 import {spawnSync} from 'node:child_process';
 import {parseContent, getImageReferences} from '../shared/content.mjs';
+import {CAMP_PATH, LEGACY_CAMP_PATH} from '../shared/routes.mjs';
 
 const root = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 const dist = join(root, 'dist');
@@ -183,10 +184,11 @@ async function indexingState(directory, isDraft, label) {
 await indexingState(dist, Boolean(content.site.draft), 'Sugeneruota svetainė');
 check(content.camps.length === 1, 'Svetainėje turi būti tik viena dabartinė stovykla.');
 check(!allFiles.includes(join(dist, 'stovyklos/stovykla-02/index.html')), 'Build rezultate liko antros stovyklos puslapis.');
+check(!allFiles.includes(join(dist, 'stovyklos/stovykla-01/index.html')), 'Build rezultate liko senas stovyklos adresas.');
 const redirects = await readFile(join(dist, '_redirects'), 'utf8').catch(() => '');
 const redirectRules = redirects.split(/\r?\n/).map(line => line.trim().split(/\s+/));
-for (const oldPath of ['/stovyklos/stovykla-02', '/stovyklos/stovykla-02/']) {
-  check(redirectRules.some(([from, to, code]) => from === oldPath && to === '/#stovykla' && code === '301'), `${oldPath}: senas adresas turi nukreipti į vienintelę stovyklą.`);
+for (const oldPath of [LEGACY_CAMP_PATH.slice(0,-1), LEGACY_CAMP_PATH, LEGACY_CAMP_PATH+'index.html', '/stovyklos/stovykla-02', '/stovyklos/stovykla-02/', '/stovyklos/stovykla-02/index.html']) {
+  check(redirectRules.some(([from, to, code]) => from === oldPath && to === CAMP_PATH && code === '301'), `${oldPath}: senas adresas turi nukreipti į stovyklos puslapį.`);
 }
 const home = documents.get(join(dist, 'index.html'));
 if (home && content.camps[0]) {

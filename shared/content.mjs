@@ -1,3 +1,5 @@
+import {CAMP_SLUG, LEGACY_CAMP_SLUG, canonicalContentLink} from './routes.mjs';
+
 // Shared editorial contract. Presentation, routes and executable code are never content.
 const description = 'Moterų savaitgalio stovykla gruodžio 5 d. Atokvėpiui, tikriems pokalbiams ir bendrystei kviečia Miglė ir Miglė.';
 const registrationAnswer = 'Užpildyk registracijos anketą - jos nuorodą rasi registracijos skiltyje. Jei turi klausimų, parašyk mums.';
@@ -24,7 +26,7 @@ export const DEFAULT_CONTENT = {
     togetherImage: null, togetherImageAlt: '', togetherImageRatio: 'auto', togetherImageHidden: false, togetherImagePosition: 'default', togetherImageSize: 'auto', draft: true
   },
   camps: [{
-    slug: 'stovykla-01', title: 'Moterų savaitgalio stovykla',
+    slug: CAMP_SLUG, title: 'Moterų savaitgalio stovykla',
     summary: 'Gruodžio 5 d. susitinkame pabūti kartu. Kviečia Miglė ir Miglė.',
     date: 'Gruodžio 5 d.', location: null, price: null,
     image: null, imageAlt: '', imageRatio: 'auto', imageHidden: false, imagePosition: 'default', imageSize: 'auto',
@@ -258,13 +260,13 @@ export function safeLinkUrl(value) {
       const base = 'https://internal.invalid';
       const url = new URL(candidate, base), decodedUrl = new URL(plainValue, base);
       if (url.origin !== base || decodedUrl.origin !== base || url.pathname.startsWith('//') || decodedUrl.pathname.startsWith('//')) return null;
-      return `${url.pathname}${url.search}${url.hash}`;
+      return canonicalContentLink(`${url.pathname}${url.search}${url.hash}`);
     } catch { return null; }
   }
   if (/^https:\/\//i.test(candidate)) {
     try {
       const url = new URL(candidate);
-      return url.protocol === 'https:' && url.hostname && !url.username && !url.password ? url.href : null;
+      return url.protocol === 'https:' && url.hostname && !url.username && !url.password ? canonicalContentLink(url.href) : null;
     } catch { return null; }
   }
   if (/^tel:/i.test(candidate)) {
@@ -423,7 +425,7 @@ for (const page of ['home', 'about', 'contact', 'camp']) addField(`pageBlocks.${
 addField('blockLayouts', {type: 'layoutMap'});
 addField('linkOverrides', {type: 'linkMap'});
 addField('site.url', {type: 'fixed', value: 'https://bukarciau.lt'});
-addField('camps.0.slug', {type: 'fixed', value: 'stovykla-01'});
+addField('camps.0.slug', {type: 'fixed', value: CAMP_SLUG});
 
 export function getPath(object, path) {
   let value = object;
@@ -519,6 +521,7 @@ export function normalizeContent(input = {}) {
     })} : item)};
   }
   const normalized = merge(DEFAULT_CONTENT, legacy, schema);
+  if (Array.isArray(normalized.camps) && plain(normalized.camps[0]) && normalized.camps[0].slug === LEGACY_CAMP_SLUG) normalized.camps[0].slug = CAMP_SLUG;
   // Retired arrow references can exist in published content and older history.
   // Remove only their exact settings; added blocks keep their content and order.
   for (const path of ['hiddenParts', 'partOrder']) if (Array.isArray(normalized[path])) normalized[path] = normalized[path].filter(id => id !== retiredHeroNextPart);
@@ -526,6 +529,17 @@ export function normalizeContent(input = {}) {
   if (plain(normalized.blockLayouts)) delete normalized.blockLayouts['part-home-hero-next'];
   if (Array.isArray(normalized.pageBlocks?.home)) {
     for (const block of normalized.pageBlocks.home) if (plain(block) && block.zone === 'home.heroBottom' && block.beforePart === retiredHeroNextPart) block.beforePart = null;
+  }
+  const migrateCampLink = value => {
+    const migrated = canonicalContentLink(value);
+    return migrated !== value && safeLinkUrl(value) ? migrated : value;
+  };
+  if (plain(normalized.linkOverrides)) {
+    for (const [id, value] of Object.entries(normalized.linkOverrides)) normalized.linkOverrides[id] = migrateCampLink(value);
+  }
+  for (const page of ['home', 'about', 'contact', 'camp']) {
+    if (!Array.isArray(normalized.pageBlocks?.[page])) continue;
+    for (const block of normalized.pageBlocks[page]) if (plain(block)) block.url = migrateCampLink(block.url);
   }
   return normalized;
 }
@@ -692,7 +706,7 @@ export function parseContent(input) {
   if (!Array.isArray(normalized.camps) || normalized.camps.length !== 1 || !plain(normalized.camps[0])) issues.push({path: 'camps', message: 'Svetainėje turi būti tik viena stovykla.'});
   for (const descriptor of CONTENT_FIELDS) validate(getPath(normalized, descriptor.path), descriptor, descriptor.path, issues);
   validate(getPath(normalized, 'site.url'), {type: 'fixed', value: 'https://bukarciau.lt'}, 'site.url', issues);
-  validate(getPath(normalized, 'camps.0.slug'), {type: 'fixed', value: 'stovykla-01'}, 'camps.0.slug', issues);
+  validate(getPath(normalized, 'camps.0.slug'), {type: 'fixed', value: CAMP_SLUG}, 'camps.0.slug', issues);
   for (const image of IMAGE_FIELDS) {
     const source = getPath(normalized, image.path), alt = getPath(normalized, image.altPath);
     validate(source, {type: 'image', required: false, nullable: true}, image.path, issues);

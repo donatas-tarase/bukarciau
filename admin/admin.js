@@ -3,6 +3,9 @@ import {renderPage} from '/admin/render.mjs';
 import {createEditorTools} from '/admin/editor-tools.mjs';
 import {createLayoutTools} from '/admin/layout-tools.mjs';
 import {createLinkTools} from '/admin/link-tools.mjs';
+import {PAGE_ROUTES, canonicalPagePath} from '/admin/routes.mjs';
+
+const pageForPath = path => Object.keys(PAGE_ROUTES).find(page => PAGE_ROUTES[page] === canonicalPagePath(path)) || 'home';
 
 const $ = selector => document.querySelector(selector);
 const escape = value => String(value ?? '').replace(/[&<>"']/g, character => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[character]));
@@ -112,7 +115,7 @@ function setValue(path, value) {
 }
 
 const editorTools = createEditorTools({
-  content:() => content,device:() => canvasDevice,page:() => ({'/':'home','/apie-mus/':'about','/kontaktai/':'contact','/stovyklos/stovykla-01/':'camp'}[$('#preview-route').value] || 'home'),
+  content:() => content,device:() => canvasDevice,page:() => pageForPath($('#preview-route').value),
   mode:() => canvasMode,busy:() => busy,doc:() => $('#preview-frame').contentDocument,
   mutate:callback => { callback(content); updateDirty(); },render:() => renderCanvas(),refresh:() => renderSection(),
   announce,notice,finish:() => { clearTimeout(canvasRenderTimer); layoutTools.cancelPending(); linkTools.cancelPending(); finishCanvasEditing(); },chooseImage:target => openMediaPicker(target),
@@ -121,12 +124,13 @@ const editorTools = createEditorTools({
   clearPhoto:() => { canvasPhoto = null; renderCanvasPhotoInspector(); linkTools.clearSelection(); },
   revealTools:revealWorkbench,
   selectSection,
-  openPage:page => { const route = {home:'/',about:'/apie-mus/',contact:'/kontaktai/',camp:'/stovyklos/stovykla-01/'}[page]; if (route) { if ($('#preview-route').value !== route) layoutTools.clearSelection(); $('#preview-route').value = route; section = visualSection; canvasScrollReset = true; renderSection(); } }
+  openPage:page => { const route = PAGE_ROUTES[page]; if (route) { if ($('#preview-route').value !== route) layoutTools.clearSelection(); $('#preview-route').value = route; section = visualSection; canvasScrollReset = true; renderSection(); } }
 });
 const layoutTools = createLayoutTools({
   content:() => content,mutate:callback => { callback(content); updateDirty(); },render:() => renderCanvas(),
+  device:() => canvasDevice,
   doc:() => $('#preview-frame').contentDocument,mode:() => canvasMode,busy:() => busy,
-  page:() => ({'/':'home','/apie-mus/':'about','/kontaktai/':'contact','/stovyklos/stovykla-01/':'camp'}[$('#preview-route').value] || 'home'),
+  page:() => pageForPath($('#preview-route').value),
   announce,revealTools:revealWorkbench,finish:() => { clearTimeout(canvasRenderTimer); editorTools.cancelPending(); linkTools.cancelPending(); finishCanvasEditing(); },
   clearOtherSelection:() => { revealWorkbench(); canvasPhoto = null; renderCanvasPhotoInspector(); editorTools.clearSelection(); linkTools.clearSelection(); }
 });
@@ -137,7 +141,7 @@ const linkTools = createLinkTools({
   finish:() => { clearTimeout(canvasRenderTimer); layoutTools.cancelPending(); editorTools.cancelPending(); linkTools.cancelPending(); finishCanvasEditing(); },
   clearPhoto:() => { canvasPhoto = null; renderCanvasPhotoInspector(); },
   openLinkPage:id => {
-    const route = id.startsWith('about.') ? '/apie-mus/' : id.startsWith('contact.') ? '/kontaktai/' : id.startsWith('detail.') ? '/stovyklos/stovykla-01/' : id.startsWith('notFound.') ? null : '/';
+    const route = id.startsWith('about.') ? PAGE_ROUTES.about : id.startsWith('contact.') ? PAGE_ROUTES.contact : id.startsWith('detail.') ? PAGE_ROUTES.camp : id.startsWith('notFound.') ? null : PAGE_ROUTES.home;
     if (route) { $('#preview-route').value = route; section = visualSection; canvasScrollReset = true; renderSection(); }
   }
 });
@@ -531,9 +535,10 @@ function bindCanvasHandlers() {
       return;
     }
     event.preventDefault(); event.stopImmediatePropagation();
-    if (url.hash && (url.pathname === $('#preview-route').value || link.getAttribute('href').startsWith('#'))) { doc.querySelector(url.hash)?.scrollIntoView({behavior:'smooth'}); return; }
-    const allowed = [...$('#preview-route').options].some(option => option.value === url.pathname);
-    if (canvasMode === 'view' && allowed) { finishCanvasEditing(); layoutTools.clearSelection(); canvasScrollReset = true; $('#preview-route').value = url.pathname; renderCanvas(); }
+    const targetPath = canonicalPagePath(url.pathname);
+    if (url.hash && (targetPath === $('#preview-route').value || link.getAttribute('href').startsWith('#'))) { doc.getElementById(decodeURIComponent(url.hash.slice(1)))?.scrollIntoView({behavior:'smooth'}); return; }
+    const allowed = [...$('#preview-route').options].some(option => option.value === targetPath);
+    if (canvasMode === 'view' && allowed) { finishCanvasEditing(); layoutTools.clearSelection(); canvasScrollReset = true; $('#preview-route').value = targetPath; renderCanvas(); }
     else announce('Kitą puslapį pasirink viršuje esančiame puslapių sąraše.');
   },true);
   doc.addEventListener('input',event => { const element = event.target.closest('[data-cms-field]'); if (element && canvasEditing?.element === element) commitCanvasInput(element); });

@@ -3,8 +3,9 @@ import assert from 'node:assert/strict';
 import {DEFAULT_CONTENT, IMAGE_FIELDS, IMAGE_POSITIONS, IMAGE_SIZES, CONTENT_PARTS, CONTENT_ZONES, THEME_DEFAULTS, SECTION_LAYOUT_TARGETS, getLayoutTargets, parseContent, setPath} from '../shared/content.mjs';
 import * as schema from '../shared/content.mjs';
 import {renderPage, renderTheme, renderLayoutRules} from '../shared/render.mjs';
+import {CAMP_PATH, PAGE_ROUTES} from '../shared/routes.mjs';
 
-const routes = ['/', '/apie-mus/', '/kontaktai/', '/stovyklos/stovykla-01/', '/404.html'];
+const routes = ['/', '/apie-mus/', '/kontaktai/', CAMP_PATH, '/404.html'];
 const image = '/media/0123456789abcdef0123456789abcdef.jpg';
 const copy = () => structuredClone(DEFAULT_CONTENT);
 const canvas = (content, route = '/', device = 'desktop') => renderPage(content, route, {preview:true, previewDevice:device}).html;
@@ -61,7 +62,7 @@ test('each editable text belongs to a real removable semantic part', () => {
 });
 
 test('all image positions affect the actual adjacent media layout and preserve source, alt and ratio', () => {
-  const pageFor = {'site.heroImage':'/', 'site.statementImage':'/', 'site.togetherImage':'/apie-mus/', 'camps.0.image':'/', 'camps.0.secondaryImage':'/', 'camps.0.detailImage':'/stovyklos/stovykla-01/'};
+  const pageFor = {'site.heroImage':'/', 'site.statementImage':'/', 'site.togetherImage':'/apie-mus/', 'camps.0.image':'/', 'camps.0.secondaryImage':'/', 'camps.0.detailImage':CAMP_PATH};
   for (const slot of IMAGE_FIELDS) {
     for (const {value:position} of IMAGE_POSITIONS) {
       const content = copy();
@@ -92,7 +93,7 @@ test('hidden image frames and their drag targets disappear without losing nearby
 
 test('every fixed photo size applies to the complete blank or uploaded frame without changing its ratio', () => {
   assert.deepEqual(IMAGE_SIZES.map(option => option.value), ['auto','small','normal','large']);
-  const pageFor = {'site.heroImage':'/', 'site.statementImage':'/', 'site.togetherImage':'/apie-mus/', 'camps.0.image':'/', 'camps.0.secondaryImage':'/', 'camps.0.detailImage':'/stovyklos/stovykla-01/'};
+  const pageFor = {'site.heroImage':'/', 'site.statementImage':'/', 'site.togetherImage':'/apie-mus/', 'camps.0.image':'/', 'camps.0.secondaryImage':'/', 'camps.0.detailImage':CAMP_PATH};
   for (const slot of IMAGE_FIELDS) {
     for (const size of ['small','normal','large']) {
       for (const uploaded of [false,true]) {
@@ -134,9 +135,9 @@ test('explicit hero and secondary sizes use independent inline frames while the 
   assert.ok(tokens(home).some(tag => ['hero-position-right','hero-photo-size-small'].every(cls => tag.attrs.class?.split(' ').includes(cls))));
   assert.doesNotMatch(home,/class="camp-visual|class="photo photo-small/);
   assert.match(home,/class="responsive-camp-below"/);
-  const detail = tokens(canvas(content,'/stovyklos/stovykla-01/')).find(tag=>tag.attrs['data-cms-image']==='camps.0.detailImage');
+  const detail = tokens(canvas(content,CAMP_PATH)).find(tag=>tag.attrs['data-cms-image']==='camps.0.detailImage');
   assert.match(detail.attrs.class,/image-ratio-1-1 image-size-large/);
-  assert.match(canvas(content,'/stovyklos/stovykla-01/'),/alt="Pagrindinė nuotrauka"/);
+  assert.match(canvas(content,CAMP_PATH),/alt="Pagrindinė nuotrauka"/);
   content.site.heroImageHidden=true;
   assert.doesNotMatch(canvas(content),/data-cms-image="site.heroImage"|data-cms-image-drop="site.heroImage"/);
 });
@@ -152,7 +153,8 @@ test('parts can be removed and sibling parts reordered with the same result in p
     const html = renderPage(valid, '/', {preview, previewDevice:'desktop'}).html;
     assert.doesNotMatch(html, /Antraštė Kurią Paslepiame/);
     assert.ok(html.indexOf('Pastraipa Antra') < html.indexOf('Pastraipa Pirma'));
-    assert.doesNotMatch(html, /href="\/stovyklos\/stovykla-01\/"/);
+    assert.doesNotMatch(html, /data-cms-part="home.camp.link"/);
+    if (!preview) assert.ok(!html.includes(`>${valid.copy.actions.camp} <svg`));
     const contact = renderPage(valid, '/kontaktai/', {preview, previewDevice:'desktop'}).html;
     assert.doesNotMatch(contact, /data-cms-part="contact.phone"/);
   }
@@ -162,7 +164,7 @@ test('parts can be removed and sibling parts reordered with the same result in p
 
 test('all added content zones are selectable in preview, while empty zones take no public space', () => {
   const content = copy();
-  const pageFor = {home:'/',about:'/apie-mus/',contact:'/kontaktai/',camp:'/stovyklos/stovykla-01/'};
+  const pageFor = {home:'/',about:'/apie-mus/',contact:'/kontaktai/',camp:CAMP_PATH};
   for (const [page, route] of Object.entries(pageFor)) {
     const html = canvas(content, route);
     for (const zone of CONTENT_ZONES.filter(zone => zone.page === page)) assert.ok(html.includes(`data-cms-drop-zone="${zone.id}"`), zone.id);
@@ -226,8 +228,8 @@ test('block colors are scoped to their page when an editorial block ID is reused
   const css = renderTheme(valid);
   assert.match(css, /\.cms-page-home \.cms-block-00000000000000000000000000000001\{color:#112233;--block-color:#112233\}/);
   assert.match(css, /\.cms-page-about \.cms-block-00000000000000000000000000000001\{color:#aabbcc;--block-color:#aabbcc\}/);
-  assert.match(renderPage(valid,'/').html, /class="responsive-site cms-page-home"/);
-  assert.match(renderPage(valid,'/apie-mus/').html, /class="responsive-site cms-page-about"/);
+  assert.match(renderPage(valid,'/').html, /class="site-polished responsive-site cms-page-home"/);
+  assert.match(renderPage(valid,'/apie-mus/').html, /class="site-polished responsive-site cms-page-about"/);
 });
 
 test('removing every paragraph or list item leaves no ghost editing fields or undefined text', () => {
@@ -245,7 +247,7 @@ test('layout selection identifies whole sections, photos, semantic parts and add
   const content = copy();
   content.pageBlocks.home = [block(1,'text','home.afterHero')];
   const known = new Map(getLayoutTargets(content).map(target => [target.id,target]));
-  const pageFor = {home:'/',about:'/apie-mus/',contact:'/kontaktai/',camp:'/stovyklos/stovykla-01/'};
+  const pageFor = {home:'/',about:'/apie-mus/',contact:'/kontaktai/',camp:CAMP_PATH};
   const seenSections = new Set();
   for (const [page,route] of Object.entries(pageFor)) {
     const elements = tokens(canvas(content,route));
@@ -278,24 +280,24 @@ test('manual photo dimensions override size without changing the chosen crop or 
   const own = rules.find(rule => rule.selector === '.cms-layout-photo-site-statementImage').properties;
   assert.equal(own['--layout-image-width'],'60%');
   assert.equal(own.width,undefined,'paired frames fill their resized track, rather than multiplying its width again');
-  assert.equal(own.height,'220px'); assert.equal(own['min-height'],'0px'); assert.equal(own['aspect-ratio'],'auto');
+  assert.equal(own.height,'var(--responsive-photo-height, 220px)'); assert.equal(own['min-height'],'0px'); assert.equal(own['aspect-ratio'],'var(--responsive-photo-ratio,auto)');
   const track = rules.find(rule => rule.selector.includes('.responsive-layout.photo-layout-site-statementImage')).properties;
   assert.equal(track['--manual-image-track'],'0.6fr'); assert.equal(track['--manual-copy-track'],'1.4fr');
-  assert.match(renderTheme(valid),/height:220px!important/);
+  assert.match(renderTheme(valid),/height:var\(--responsive-photo-height, 220px\)!important/);
   assert.match(renderPage(valid,'/').html,/href="\/theme.css"/);
   assert.doesNotMatch(renderPage(valid,'/').html,/\sstyle=/);
   assert.equal(valid.site.statementImageRatio,'1:1','manual dimensions retain the stored crop for resetting');
 });
 
 test('manual photo dimensions work for every fixed frame and turn background or overlay photos into independent frames', () => {
-  const pageFor = {'site.heroImage':'/', 'site.statementImage':'/', 'site.togetherImage':'/apie-mus/', 'camps.0.image':'/', 'camps.0.secondaryImage':'/', 'camps.0.detailImage':'/stovyklos/stovykla-01/'};
+  const pageFor = {'site.heroImage':'/', 'site.statementImage':'/', 'site.togetherImage':'/apie-mus/', 'camps.0.image':'/', 'camps.0.secondaryImage':'/', 'camps.0.detailImage':CAMP_PATH};
   for (const slot of IMAGE_FIELDS) {
     const content=copy(),id=`photo-${slot.path.replaceAll('.','-')}`;
     content.blockLayouts[id]=dimensions({width:65,height:180,paddingTop:10,paddingBottom:15});
     const frame=tokens(canvas(parseContent(content),pageFor[slot.path])).find(tag=>tag.attrs['data-cms-image']===slot.path);
     assert.ok(frame.attrs.class.split(' ').includes('cms-layout-has-padding'));
     const rule=renderLayoutRules(content).find(rule=>rule.selector===`.cms-layout-${id}`).properties;
-    assert.equal(rule.height,'180px'); assert.equal(rule['--layout-photo-padding-top'],'10px'); assert.equal(rule['--layout-photo-padding-bottom'],'15px');
+    assert.equal(rule.height,'var(--responsive-photo-height, 180px)'); assert.equal(rule['--layout-photo-padding-top'],'10px'); assert.equal(rule['--layout-photo-padding-bottom'],'15px');
     if (slot.path==='site.heroImage') assert.ok(tokens(canvas(content)).some(tag=>tag.attrs.class?.split(' ').includes('hero-position-right')));
     if (slot.path==='camps.0.image'||slot.path==='camps.0.secondaryImage') assert.ok(!tokens(canvas(content)).some(tag=>tag.attrs.class?.split(' ').includes('camp-visual')),'resized camp photos no longer use an overlapping frame');
   }
@@ -315,15 +317,15 @@ test('section and text heights remain minimums, reduce automatic padding, and pr
   for (const id of Object.keys(valid.blockLayouts)) {
     assert.equal(own(id).height,'auto',id);
     assert.equal(own(id)['max-height'],'none',id);
-    assert.ok(Number.parseInt(own(id)['min-height'])>=40,id);
+    assert.match(own(id)['min-height'],/^var\(--responsive-block-min-height, \d+px\)$/,id);
   }
   assert.equal(own('section-home-hero')['padding-top'],'12px');
   assert.equal(own('section-home-hero')['padding-bottom'],'0px');
   assert.equal(own('section-home-intro')['padding-top'],'0px');
   assert.equal(own('section-home-intro')['padding-bottom'],'18px');
-  assert.equal(own('section-home-intro').width,'80%');
+  assert.equal(own('section-home-intro').width,'var(--responsive-block-width, 80%)');
   assert.ok(rules.some(rule=>rule.selector.includes('>.hero-content')&&rule.properties['padding-top']==='0px'));
-  assert.equal(own('block-00000000000000000000000000000001')['min-height'],'40px','manual spacer height can shrink the old large preset');
+  assert.equal(own('block-00000000000000000000000000000001')['min-height'],'var(--responsive-block-min-height, 40px)','manual spacer height can shrink the old large preset');
 });
 
 test('only bounded known layout values enter CSS, including unsaved drafts, and resetting restores the original site', () => {
@@ -338,7 +340,7 @@ test('only bounded known layout values enter CSS, including unsaved drafts, and 
   assert.doesNotMatch(renderTheme(content),/display:none|Infinity|NaN|unknown-target/);
   content.blockLayouts={'section-home-intro':dimensions({width:20,height:40,paddingTop:0,paddingBottom:240})};
   const css=renderTheme(parseContent(content));
-  assert.match(css,/width:20%!important/); assert.match(css,/min-height:40px!important/); assert.match(css,/padding-bottom:240px!important/);
+  assert.match(css,/width:var\(--responsive-block-width, 20%\)!important/); assert.match(css,/min-height:var\(--responsive-block-min-height, 40px\)!important/); assert.match(css,/padding-bottom:240px!important/);
   assert.notDeepEqual(routes.map(route=>renderPage(content,route).html),original);
   content.blockLayouts={};
   assert.deepEqual(routes.map(route=>renderPage(content,route).html),original);
@@ -408,7 +410,7 @@ test('unsafe unsaved link overrides fall back safely and clearing overrides rest
 test('every inside zone inserts valid sibling blocks directly into its existing group', () => {
   const content=copy(),inside=CONTENT_ZONES.filter(zone=>zone.inside);
   assert.ok(inside.length>=15,'inside zones cover the existing page groups');
-  const pageFor={home:'/',about:'/apie-mus/',contact:'/kontaktai/',camp:'/stovyklos/stovykla-01/'};
+  const pageFor={home:'/',about:'/apie-mus/',contact:'/kontaktai/',camp:CAMP_PATH};
   let next=100;
   for (const zone of inside) {
     const base=tokens(canvas(content,pageFor[zone.page]));
@@ -459,4 +461,80 @@ test('insertions follow their chosen part through reordering and remain visible 
   const html=renderPage(valid,'/').html;
   assert.ok(html.includes('Prieš antraštę')); assert.ok(html.includes('Prieš nuorodą')); assert.match(html,/alt="Vienintelė prisistatymo nuotrauka"/);
   assert.doesNotMatch(html,/href="\/apie-mus\/"[^>]*>Apie mus/);
+});
+
+const formUrl='https://docs.google.com/forms/d/e/example/viewform';
+function authoredRegistration() {
+  const content=copy();
+  content.hiddenParts=['registration.status'];
+  content.copy.registration.pendingText='Užpildyk registracijos anketą ir mes su tavimi susisieksime!';
+  content.pageBlocks.home=[block(1,'button','home.registrationStatus',{text:'REGISTRACIJA ČIA',url:formUrl,beforePart:'registration.text'})];
+  content.pageBlocks.camp=[block(2,'link','camp.registrationStatus',{text:'REGISTRACIJA ČIA',url:formUrl,beforePart:'registration.cta'})];
+  return parseContent(content);
+}
+
+test('an authored Google Forms link becomes the single primary registration action without rewriting content',()=>{
+  const content=authoredRegistration(),before=structuredClone(content);
+  content.camps[0].faq[0].answer='Patvirtintas atsakymas';
+  content.camps[0].faq[0].answerWhenOpen='Kitas atsakymas';
+  before.camps[0].faq=structuredClone(content.camps[0].faq);
+  for (const route of ['/',CAMP_PATH]) {
+    const html=canvas(content,route),records=tokens(html);
+    const section=records.find(tag=>tag.attrs.id==='registracija');
+    const inside=records.filter(tag=>tag.parents.includes(section));
+    const primary=inside.filter(tag=>tag.name==='a'&&tag.attrs.class?.split(' ').includes('registration-primary-link'));
+    assert.equal(primary.length,1,route); assert.equal(primary[0].attrs.href,formUrl);
+    const formAnchors=inside.filter(tag=>tag.name==='a'&&tag.attrs.href===formUrl);
+    assert.equal(formAnchors.length,1,'the existing authored form is reused, rather than copied');
+    assert.match(html,/REGISTRACIJA ČIA/); assert.ok(html.includes(content.copy.registration.pendingText));
+    assert.ok(inside.some(tag=>tag.attrs['data-registration-status']==='open'));
+    const support=inside.filter(tag=>tag.name==='a'&&tag.attrs.class?.split(' ').includes('registration-support-link'));
+    assert.equal(support.length,2); assert.ok(support.some(tag=>tag.attrs.href.startsWith('mailto:'))); assert.ok(support.some(tag=>tag.attrs.href.startsWith('tel:')));
+    assert.ok(support.every(tag=>!tag.attrs.class.split(' ').includes('button')));
+    const top=records.find(tag=>tag.attrs['data-cms-link']===(route==='/'?'home.hero.cta':'detail.cta'));
+    assert.equal(top.attrs.href,'#registracija','the first action retains registration context on the current page');
+    if (route===CAMP_PATH) { assert.ok(html.includes('Patvirtintas atsakymas')); assert.ok(!html.includes('Kitas atsakymas'),'inferring an authored form never switches approved FAQ copy'); }
+  }
+  assert.deepEqual(content,before,'rendering does not mutate authored text, media or settings');
+});
+
+test('configured forms preserve context links and do not duplicate an authored registration button',()=>{
+  const content=authoredRegistration(); content.camps[0].registrationUrl=formUrl;
+  for (const route of ['/',CAMP_PATH]) {
+    const html=renderPage(content,route).html;
+    const formAnchors=tokens(html).filter(tag=>tag.name==='a'&&tag.attrs.href===formUrl);
+    assert.equal(formAnchors.length,1);
+    assert.ok(!html.includes(content.copy.registration.openButton),'no generated duplicate registration label is inserted');
+    assert.match(html,/href="#registracija" data-registration-intent/);
+  }
+  const about=tokens(canvas(content,PAGE_ROUTES.about)).find(tag=>tag.attrs['data-cms-link']==='about.cta');
+  assert.equal(about.attrs.href,`${CAMP_PATH}#registracija`);
+});
+
+test('a page without its own authored form can reuse the shared invitation once',()=>{
+  const content=authoredRegistration(); content.pageBlocks.camp=[];
+  const html=canvas(content,CAMP_PATH),anchors=tokens(html).filter(tag=>tag.name==='a'&&tag.attrs.href===formUrl);
+  assert.equal(anchors.length,1); assert.match(html,/REGISTRACIJA ČIA/);
+  assert.match(anchors[0].attrs.class,/registration-primary-link/);
+  assert.doesNotMatch(html,/data-cms-block="00000000000000000000000000000001"/,'a borrowed action is not presented as an editable local block');
+});
+
+test('camp navigation uses the canonical page while the detail back action retains the home overview',()=>{
+  const content=authoredRegistration();
+  for (const route of ['/',PAGE_ROUTES.about,CAMP_PATH]) {
+    const records=tokens(canvas(content,route));
+    const nav=records.find(tag=>tag.attrs['data-cms-link']==='common.nav.camp');
+    assert.equal(nav.attrs.href,CAMP_PATH);
+    assert.equal(nav.attrs['aria-current'],route===CAMP_PATH?'page':undefined);
+    if(route===CAMP_PATH) assert.equal(records.find(tag=>tag.attrs['data-cms-link']==='detail.back').attrs.href,'/#stovykla');
+  }
+});
+
+test('hidden camp photo dimensions do not change the visible photo composition',()=>{
+  const content=copy(); content.camps[0].secondaryImageHidden=true;
+  content.blockLayouts['photo-camps-0-secondaryImage']=dimensions({width:62,height:138});
+  const records=tokens(canvas(content));
+  assert.ok(records.some(tag=>tag.attrs.class?.split(' ').includes('camp-visual')));
+  assert.ok(!records.some(tag=>tag.attrs.class?.split(' ').includes('cms-camp-manual-width')));
+  assert.ok(!renderLayoutRules(content).some(rule=>rule.selector==='.cms-page-home .responsive-camp-middle'));
 });

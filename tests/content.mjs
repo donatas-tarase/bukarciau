@@ -4,22 +4,23 @@ import {readFile} from 'node:fs/promises';
 import {createHash} from 'node:crypto';
 import {CONTENT_FIELDS, IMAGE_FIELDS, IMAGE_ASPECT_RATIOS, parseContent, normalizeContent, getPath, setPath, getImageReferences, ValidationError} from '../shared/content.mjs';
 import {renderPage, renderRobots, renderSitemap} from '../shared/render.mjs';
+import {PAGE_PATHS, CAMP_PATH} from '../shared/routes.mjs';
 
 const original = parseContent(JSON.parse(await readFile(new URL('../content.json', import.meta.url), 'utf8')));
-const routes = ['/', '/apie-mus/', '/kontaktai/', '/stovyklos/stovykla-01/', '/404.html'];
+const routes = PAGE_PATHS;
 const copy = () => structuredClone(original);
 const publicHtml = content => routes.map(route => renderPage(content, route).html).join('\n');
 const image = '/media/0123456789abcdef0123456789abcdef.jpg';
 
 test('initial editor content preserves the reviewed static public pages', () => {
-  // Reviewed static pages, with the requested hero-arrow removal on the home route.
+  // Reviewed page markup after the responsive polish and canonical camp routing.
   // Ignore only the automatic copyright year; CSS is deliberately outside this contract.
   const expected = [
-    '555404b01232257413a212f9c7c1ac54d74084090dec457997b015e6dc25dbff',
-    'e156d0452ed92d9ead699f9d641b225f95a5d43adaf805b0ebfc377aeccd1488',
-    'bfbab07c1a64b016aefb31000317fed91a1ce5527369942c18a198d1b5dc5e55',
-    'fb7f708a839a08ffbd03e18139cc7b8d10c77a0f7466e4545f098e11f7e8e070',
-    'b7275f75ceeb5620e16519f7d63de0d1570209954fc4acd4b47d3a76e438b103'
+    'dc24d69969a237554c5abad0789621af2e226b9d90b306bf071d36b68988032d',
+    '6eb2f52e6a3f1072c29c0912b69eb315dec6db7f035d4777809891a1c60f0f65',
+    'dbaa8d0977dc5480b3381583dc205b2f2e3cb075f18b596378b1715e81ea1ded',
+    '00dafba1ed0446148a9b88b48acc67a61c173c6170e3e5b70f254d842ca9ae6e',
+    'e111e6ad9bbdaf6ec3954ad5dfed98a3ccfb01e5ae0b1e7dd0ceb59c85944cd2'
   ];
   for (const [index, route] of routes.entries()) {
     const {html} = renderPage(original, route);
@@ -98,7 +99,8 @@ test('one camp, the canonical origin and public route structure remain fixed', (
   for (const mutate of [content => content.camps.push(structuredClone(content.camps[0])), content => content.camps = [], content => content.camps[0].slug = '../admin', content => content.site.url = 'https://attacker.example']) {
     const content = copy(); mutate(content); assert.throws(() => parseContent(content), ValidationError);
   }
-  for (const path of ['/admin/', '/stovyklos/stovykla-02/', '/unknown/', '//example.com', '/../admin']) assert.equal(renderPage(original, path), null);
+  for (const path of ['/admin/', '/unknown/', '//example.com', '/../admin']) assert.equal(renderPage(original, path), null);
+  assert.equal(renderPage(original, '/stovyklos/stovykla-02/').html, renderPage(original, CAMP_PATH).html);
   assert.equal(renderPage(original, '/index.html').html, renderPage(original, '/').html);
   assert.equal(renderPage(original, '/kontaktai/index.html').html, renderPage(original, '/kontaktai/').html);
 });
@@ -360,7 +362,7 @@ test('draft preview uses authenticated image URLs and never changes public index
   assert.match(preview.html, /name="robots" content="noindex, nofollow"/);
   assert.equal(content.site.draft, false);
   assert.match(renderRobots(content), /Allow: \/\nSitemap: https:\/\/bukarciau\.lt\/sitemap\.xml/);
-  assert.match(renderSitemap(content), /<loc>https:\/\/bukarciau\.lt\/stovyklos\/stovykla-01\/<\/loc>/);
+  assert.ok(renderSitemap(content).includes(`<loc>https://bukarciau.lt${CAMP_PATH}</loc>`));
   content.site.draft = true;
   assert.ok(renderPage(content, '/').html.includes(content.site.heroAccent), 'SEO draft does not make the public site private.');
   assert.match(renderRobots(content), /Disallow: \//);

@@ -52,7 +52,6 @@ const types={'.html':'text/html; charset=utf-8','.css':'text/css; charset=utf-8'
 const env={CMS_DB:database,CMS_MEDIA:media,ASSETS:{async fetch(request){
   const url=new URL(request.url);
   if(/^\/_/.test(url.pathname)) return new Response('Nerasta',{status:404});
-  if(['/stovyklos/stovykla-02','/stovyklos/stovykla-02/'].includes(url.pathname)) return Response.redirect(url.origin+'/#stovykla',301);
   let path=resolve(root,'.'+url.pathname);
   if(path!==root&&!path.startsWith(root+sep)) return new Response('Nerasta',{status:404});
   let statusCode=200;

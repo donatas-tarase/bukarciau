@@ -1,6 +1,6 @@
 # Svetainės turinys
 
-Turinio redaktorius leidžia keisti tekstus, kontaktus, nuotraukas, vienos stovyklos informaciją, registracijos nuorodą ir paieškos aprašymus. Dizainas, blokų tvarka, spalvos, šriftai, puslapių adresai ir logotipai nustatyti kode. Redaktorius neleidžia įterpti HTML, JavaScript ar savavališkų maketo laukų; įrašytas tekstas rodomas kaip tekstas.
+Turinio redaktorius leidžia keisti tekstus, kontaktus, nuotraukas, vienos stovyklos informaciją, registracijos nuorodą ir paieškos aprašymus. Dizainą, blokų tvarką, spalvas ir šriftus galima keisti ribotuose redaktoriaus valdikliuose. Puslapių adresai ir logotipai nustatyti kode. Redaktorius neleidžia įterpti HTML, JavaScript ar savavališkų maketo laukų; įrašytas tekstas rodomas kaip tekstas.
 
 Prisijungimui sukonfigūruotas Cloudflare Access, turiniui - D1, o nuotraukoms - privati R2 saugykla. Vietinį redaktorių galima išbandyti pagal [README](../README.md). Kasdienio naudojimo veiksmai aprašyti [administravimo instrukcijoje](administravimas.md).
 
@@ -21,7 +21,7 @@ Tekstą galima redaguoti tiesiai puslapio vaizde. Kontaktinių nuorodų adresai,
 
 ## Viena stovykla
 
-Svetainėje yra viena stovykla, jos adresas fiksuotas: `/stovyklos/stovykla-01/`. Dabartinė žinoma data - „Gruodžio 5 d.“; metai ir pabaigos data nenurodyti. Vieta, kaina, programa ir Google Forms anketa dar negautos.
+Svetainėje yra viena stovykla, jos adresas fiksuotas: `/stovyklos/moteru-savaitgalio-stovykla/`. Ankstesni numeruoti adresai nukreipiami į šį puslapį. Aktualius organizatorių tekstus, datas, vietą, kainą ir registracijos nuorodą pateikia paskelbta D1 turinio versija; `content.json` yra pradinės tuščios bazės pavyzdys.
 
 Nežinomą vietą, kainą ir registracijos nuorodą palikite tuščias. Duomenyse jos normalizuojamos į `null`. Kol programa nežinoma, palikite tuščią programos sąrašą. Svetainė parodo redaguojamus pranešimus apie dar ruošiamą informaciją. Tušti įskaičiuotų ir neįskaičiuotų dalykų sąrašai viešame puslapyje nerodomi.
 
@@ -31,7 +31,7 @@ Datos ir kontaktų pakeitimai automatiškai neatnaujina jų paminėjimų laisvai
 
 ## Registracija
 
-Registracijos skyriuje įrašykite tikrą HTTPS Google Forms nuorodą, kai ji bus paruošta. Kol nuorodos nėra, „Noriu dalyvauti“ atveria registracijos informaciją su kontaktais. Įrašius nuorodą, kvietimo mygtukai pradeda atidaryti anketą naujame skirtuke. Ruošiamos ir atviros registracijos tekstus galima keisti atskirai.
+Registracijos skyriuje įrašykite tikrą HTTPS Google Forms nuorodą, kai ji bus paruošta. Kol nuorodos nėra, „Noriu dalyvauti“ atveria registracijos informaciją su kontaktais. Registracijos skiltyje anketa atidaroma naujame skirtuke. Viršutiniai kvietimai dalyvauti veda į šią skiltį, o el. paštas ir telefonas išlieka papildomais kontaktais. Ruošiamos ir atviros registracijos tekstus galima keisti atskirai.
 
 Formą patikrinkite atsijungę nuo Google paskyros. Pavyzdinės nuorodos nelaikykite veikiančia registracija. Dalyvių atsakymai lieka Google Forms; šis redaktorius jų nerenka ir neadministruoja.
 

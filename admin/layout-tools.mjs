@@ -42,7 +42,7 @@ export function createLayoutTools(api) {
     const doc = api.doc(), overlay = doc?.querySelector('.cms-resize-overlay');
     if (!overlay) return;
     const selected = selectedId && elementFor(selectedId);
-    overlay.hidden = !selected || api.mode() !== 'edit';
+    overlay.hidden = !selected || api.mode() !== 'edit' || api.device?.() === 'mobile';
     if (overlay.hidden) return;
     const rect = selected.getBoundingClientRect();
     for (const handle of overlay.children) {
@@ -76,7 +76,7 @@ export function createLayoutTools(api) {
       const invalid = value != null && (!Number.isInteger(value) || value < field.min || value > field.max);
       return `<label class="tools-field"><span>${escape(field.label)}</span><div class="layout-number"><input class="input" type="number" data-layout-field="${field.key}" min="${field.min}" max="${field.max}" step="1" value="${value ?? ''}" placeholder="Automatiškai" aria-label="${escape(field.label)} (${field.unit})"${invalid ? ' aria-invalid="true"' : ''}><span>${field.unit}</span></div>${field.key === 'width' ? `<input class="layout-width-range" type="range" min="${field.min}" max="${field.max}" step="1" value="${value ?? 100}" data-layout-range="width" aria-label="Bloko plotis slankikliu">` : ''}</label>`;
     }).join('') : '';
-    container.innerHTML = `<div class="layout-inspector-heading"><strong>Bloko matmenys</strong>${target ? `<button type="button" class="icon-button" data-close-layout aria-label="Baigti matmenų redagavimą">×</button>` : ''}</div><label class="tools-field"><span>Pasirinktas blokas</span><select class="input" data-layout-target><option value="">Pasirink puslapyje arba sąraše</option>${choices}</select></label>${target ? `<p class="layout-target-name">${escape(target.label)}</p><div class="layout-fields">${fields}</div><p class="field-help">${target.type === 'photo' ? 'Plotis keičia visą nuotraukos bloką. Nurodytas aukštis turi pirmenybę prieš proporcijas.' : 'Aukštis gali padidėti, jei to reikia tekstui. Nurodžius aukštį automatiniai tarpai sumažinami.'}</p><p class="field-help">Gali keisti matmenis ir vilkdama pažymėto bloko kraštą arba kampą.</p><button class="button button-outline layout-reset" type="button" data-reset-layout>Grąžinti matmenis pagal dizainą</button>` : '<p class="field-help">Paspausk nuotrauką, tekstą ar skiltį. Pažymėto bloko kraštus galima tempti pele.</p>'}`;
+    container.innerHTML = `<div class="layout-inspector-heading"><strong>Bloko matmenys</strong>${target ? `<button type="button" class="icon-button" data-close-layout aria-label="Baigti matmenų redagavimą">×</button>` : ''}</div><label class="tools-field"><span>Pasirinktas blokas</span><select class="input" data-layout-target><option value="">Pasirink puslapyje arba sąraše</option>${choices}</select></label>${target ? `<p class="layout-target-name">${escape(target.label)}</p><div class="layout-fields">${fields}</div><p class="field-help">${target.type === 'photo' ? 'Plotis keičia visą nuotraukos bloką. Nurodytas aukštis turi pirmenybę prieš proporcijas.' : 'Aukštis gali padidėti, jei to reikia tekstui. Nurodžius aukštį automatiniai tarpai sumažinami.'}</p><p class="field-help">${api.device?.() === 'mobile' ? 'Telefono vaizdas prisitaiko automatiškai. Matmenis vilkdama keisk kompiuterio peržiūroje.' : 'Gali keisti matmenis ir vilkdama pažymėto bloko kraštą arba kampą.'}</p><button class="button button-outline layout-reset" type="button" data-reset-layout>Grąžinti matmenis pagal dizainą</button>` : '<p class="field-help">Paspausk nuotrauką, tekstą ar skiltį. Pažymėto bloko kraštus galima tempti pele.</p>'}`;
     highlight();
   }
   function select(id,manual = false) {
@@ -115,10 +115,39 @@ export function createLayoutTools(api) {
   }
   function widthBasis(element,target) {
     if (target.type === 'photo') {
-      const value = dimensions().width;
-      const size = getImageSettings(api.content(),target.path).size;
-      const percent = value ?? ({small:55,normal:75,large:100}[size] || 100);
-      return element.getBoundingClientRect().width/(percent/100);
+      const view = element.ownerDocument.defaultView;
+      const mobile = view.matchMedia('(max-width:760px)').matches;
+      const availableWidth = container => {
+        const style = view.getComputedStyle(container);
+        return Math.max(1,container.clientWidth-(parseFloat(style.paddingLeft) || 0)-(parseFloat(style.paddingRight) || 0));
+      };
+      const pairedWidth = container => Math.max(1,(availableWidth(container)-(parseFloat(view.getComputedStyle(container).columnGap) || 0))/2);
+      const layout = element.closest('.responsive-layout');
+      if (layout) {
+        const columns = view.getComputedStyle(layout).gridTemplateColumns.trim().split(/\s+/).length;
+        if (columns > 1 && layout.matches('.r-position-left,.r-position-right') && !layout.matches('.without-copy,.without-media')) return pairedWidth(layout);
+        return availableWidth(element.closest('.responsive-layout-media') || layout);
+      }
+      const hero = element.closest('.responsive-hero');
+      if (hero) {
+        if (!mobile && hero.matches('.hero-position-left,.hero-position-right') && !hero.matches('.hero-hidden')) return pairedWidth(hero);
+        return availableWidth(hero);
+      }
+      const campColumn = element.closest('.responsive-camp-left,.responsive-camp-right');
+      if (campColumn) {
+        const camp = campColumn.closest('.responsive-camp-middle');
+        if (!mobile && camp) {
+          // A single photo column uses the same original half-width as other
+          // paired layouts. Two photo columns retain their existing proportions.
+          if (!camp.matches('.has-left.has-right')) return pairedWidth(camp);
+          const value = dimensions().width;
+          const size = getImageSettings(api.content(),target.path).size;
+          const percent = value ?? ({small:55,normal:75,large:100}[size] || 100);
+          return Math.max(1,element.getBoundingClientRect().width/(percent/100));
+        }
+        return availableWidth(campColumn);
+      }
+      return availableWidth(element.parentElement);
     }
     const parent = element.parentElement;
     const style = element.ownerDocument.defaultView.getComputedStyle(parent);

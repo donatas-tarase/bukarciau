@@ -9,6 +9,7 @@ import { CmsStore } from '../server/store.mjs';
 import { inspectImage, readBodyLimited } from '../server/media.mjs';
 import { DEFAULT_CONTENT, IMAGE_FIELDS, IMAGE_ASPECT_RATIOS, getPath, setPath, parseContent, getImageReferences, getImageSettings, getDeviceContent, THEME_DEFAULTS } from '../shared/content.mjs';
 import { renderPage, renderRobots, renderSitemap } from '../shared/render.mjs';
+import { CAMP_PATH } from '../shared/routes.mjs';
 
 const schema = await readFile(new URL('../db/schema.sql', import.meta.url), 'utf8');
 const clone = object => structuredClone(object);
@@ -379,7 +380,7 @@ test('Photo ratios persist independently through draft, publish and history rest
   response = await h.request('/admin/api/publish', { method: 'POST', body: { revision: current.revision } });
   assert.equal(response.status, 200);
   const ratioVersion = (await (await h.request('/admin/api/history')).json()).versions[0];
-  const pages = await Promise.all(['/', '/apie-mus/', '/stovyklos/stovykla-01/'].map(async path => (await h.request(path)).text()));
+  const pages = await Promise.all(['/', '/apie-mus/', CAMP_PATH].map(async path => (await h.request(path)).text()));
   for (const option of selected) assert.ok(pages.some(html => html.includes(`image-ratio-${option.value.replace(':', '-')}`)), option.value);
   current = await state(h);
   current.content.site.heroImageRatio = '16:9';
@@ -427,7 +428,7 @@ test('Photo placement removal is draft-only until published and restores through
   assert.match(await (await h.request('/')).text(), /class="hero-media image-ratio-16-9"/);
   assert.doesNotMatch(await (await h.request('/admin/preview?path=/')).text(), /data-cms-image|hero-media|class="statement|camp-visual/);
   assert.equal((await h.request('/admin/api/publish', {method: 'POST', body: {revision: current.revision}})).status, 200);
-  for (const path of ['/', '/apie-mus/', '/stovyklos/stovykla-01/']) assert.doesNotMatch(await (await h.request(path)).text(), /src="\/media\/|hero-media|class="statement|camp-visual|detail-cover/);
+  for (const path of ['/', '/apie-mus/', CAMP_PATH]) assert.doesNotMatch(await (await h.request(path)).text(), /src="\/media\/|hero-media|class="statement|camp-visual|detail-cover/);
   const hiddenVersion = (await (await h.request('/admin/api/history')).json()).versions[0];
   current = await (await h.request('/admin/api/restore', {method: 'POST', body: {versionId: visibleVersion.id, revision: current.revision}})).json();
   for (const slot of IMAGE_FIELDS) assert.equal(getPath(current.content, slot.hiddenPath), false);

@@ -35,16 +35,17 @@ Testai tikrina turinio redagavimą, prisijungimo parašą ir teises, juodrašči
 
 [content.json](content.json) yra pradinis turinys naujai, tuščiai duomenų bazei ir statiniam atsarginiam build rezultatui. Kai D1 jau turi turinį, naujas kodo diegimas jo neperrašo. Pakeitus vien `content.json`, jau naudojamos D1 bazės turinys nepasikeičia.
 
-Kai registracijos nuorodos nėra, kvietimas dalyvauti veda į informaciją apie ruošiamą registraciją ir tikrus kontaktus. Įrašius veikiančią HTTPS Google Forms nuorodą, mygtukai atidaro ją naujame skirtuke. Svetainė pati dalyvių registracijos duomenų nerenka.
+Viršutiniai kvietimai dalyvauti veda į atitinkamo puslapio registracijos skiltį. Joje viena pagrindinė anketos nuoroda atsidaro naujame skirtuke, o el. paštas ir telefonas lieka papildomais kontaktais. Google Forms nuoroda atpažįstama ir įprastame registracijos lauke, ir organizatorių pridėtame registracijos bloke. Svetainė pati dalyvių registracijos duomenų nerenka.
 
 `site.draft` valdo tik paieškos indeksavimą. Tai atskiras nustatymas nuo redaktoriaus juodraščio: `noindex` nesuteikia privatumo ir neriboja viešos svetainės lankymo.
 
 ## Struktūra ir talpinimas
 
-- `/`, `/apie-mus/`, `/kontaktai/` ir `/stovyklos/stovykla-01/` - vieši puslapiai.
+- `/`, `/apie-mus/`, `/kontaktai/` ir `/stovyklos/moteru-savaitgalio-stovykla/` - vieši puslapiai.
 - `/admin/` - prisijungimu apsaugotas redaktorius, jo failai, juodraščio peržiūra ir API.
 - `shared/content.mjs` - leidžiami turinio laukai ir jų tikrinimas.
 - `shared/render.mjs` - bendri viešų puslapių ir redaktoriaus peržiūros šablonai.
+- `shared/routes.mjs` - bendri kanoniniai adresai, senų nuorodų migracija ir peradresavimai.
 - `server/` - Cloudflare Access JWT tikrinimas, turinio ir nuotraukų API.
 - `db/schema.sql` - D1 schema.
 - `dist/` ir `server/generated.mjs` - generuojami failai, jų tiesiogiai neredaguokite.

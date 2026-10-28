@@ -2,14 +2,9 @@ import { verifyAdminRequest, requireSameOriginMutation, readAccessConfig } from 
 import { HttpError, unavailable } from './errors.mjs';
 import { CmsStore } from './store.mjs';
 import { IMAGE_TYPES, MAX_UPLOAD_BYTES, MEDIA_ID, readBodyLimited, readImageUpload } from './media.mjs';
+import { PAGE_PATHS, ROUTE_REDIRECTS, canonicalPagePath } from '../shared/routes.mjs';
 
 const API_PREFIX = '/admin/api/';
-const CANONICAL_ALIASES = {
-  '/index.html': '/',
-  '/apie-mus': '/apie-mus/', '/apie-mus/index.html': '/apie-mus/',
-  '/kontaktai': '/kontaktai/', '/kontaktai/index.html': '/kontaktai/',
-  '/stovyklos/stovykla-01': '/stovyklos/stovykla-01/', '/stovyklos/stovykla-01/index.html': '/stovyklos/stovykla-01/',
-};
 const newId = () => crypto.randomUUID().replaceAll('-', '');
 const e = value => String(value).replace(/[&<>"']/g, char => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[char]));
 
@@ -182,8 +177,10 @@ export function createHandler(runtime) {
       if (!env.CMS_DB) throw unavailable();
       const store = new CmsStore(env.CMS_DB, initialContent);
       const state = await store.state();
-      const path = url.searchParams.get('path') || '/';
-      if (!/^\/(?!\/)[^?#]*$/.test(path) || path.startsWith('/admin')) throw new HttpError(422, 'PREVIEW_PATH_INVALID', 'Pasirinkite svetainės puslapį peržiūrai.');
+      const requestedPath = url.searchParams.get('path') || '/';
+      if (!/^\/(?!\/)[^?#]*$/.test(requestedPath) || requestedPath.startsWith('/admin')) throw new HttpError(422, 'PREVIEW_PATH_INVALID', 'Pasirinkite svetainės puslapį peržiūrai.');
+      const path = canonicalPagePath(requestedPath);
+      if (!path) throw new HttpError(404, 'PAGE_NOT_FOUND', 'Šio puslapio nėra.');
       const content = parse(state.content);
       // The shared renderer rewrites draft photographs to protected media URLs.
       const previewDevice = url.searchParams.get('device') || 'desktop';
@@ -331,12 +328,12 @@ export function createHandler(runtime) {
         catch { return secure(new Response('Nerasta', { status: 404, headers: { 'Cache-Control': 'no-store' } })); }
       }
       const pagePath = url.pathname;
-      if (Object.prototype.hasOwnProperty.call(CANONICAL_ALIASES, pagePath)) {
-        return secure(Response.redirect(`${url.origin}${CANONICAL_ALIASES[pagePath]}${url.search}`, 308));
+      if (Object.hasOwn(ROUTE_REDIRECTS, pagePath)) {
+        const redirect = ROUTE_REDIRECTS[pagePath];
+        return secure(Response.redirect(`${url.origin}${redirect.path}${url.search}${url.hash}`, redirect.status));
       }
-      const pageRoutes = ['/', '/apie-mus/', '/kontaktai/', '/stovyklos/stovykla-01/', '/404.html'];
       const textRoute = pagePath === '/robots.txt' || pagePath === '/sitemap.xml';
-      if (!pageRoutes.includes(pagePath) && !textRoute) {
+      if (!PAGE_PATHS.includes(pagePath) && !textRoute) {
         const response = await env.ASSETS.fetch(request);
         if (response.status !== 404 || !env.CMS_DB || /\.[a-z0-9]{1,12}$/i.test(pagePath)) return secure(response);
         try {
